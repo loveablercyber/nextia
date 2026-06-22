@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import {
-  FileText, Image as ImageIcon, Video, Folder, Upload, Trash2, Check, Download, AlertTriangle
+  FileText, Image as ImageIcon, Video, Folder, Upload, Download
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
-import Button from '../../components/ui/Button';
 
 export default function FilesPage() {
   const { project, uploadFile } = useProject();

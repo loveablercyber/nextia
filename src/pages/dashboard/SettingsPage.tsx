@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  User as UserIcon, Shield, Bell, CheckCircle2, Lock, Save
+  User as UserIcon, Bell, CheckCircle2, Lock, Save
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';

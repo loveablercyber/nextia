@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, ExternalLink, Calendar, AlertCircle, FileText,
-  Clock, Zap, CheckCircle2, AlertTriangle, ArrowUpRight
+  ArrowRight, ExternalLink, Calendar, AlertCircle,
+  Clock, Zap, CheckCircle2, ArrowUpRight
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { statusConfig } from '../../types/project';
-import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 
 export default function OverviewPage() {

@@ -1,10 +1,7 @@
-import { Link } from 'react-router-dom';
 import {
-  ExternalLink, Calendar, Shield, Globe, Cpu, CreditCard, CheckCircle, Clock
+  ExternalLink, Shield, Globe, Cpu, CreditCard
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
-import { statusConfig } from '../../types/project';
-import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 
 export default function ProjectPage() {
@@ -19,8 +16,6 @@ export default function ProjectPage() {
   }
 
   if (!project) return null;
-
-  const currentStatus = statusConfig[project.status];
 
   const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleDateString('pt-BR', {

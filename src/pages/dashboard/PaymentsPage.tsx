@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  CreditCard, CheckCircle2, AlertTriangle, Download, ArrowUpRight, DollarSign, ExternalLink
+  CreditCard, CheckCircle2, AlertTriangle, Download, ArrowUpRight, DollarSign
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import Button from '../../components/ui/Button';
@@ -121,7 +121,7 @@ export default function PaymentsPage() {
                     ) : (
                       <Button
                         variant="gradient"
-                        size="xs"
+                        size="sm"
                         loading={payingId === p.id}
                         onClick={() => handlePay(p.id)}
                       >
