@@ -31,6 +31,7 @@ import AdminOverviewPage from './pages/admin/AdminOverviewPage';
 import AdminProjectsPage from './pages/admin/AdminProjectsPage';
 import AdminRequestsPage from './pages/admin/AdminRequestsPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
+import AdminQuotesPage from './pages/admin/AdminQuotesPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -155,6 +156,14 @@ function AppRoutes() {
         element={
           <AdminContainer title="Painel de controle geral">
             <AdminOverviewPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/orcamentos"
+        element={
+          <AdminContainer title="Orçamentos recebidos">
+            <AdminQuotesPage />
           </AdminContainer>
         }
       />
