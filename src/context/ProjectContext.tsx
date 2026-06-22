@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Project, ProjectFile, ChangeRequest, Payment } from '../types/project';
 import { MOCK_PROJECTS } from '../types/project';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface ProjectContextValue {
   project: Project | null;
@@ -14,13 +15,98 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 const STORAGE_KEY = 'nextia_projects_state';
+const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Adapter: Maps database schema (snake_case) to UI models (camelCase)
+function mapProjectDbToUi(dbProj: any): Project {
+  return {
+    id: dbProj.id,
+    userId: dbProj.user_id,
+    name: dbProj.name,
+    template: dbProj.template,
+    segment: dbProj.segment,
+    status: dbProj.status,
+    plan: dbProj.plan,
+    siteUrl: dbProj.site_url,
+    previewUrl: dbProj.preview_url,
+    domain: dbProj.domain,
+    monthlyFee: Number(dbProj.monthly_fee || 0),
+    activationFee: Number(dbProj.activation_fee || 0),
+    startedAt: dbProj.started_at,
+    estimatedDelivery: dbProj.estimated_delivery,
+    publishedAt: dbProj.published_at,
+    progressPercent: Number(dbProj.progress_percent || 0),
+    requestsRemaining: Number(dbProj.requests_remaining || 0),
+    requestsTotal: Number(dbProj.requests_total || 0),
+    milestones: (dbProj.milestones || []).map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      status: m.status,
+      completedAt: m.completed_at,
+      estimatedAt: m.estimated_at
+    })),
+    files: (dbProj.files || []).map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      uploadedAt: f.uploaded_at,
+      uploadedBy: f.uploaded_by,
+      url: f.url
+    })),
+    changeRequests: (dbProj.change_requests || []).map((cr: any) => ({
+      id: cr.id,
+      title: cr.title,
+      description: cr.description,
+      status: cr.status,
+      priority: cr.priority,
+      createdAt: cr.created_at,
+      resolvedAt: cr.resolved_at,
+      category: cr.category
+    })),
+    payments: (dbProj.payments || []).map((p: any) => ({
+      id: p.id,
+      description: p.description,
+      amount: Number(p.amount || 0),
+      dueDate: p.due_date,
+      paidAt: p.paid_at,
+      status: p.status,
+      type: p.type,
+      invoiceUrl: p.invoice_url
+    }))
+  };
+}
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load project from localStorage or initialize with mock data
+  const fetchSupabaseProject = async (userId: string) => {
+    try {
+      // Fetch project belonging to user including milestones, files, requests, payments
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*, milestones(*), files(*), change_requests(*), payments(*)')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching project from Supabase:', error);
+        return null;
+      }
+
+      if (data) {
+        return mapProjectDbToUi(data);
+      }
+    } catch (err) {
+      console.error('Unexpected error loading Supabase data:', err);
+    }
+    return null;
+  };
+
+  // Load project
   useEffect(() => {
     if (!user) {
       setProject(null);
@@ -28,29 +114,41 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setLoading(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    let projectsList: Project[] = [];
+    const loadData = async () => {
+      setLoading(true);
 
-    if (stored) {
-      try {
-        projectsList = JSON.parse(stored);
-      } catch {
-        projectsList = MOCK_PROJECTS;
+      if (isSupabaseEnabled) {
+        // ── Supabase Loader ──
+        const p = await fetchSupabaseProject(user.id);
+        setProject(p);
+      } else {
+        // ── LocalStorage Mock Loader ──
+        const stored = localStorage.getItem(STORAGE_KEY);
+        let projectsList: Project[] = [];
+
+        if (stored) {
+          try {
+            projectsList = JSON.parse(stored);
+          } catch {
+            projectsList = MOCK_PROJECTS;
+          }
+        } else {
+          projectsList = MOCK_PROJECTS;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(projectsList));
+        }
+
+        const userProj = projectsList.find(p => p.userId === user.id) || projectsList[0];
+        setProject(userProj || null);
       }
-    } else {
-      projectsList = MOCK_PROJECTS;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projectsList));
-    }
 
-    // Find project belonging to current user (or fallback/default to proj-001 for demo purposes)
-    const userProj = projectsList.find(p => p.userId === user.id) || projectsList[0];
-    setProject(userProj || null);
-    setLoading(false);
+      setLoading(false);
+    };
+
+    loadData();
   }, [user]);
 
-  // Helper to save project list back to storage
-  const saveProjectState = (updatedProject: Project) => {
+  // Helper to save mock list to storage
+  const saveProjectStateMock = (updatedProject: Project) => {
     setProject(updatedProject);
     const stored = localStorage.getItem(STORAGE_KEY);
     let projectsList: Project[] = [];
@@ -65,33 +163,62 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
   };
 
-  // ── uploadFile ─────────────────────────────────────────────────────────────
-  // Phase 3: replace with Supabase Storage upload + DB insert
+  // ── uploadFile ──
   const uploadFile = async (fileData: { name: string; size: string; type: ProjectFile['type'] }) => {
     if (!project || !user) return;
-    
-    await new Promise(r => setTimeout(r, 800)); // simulate network delay
 
-    const newFile: ProjectFile = {
-      id: `file-${Date.now()}`,
-      name: fileData.name,
-      size: fileData.size,
-      type: fileData.type,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: user.name,
-      url: '#',
-    };
+    if (isSupabaseEnabled) {
+      // ── Supabase Upload ──
+      const dbFile = {
+        project_id: project.id,
+        name: fileData.name,
+        size: fileData.size,
+        type: fileData.type,
+        uploaded_by: user.name,
+        url: '#' // In Phase 6: use supabase.storage.from('briefing').getPublicUrl()
+      };
 
-    const updated = {
-      ...project,
-      files: [newFile, ...project.files],
-    };
+      const { data, error } = await supabase
+        .from('files')
+        .insert([dbFile])
+        .select()
+        .single();
 
-    saveProjectState(updated);
+      if (error) {
+        console.error('Error inserting file in Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        const newFile: ProjectFile = {
+          id: data.id,
+          name: data.name,
+          size: data.size,
+          type: data.type as any,
+          uploadedAt: data.uploaded_at,
+          uploadedBy: data.uploaded_by,
+          url: data.url
+        };
+        setProject(p => p ? { ...p, files: [newFile, ...p.files] } : null);
+      }
+    } else {
+      // ── Mock Upload ──
+      await new Promise(r => setTimeout(r, 800));
+      const newFile: ProjectFile = {
+        id: `file-${Date.now()}`,
+        name: fileData.name,
+        size: fileData.size,
+        type: fileData.type,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: user.name,
+        url: '#',
+      };
+      const updated = { ...project, files: [newFile, ...project.files] };
+      saveProjectStateMock(updated);
+    }
   };
 
-  // ── addChangeRequest ───────────────────────────────────────────────────────
-  // Phase 3: replace with DB insert
+  // ── addChangeRequest ──
   const addChangeRequest = async (
     title: string,
     description: string,
@@ -99,53 +226,112 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     priority: 'baixa' | 'normal' | 'alta'
   ) => {
     if (!project) return;
-    
-    await new Promise(r => setTimeout(r, 800)); // simulate network delay
 
-    const newRequest: ChangeRequest = {
-      id: `cr-${Date.now()}`,
-      title,
-      description,
-      status: 'aberto',
-      priority,
-      createdAt: new Date().toISOString(),
-      category,
-    };
+    if (isSupabaseEnabled) {
+      // ── Supabase Change Request ──
+      const dbRequest = {
+        project_id: project.id,
+        title,
+        description,
+        status: 'aberto',
+        priority,
+        category
+      };
 
-    const updated = {
-      ...project,
-      changeRequests: [newRequest, ...project.changeRequests],
-      requestsRemaining: Math.max(0, project.requestsRemaining - 1),
-    };
+      const { data, error } = await supabase
+        .from('change_requests')
+        .insert([dbRequest])
+        .select()
+        .single();
 
-    saveProjectState(updated);
+      if (error) {
+        console.error('Error inserting change request in Supabase:', error);
+        return;
+      }
+
+      if (data) {
+        // Also deduct quota in Supabase
+        const nextQuota = Math.max(0, project.requestsRemaining - 1);
+        await supabase
+          .from('projects')
+          .update({ requests_remaining: nextQuota })
+          .eq('id', project.id);
+
+        const newRequest: ChangeRequest = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          status: data.status as any,
+          priority: data.priority as any,
+          createdAt: data.created_at,
+          category: data.category
+        };
+
+        setProject(p => p ? {
+          ...p,
+          changeRequests: [newRequest, ...p.changeRequests],
+          requestsRemaining: nextQuota
+        } : null);
+      }
+    } else {
+      // ── Mock Change Request ──
+      await new Promise(r => setTimeout(r, 800));
+      const newRequest: ChangeRequest = {
+        id: `cr-${Date.now()}`,
+        title,
+        description,
+        status: 'aberto',
+        priority,
+        createdAt: new Date().toISOString(),
+        category,
+      };
+      const updated = {
+        ...project,
+        changeRequests: [newRequest, ...project.changeRequests],
+        requestsRemaining: Math.max(0, project.requestsRemaining - 1),
+      };
+      saveProjectStateMock(updated);
+    }
   };
 
-  // ── simulatePayment ────────────────────────────────────────────────────────
-  // Phase 3: replace with Stripe/Asaas webhook checkout flow
+  // ── simulatePayment ──
   const simulatePayment = async (paymentId: string) => {
     if (!project) return;
 
-    await new Promise(r => setTimeout(r, 1000)); // simulate payment gateway delay
+    if (isSupabaseEnabled) {
+      // ── Supabase Payment Update ──
+      const { error } = await supabase
+        .from('payments')
+        .update({ status: 'pago', paid_at: new Date().toISOString(), invoice_url: '#' })
+        .eq('id', paymentId);
 
-    const updatedPayments = project.payments.map((p): Payment => {
-      if (p.id === paymentId) {
-        return {
-          ...p,
-          status: 'pago',
-          paidAt: new Date().toISOString(),
-          invoiceUrl: '#',
-        };
+      if (error) {
+        console.error('Error updating payment status in Supabase:', error);
+        return;
       }
-      return p;
-    });
 
-    const updated = {
-      ...project,
-      payments: updatedPayments,
-    };
-
-    saveProjectState(updated);
+      setProject(p => {
+        if (!p) return null;
+        const updatedPayments = p.payments.map((pay): Payment => {
+          if (pay.id === paymentId) {
+            return { ...pay, status: 'pago', paidAt: new Date().toISOString(), invoiceUrl: '#' };
+          }
+          return pay;
+        });
+        return { ...p, payments: updatedPayments };
+      });
+    } else {
+      // ── Mock Payment Update ──
+      await new Promise(r => setTimeout(r, 1000));
+      const updatedPayments = project.payments.map((p): Payment => {
+        if (p.id === paymentId) {
+          return { ...p, status: 'pago', paidAt: new Date().toISOString(), invoiceUrl: '#' };
+        }
+        return p;
+      });
+      const updated = { ...project, payments: updatedPayments };
+      saveProjectStateMock(updated);
+    }
   };
 
   return (

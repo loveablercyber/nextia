@@ -12,17 +12,25 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import QuotePage from './pages/QuotePage';
 
-// Auth and Project Imports
+// Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
+import { AdminProvider } from './context/AdminContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import DashboardLayout from './components/dashboard/DashboardLayout';
+import AdminLayout from './components/admin/AdminLayout';
 import OverviewPage from './pages/dashboard/OverviewPage';
 import ProjectPage from './pages/dashboard/ProjectPage';
 import FilesPage from './pages/dashboard/FilesPage';
 import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
+
+// Admin Pages
+import AdminOverviewPage from './pages/admin/AdminOverviewPage';
+import AdminProjectsPage from './pages/admin/AdminProjectsPage';
+import AdminRequestsPage from './pages/admin/AdminRequestsPage';
+import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -62,9 +70,21 @@ function DashboardContainer({ children, title }: { children: React.ReactNode; ti
   );
 }
 
+function AdminContainer({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <ProtectedRoute requireRole="admin">
+      <AdminProvider>
+        <AdminLayout title={title}>
+          {children}
+        </AdminLayout>
+      </AdminProvider>
+    </ProtectedRoute>
+  );
+}
+
 function AppRoutes() {
   const { pathname } = useLocation();
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel');
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin');
 
   const content = (
     <Routes>
@@ -126,6 +146,40 @@ function AppRoutes() {
           <DashboardContainer title="Configurações de conta">
             <SettingsPage />
           </DashboardContainer>
+        }
+      />
+
+      {/* Admin Subroutes */}
+      <Route
+        path="/admin"
+        element={
+          <AdminContainer title="Painel de controle geral">
+            <AdminOverviewPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/projetos"
+        element={
+          <AdminContainer title="Gestão de projetos">
+            <AdminProjectsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/chamados"
+        element={
+          <AdminContainer title="Gestão de solicitações">
+            <AdminRequestsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/cobrancas"
+        element={
+          <AdminContainer title="Gestão financeira">
+            <AdminPaymentsPage />
+          </AdminContainer>
         }
       />
 

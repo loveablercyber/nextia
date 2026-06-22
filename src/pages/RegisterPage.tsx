@@ -1,30 +1,99 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, Zap, CheckCircle } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { templates } from '../data/templates';
+import { supabase } from '../lib/supabase';
+
+const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function RegisterPage() {
   useEffect(() => {
     document.title = 'Criar conta — Nextia';
   }, []);
 
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', company: '', password: '', confirmPassword: '',
     terms: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    // Validações
+    if (form.password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    if (!form.terms) {
+      setError('Você deve aceitar os termos de uso.');
+      return;
+    }
+
     setLoading(true);
-    // Simulated register — Fase 3 integra Supabase
-    setTimeout(() => setLoading(false), 1500);
+
+    if (isSupabaseEnabled) {
+      try {
+        // Gerar iniciais do avatar a partir do nome
+        const nameParts = form.name.trim().split(/\s+/);
+        const initials = nameParts.length >= 2
+          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+          : form.name.substring(0, 2).toUpperCase();
+
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: {
+            data: {
+              name: form.name,
+              company: form.company,
+              phone: form.phone,
+              role: 'client',
+              avatar_initials: initials,
+            }
+          }
+        });
+
+        if (signUpError) {
+          setError(signUpError.message);
+          setLoading(false);
+          return;
+        }
+
+        setSuccess(true);
+        setLoading(false);
+
+        // Redirecionar para o painel após 2 segundos
+        setTimeout(() => {
+          navigate('/painel');
+        }, 2500);
+      } catch (err: any) {
+        setError(err.message || 'Ocorreu um erro ao criar sua conta.');
+        setLoading(false);
+      }
+    } else {
+      // Simulação sem Supabase
+      await new Promise(r => setTimeout(r, 1500));
+      setSuccess(true);
+      setLoading(false);
+      setTimeout(() => {
+        navigate('/login');
+      }, 2500);
+    }
   };
 
   return (
@@ -77,154 +146,172 @@ export default function RegisterPage() {
             <span className="text-xl font-black text-gray-900">Nextia</span>
           </Link>
 
-          <h1 className="text-3xl font-black text-gray-900 mb-2">Criar conta</h1>
-          <p className="text-gray-500 mb-8">
-            Preencha seus dados para começar.
-          </p>
-
-          {selectedTemplate && (
-            <div className="mb-6 p-3 bg-[#eef2ff] border border-[#c7d2fe] rounded-xl flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#5B4FE9] flex items-center justify-center flex-shrink-0">
-                <Zap className="w-4 h-4 text-white" />
+          {success ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <div>
-                <div className="text-xs text-gray-400">Modelo selecionado</div>
-                <div className="text-[#5B4FE9] font-bold text-sm">{selectedTemplate.name}</div>
-              </div>
+              <h2 className="text-2xl font-black text-gray-900 mb-2">Conta criada com sucesso!</h2>
+              <p className="text-gray-500 mb-4">
+                {isSupabaseEnabled
+                  ? 'Verifique seu e-mail para confirmar a conta. Redirecionando...'
+                  : 'Redirecionando para o login...'}
+              </p>
+              <div className="w-8 h-8 border-4 border-[#5B4FE9] border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
-          )}
+          ) : (
+            <>
+              <h1 className="text-3xl font-black text-gray-900 mb-2">Criar conta</h1>
+              <p className="text-gray-500 mb-8">
+                Preencha seus dados para começar.
+              </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="reg-name" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Nome completo *
-                </label>
-                <input
-                  id="reg-name"
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="João Silva"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="reg-phone" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  WhatsApp *
-                </label>
-                <input
-                  id="reg-phone"
-                  type="tel"
-                  required
-                  value={form.phone}
-                  onChange={e => setForm({ ...form, phone: e.target.value })}
-                  placeholder="(11) 99999-9999"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="reg-company" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Nome do negócio / Empresa
-              </label>
-              <input
-                id="reg-company"
-                type="text"
-                value={form.company}
-                onChange={e => setForm({ ...form, company: e.target.value })}
-                placeholder="Restaurante Sabor & Arte"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reg-email" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                E-mail *
-              </label>
-              <input
-                id="reg-email"
-                type="email"
-                required
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="seu@email.com.br"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-              />
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="reg-password" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Senha *
-                </label>
-                <div className="relative">
-                  <input
-                    id="reg-password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={form.password}
-                    onChange={e => setForm({ ...form, password: e.target.value })}
-                    placeholder="Mín. 8 caracteres"
-                    className="w-full px-4 py-3 pr-10 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 text-sm">{error}</p>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="reg-confirm" className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Confirmar senha *
-                </label>
-                <input
-                  id="reg-confirm"
-                  type="password"
-                  required
-                  value={form.confirmPassword}
-                  onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                  placeholder="Repita a senha"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
+              )}
 
-            <div className="flex items-start gap-3">
-              <input
-                id="terms"
-                type="checkbox"
-                required
-                checked={form.terms}
-                onChange={e => setForm({ ...form, terms: e.target.checked })}
-                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#5B4FE9] focus:ring-[#5B4FE9]"
-              />
-              <label htmlFor="terms" className="text-sm text-gray-500 leading-relaxed">
-                Concordo com os{' '}
-                <a href="#" className="text-[#5B4FE9] hover:underline">Termos de uso</a>{' '}
-                e a{' '}
-                <a href="#" className="text-[#5B4FE9] hover:underline">Política de privacidade</a> da Nextia.
-              </label>
-            </div>
+              {selectedTemplate && (
+                <div className="mb-6 p-3 bg-[#eef2ff] border border-[#c7d2fe] rounded-xl flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#5B4FE9] flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400">Modelo selecionado</div>
+                    <div className="text-[#5B4FE9] font-bold text-sm">{selectedTemplate.name}</div>
+                  </div>
+                </div>
+              )}
 
-            <Button type="submit" variant="gradient" size="lg" fullWidth loading={loading}>
-              {loading ? 'Criando conta...' : 'Criar minha conta'}
-            </Button>
-          </form>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="reg-name" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Nome completo *
+                    </label>
+                    <input
+                      id="reg-name"
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
+                      placeholder="João Silva"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="reg-phone" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      WhatsApp *
+                    </label>
+                    <input
+                      id="reg-phone"
+                      type="tel"
+                      required
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Já tem uma conta?{' '}
-            <Link to="/login" className="text-[#5B4FE9] font-semibold hover:underline">
-              Entrar
-            </Link>
-          </p>
+                <div>
+                  <label htmlFor="reg-company" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Nome do negócio / Empresa
+                  </label>
+                  <input
+                    id="reg-company"
+                    type="text"
+                    value={form.company}
+                    onChange={e => setForm({ ...form, company: e.target.value })}
+                    placeholder="Restaurante Sabor & Arte"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                  />
+                </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <p className="text-xs text-gray-400 text-center">
-              ⚠️ Cadastro simulado — integração com Supabase na Fase 3
-            </p>
-          </div>
+                <div>
+                  <label htmlFor="reg-email" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    E-mail *
+                  </label>
+                  <input
+                    id="reg-email"
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    placeholder="seu@email.com.br"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="reg-password" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Senha *
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="reg-password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={form.password}
+                        onChange={e => setForm({ ...form, password: e.target.value })}
+                        placeholder="Mín. 6 caracteres"
+                        className="w-full px-4 py-3 pr-10 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                      />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="reg-confirm" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Confirmar senha *
+                    </label>
+                    <input
+                      id="reg-confirm"
+                      type="password"
+                      required
+                      value={form.confirmPassword}
+                      onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                      placeholder="Repita a senha"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    required
+                    checked={form.terms}
+                    onChange={e => setForm({ ...form, terms: e.target.checked })}
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#5B4FE9] focus:ring-[#5B4FE9]"
+                  />
+                  <label htmlFor="terms" className="text-sm text-gray-500 leading-relaxed">
+                    Concordo com os{' '}
+                    <a href="#" className="text-[#5B4FE9] hover:underline">Termos de uso</a>{' '}
+                    e a{' '}
+                    <a href="#" className="text-[#5B4FE9] hover:underline">Política de privacidade</a> da Nextia.
+                  </label>
+                </div>
+
+                <Button type="submit" variant="gradient" size="lg" fullWidth loading={loading}>
+                  {loading ? 'Criando conta...' : 'Criar minha conta'}
+                </Button>
+              </form>
+
+              <p className="text-center text-sm text-gray-500 mt-6">
+                Já tem uma conta?{' '}
+                <Link to="/login" className="text-[#5B4FE9] font-semibold hover:underline">
+                  Entrar
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
