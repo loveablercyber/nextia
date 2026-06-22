@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  CheckCircle, Clock, MessageCircle, ArrowRight,
+  CheckCircle, Clock, MessageCircle,
   Zap, BarChart3, Star, RefreshCw
 } from 'lucide-react';
 import Button from '../ui/Button';

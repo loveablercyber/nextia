@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Star, CheckCircle, Clock, ChevronRight,
-  Monitor, Smartphone, MessageCircle, ExternalLink, Zap, Shield
+  Monitor, MessageCircle, ExternalLink, Zap, Shield
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -11,7 +11,6 @@ import { TemplateIllustration } from '../components/templates/TemplateIllustrati
 
 export default function TemplateDetailPage() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const template = templates.find(t => t.slug === slug);
 
   useEffect(() => {
@@ -207,14 +206,12 @@ export default function TemplateDetailPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-6 sticky top-24">
               <div className="text-center mb-6">
                 <div className="text-xs text-gray-400 mb-1">Plano recomendado</div>
-                <Badge
-                  variant="primary"
-                  size="md"
-                  className="mb-3"
-                  style={{ backgroundColor: `${planColors[template.recommendedPlan]}20`, color: planColors[template.recommendedPlan] }}
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold mb-3"
+                  style={{ backgroundColor: `${planColors[template.recommendedPlan]}15`, color: planColors[template.recommendedPlan] }}
                 >
                   Nextia {template.recommendedPlan}
-                </Badge>
+                </span>
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-4xl font-black text-gray-900">R$ {template.price}</span>
                   <span className="text-gray-400">/mês</span>

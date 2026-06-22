@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, Zap } from 'lucide-react';
+import { Menu, X, Zap } from 'lucide-react';
 import Button from '../ui/Button';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';

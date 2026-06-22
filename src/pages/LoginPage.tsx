@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Zap, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {

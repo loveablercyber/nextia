@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  MessageSquare, Plus, AlertCircle, Clock, CheckCircle2, AlertTriangle, Send, X
+  MessageSquare, Plus, AlertCircle, Send, X
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { requestStatusConfig } from '../../types/project';

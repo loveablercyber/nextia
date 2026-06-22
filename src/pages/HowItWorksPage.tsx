@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   MousePointer, FileText, Palette, Rocket,
   CheckCircle, Clock, Headphones, BarChart3,
-  ArrowRight, MessageCircle, ChevronDown, Zap, Users, Star
+  ArrowRight, MessageCircle, ChevronDown, Zap, Star
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';

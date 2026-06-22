@@ -4,7 +4,7 @@ interface IllustrationProps {
 }
 
 export function TemplateIllustration({ category }: IllustrationProps) {
-  const illustrations: Record<string, JSX.Element> = {
+  const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
     'salao-barbearia': <SalaoIllustration />,
     'prestador-servicos': <ServicosIllustration />,

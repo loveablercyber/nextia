@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, MessageCircle, Sparkles, CheckCircle, Star, Clock, Zap, Code, LayoutDashboard, Globe } from 'lucide-react';
+import { MessageCircle, Sparkles, CheckCircle, Star, Clock, Code, LayoutDashboard, Globe } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 

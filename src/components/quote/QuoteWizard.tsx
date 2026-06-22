@@ -32,15 +32,6 @@ export default function QuoteWizard() {
   const isSummary = currentStep > totalSteps;
   const result = calculateQuote(formData);
 
-  const stepTitles = [
-    'Tipo de projeto',
-    'Segmento',
-    'Estrutura',
-    'Identidade visual',
-    'Prazo e investimento',
-    'Dados de contato',
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, CheckCircle, Star, Zap, Shield, Clock, HeadphonesIcon,
-  Monitor, Smartphone, Globe, BarChart3, ChevronRight, Play,
+  ArrowRight, CheckCircle, Star, Zap, Shield, HeadphonesIcon,
+  Monitor, Smartphone, Globe, BarChart3, ChevronRight,
   Sparkles, TrendingUp, Users, Award
 } from 'lucide-react';
 import Button from '../components/ui/Button';

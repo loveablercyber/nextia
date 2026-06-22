@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Zap, Instagram, Facebook, Linkedin, MessageCircle, Mail, MapPin, Phone } from 'lucide-react';
+import { Zap, MessageCircle, Mail, MapPin } from 'lucide-react';
 
 const footerLinks = {
   plataforma: [
@@ -59,17 +59,45 @@ export default function Footer() {
             {/* Social */}
             <div className="flex items-center gap-3 mt-6">
               {[
-                { icon: Instagram, href: '#', label: 'Instagram' },
-                { icon: Facebook, href: '#', label: 'Facebook' },
-                { icon: Linkedin, href: '#', label: 'LinkedIn' },
-              ].map(({ icon: Icon, href, label }) => (
+                {
+                  label: 'Instagram',
+                  href: '#',
+                  svg: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                    </svg>
+                  )
+                },
+                {
+                  label: 'Facebook',
+                  href: '#',
+                  svg: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                    </svg>
+                  )
+                },
+                {
+                  label: 'LinkedIn',
+                  href: '#',
+                  svg: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                      <rect width="4" height="12" x="2" y="9" />
+                      <circle cx="4" cy="4" r="2" />
+                    </svg>
+                  )
+                }
+              ].map(({ svg, href, label }) => (
                 <a
                   key={label}
                   href={href}
                   aria-label={label}
-                  className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#5B4FE9] flex items-center justify-center transition-colors duration-200"
+                  className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#5B4FE9] flex items-center justify-center transition-colors duration-200 text-white"
                 >
-                  <Icon className="w-4 h-4" />
+                  {svg}
                 </a>
               ))}
             </div>

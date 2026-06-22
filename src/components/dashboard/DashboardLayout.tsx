@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
-  Upload, Settings, LogOut, Zap, Menu, X, ChevronRight,
+  Upload, Settings, LogOut, Zap, Menu, ChevronRight,
   Bell, ExternalLink
 } from 'lucide-react';
 import clsx from 'clsx';

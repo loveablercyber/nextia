@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, X, Zap, MessageCircle, ArrowRight } from 'lucide-react';
+import { Check, X, MessageCircle, ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { plans, planComparison } from '../data/plans';
 
 export default function PlansPage() {
-  const [annual, setAnnual] = useState(false);
 
   useEffect(() => {
     document.title = 'Planos e Preços — Nextia';

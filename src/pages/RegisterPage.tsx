@@ -11,7 +11,6 @@ export default function RegisterPage() {
 
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
-  const planId = searchParams.get('plano');
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
 
   const [showPassword, setShowPassword] = useState(false);
