@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Project, ProjectFile, ChangeRequest, Payment } from '../types/project';
 import { MOCK_PROJECTS } from '../types/project';
 import { useAuth } from './AuthContext';
+import { useNotification } from './NotificationContext';
 import { supabase } from '../lib/supabase';
 
 interface ProjectContextValue {
@@ -80,6 +81,7 @@ function mapProjectDbToUi(dbProj: any): Project {
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { addNotification } = useNotification();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -216,6 +218,24 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const updated = { ...project, files: [newFile, ...project.files] };
       saveProjectStateMock(updated);
     }
+
+    // Trigger Notification
+    try {
+      await addNotification(
+        'Arquivo enviado',
+        `O arquivo "${fileData.name}" foi enviado com sucesso para o seu briefing.`,
+        'project',
+        user.id
+      );
+      await addNotification(
+        'Novo arquivo enviado',
+        `O cliente ${user.name} enviou o arquivo "${fileData.name}" para o briefing.`,
+        'project',
+        'admins'
+      );
+    } catch (err) {
+      console.error('Error triggering notification for uploadFile:', err);
+    }
   };
 
   // ── addChangeRequest ──
@@ -292,11 +312,35 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       };
       saveProjectStateMock(updated);
     }
+
+    // Trigger Notifications
+    try {
+      if (user) {
+        await addNotification(
+          'Solicitação de alteração enviada',
+          `Sua solicitação "${title}" foi enviada com sucesso e está em análise.`,
+          'request',
+          user.id
+        );
+        await addNotification(
+          'Nova solicitação de alteração',
+          `O cliente ${user.name} abriu uma nova solicitação: "${title}".`,
+          'request',
+          'admins'
+        );
+      }
+    } catch (err) {
+      console.error('Error triggering notification for addChangeRequest:', err);
+    }
   };
 
   // ── simulatePayment ──
   const simulatePayment = async (paymentId: string) => {
-    if (!project) return;
+    if (!project || !user) return;
+
+    // Get payment description before update
+    const payment = project.payments.find(p => p.id === paymentId);
+    const desc = payment ? payment.description : 'Fatura';
 
     if (isSupabaseEnabled) {
       // ── Supabase Payment Update ──
@@ -331,6 +375,24 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       });
       const updated = { ...project, payments: updatedPayments };
       saveProjectStateMock(updated);
+    }
+
+    // Trigger Notifications
+    try {
+      await addNotification(
+        'Pagamento confirmado',
+        `O pagamento da fatura "${desc}" foi processado com sucesso.`,
+        'payment',
+        user.id
+      );
+      await addNotification(
+        'Pagamento de fatura recebido',
+        `O cliente ${user.name} realizou o pagamento da fatura "${desc}".`,
+        'payment',
+        'admins'
+      );
+    } catch (err) {
+      console.error('Error triggering notification for simulatePayment:', err);
     }
   };
 

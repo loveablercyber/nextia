@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -23,9 +24,11 @@ const navItems = [
 
 export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const { user, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -142,10 +145,117 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="relative w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-pink-500 rounded-full" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                className={clsx(
+                  "relative w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                  notifOpen ? "bg-pink-50 text-pink-600" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                )}
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-pink-500 rounded-full" />
+                )}
+              </button>
+
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 pb-2 mb-2 border-b border-gray-100 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-gray-900 text-sm">Notificações Admin</span>
+                        {unreadCount > 0 && (
+                          <span className="text-[10px] font-bold text-white bg-pink-500 px-1.5 py-0.5 rounded-full">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => markAllAsRead()}
+                          className="text-xs text-pink-600 hover:text-pink-700 font-semibold transition-colors"
+                        >
+                          Ler todas
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-[320px] overflow-y-auto px-2 space-y-1">
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-gray-400">
+                          <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300 stroke-[1.5]" />
+                          <p className="text-xs">Nenhuma notificação recebida.</p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            className={clsx(
+                              "p-3 rounded-xl transition-all relative group flex gap-3",
+                              notif.read ? "hover:bg-gray-50" : "bg-pink-50/20 hover:bg-pink-50/40"
+                            )}
+                          >
+                            <div className="mt-0.5 flex-shrink-0">
+                              {notif.type === 'payment' ? (
+                                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                              ) : notif.type === 'request' ? (
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                              ) : notif.type === 'project' ? (
+                                <span className="w-2.5 h-2.5 rounded-full bg-pink-500 inline-block" />
+                              ) : (
+                                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0 pr-6">
+                              <h4 className={clsx("text-xs leading-snug truncate", notif.read ? "font-medium text-gray-700" : "font-bold text-gray-900")}>
+                                {notif.title}
+                              </h4>
+                              <p className="text-[11px] text-gray-500 mt-0.5 leading-normal">
+                                {notif.message}
+                              </p>
+                              <span className="text-[9px] text-gray-400 mt-1 block">
+                                {new Date(notif.createdAt).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+
+                            <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {!notif.read && (
+                                <button
+                                  onClick={() => markAsRead(notif.id)}
+                                  title="Marcar como lida"
+                                  className="w-5 h-5 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-pink-600 hover:border-pink-100 transition-colors"
+                                >
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteNotification(notif.id)}
+                                title="Excluir"
+                                className="w-5 h-5 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 transition-colors"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

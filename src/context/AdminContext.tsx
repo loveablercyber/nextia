@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Project, ChangeRequest, Payment, ProjectMilestone } from '../types/project';
 import { MOCK_PROJECTS } from '../types/project';
 import { supabase } from '../lib/supabase';
+import { useNotification } from './NotificationContext';
 
 interface AdminContextValue {
   projects: Project[];
@@ -158,6 +159,7 @@ function mapProjectDbToUi(dbProj: any): Project {
 }
 
 export function AdminProvider({ children }: { children: ReactNode }) {
+  const { addNotification } = useNotification();
   const [projects, setProjects] = useState<Project[]>([]);
   const [quotes, setQuotes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -262,6 +264,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   // ── updateProjectProgress ──
   const updateProjectProgress = async (projectId: string, progress: number) => {
+    const project = projects.find(p => p.id === projectId);
+
     if (isSupabaseEnabled) {
       const { error } = await supabase
         .from('projects')
@@ -277,10 +281,25 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       const updated = projects.map(p => p.id === projectId ? { ...p, progressPercent: progress } : p);
       saveProjectsMock(updated);
     }
+
+    try {
+      if (project) {
+        await addNotification(
+          'Progresso do projeto atualizado',
+          `O desenvolvimento do seu projeto "${project.name}" atingiu ${progress}%.`,
+          'project',
+          project.userId
+        );
+      }
+    } catch (err) {
+      console.error('Error triggering notification for updateProjectProgress:', err);
+    }
   };
 
   // ── updateProjectStatus ──
   const updateProjectStatus = async (projectId: string, status: Project['status']) => {
+    const project = projects.find(p => p.id === projectId);
+
     if (isSupabaseEnabled) {
       const dbUpdates: any = { status };
       if (status === 'publicado') {
@@ -310,10 +329,35 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       });
       saveProjectsMock(updated);
     }
+
+    try {
+      if (project) {
+        const statusMap: Record<string, string> = {
+          'aguardando-briefing': 'Aguardando Briefing',
+          'em-desenvolvimento': 'Em Desenvolvimento',
+          'revisao': 'Em Revisão',
+          'publicado': 'Publicado',
+          'suspenso': 'Suspenso'
+        };
+        const statusText = statusMap[status] || status;
+        await addNotification(
+          'Status do projeto alterado',
+          `O status do seu projeto "${project.name}" foi alterado para: ${statusText}.`,
+          'project',
+          project.userId
+        );
+      }
+    } catch (err) {
+      console.error('Error triggering notification for updateProjectStatus:', err);
+    }
   };
 
   // ── updateRequestStatus ──
   const updateRequestStatus = async (projectId: string, requestId: string, status: ChangeRequest['status']) => {
+    const project = projects.find(p => p.id === projectId);
+    const req = project?.changeRequests.find(r => r.id === requestId);
+    const reqTitle = req ? req.title : 'Solicitação';
+
     if (isSupabaseEnabled) {
       const dbUpdate: any = { status };
       if (status === 'concluido') {
@@ -347,10 +391,32 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       });
       saveProjectsMock(updated);
     }
+
+    try {
+      if (project) {
+        const statusMap: Record<string, string> = {
+          'aberto': 'Em Análise',
+          'em-andamento': 'Em Andamento',
+          'concluido': 'Concluído',
+          'rejeitado': 'Rejeitado'
+        };
+        const statusText = statusMap[status] || status;
+        await addNotification(
+          'Alteração de projeto atualizada',
+          `A solicitação "${reqTitle}" do projeto "${project.name}" foi alterada para: ${statusText}.`,
+          'request',
+          project.userId
+        );
+      }
+    } catch (err) {
+      console.error('Error triggering notification for updateRequestStatus:', err);
+    }
   };
 
   // ── createInvoice ──
   const createInvoice = async (projectId: string, desc: string, amount: number, type: 'ativacao' | 'mensalidade') => {
+    const project = projects.find(p => p.id === projectId);
+
     if (isSupabaseEnabled) {
       const dbPayment = {
         project_id: projectId,
@@ -406,6 +472,19 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         return p;
       });
       saveProjectsMock(updated);
+    }
+
+    try {
+      if (project) {
+        await addNotification(
+          'Nova fatura gerada',
+          `Uma nova fatura no valor de R$ ${amount.toFixed(2)} ("${desc}") foi gerada para o seu projeto.`,
+          'payment',
+          project.userId
+        );
+      }
+    } catch (err) {
+      console.error('Error triggering notification for createInvoice:', err);
     }
   };
 
@@ -508,7 +587,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
           .eq('id', dbProj.id)
           .single();
 
-        return freshList.data ? mapProjectDbToUi(freshList.data) : null;
+        const createdProject = freshList.data ? mapProjectDbToUi(freshList.data) : null;
+        if (createdProject) {
+          try {
+            await addNotification(
+              'Novo projeto ativado',
+              `Seu projeto "${projectData.name}" foi ativado! Por favor, preencha o briefing para iniciar.`,
+              'project',
+              projectData.userId
+            );
+          } catch (err) {
+            console.error('Error triggering notification:', err);
+          }
+        }
+
+        return createdProject;
       } catch (err) {
         console.error('Unexpected error in createProject:', err);
         return null;
@@ -559,6 +652,18 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
       const updatedList = [newProj, ...projects];
       saveProjectsMock(updatedList);
+
+      try {
+        await addNotification(
+          'Novo projeto ativado',
+          `Seu projeto "${projectData.name}" foi ativado! Por favor, preencha o briefing para iniciar.`,
+          'project',
+          projectData.userId
+        );
+      } catch (err) {
+        console.error('Error triggering notification:', err);
+      }
+
       return newProj;
     }
   };
