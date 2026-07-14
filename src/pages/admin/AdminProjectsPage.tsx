@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import {
-  Globe, Sliders, Plus
+  Globe, Sliders, Plus, Trash2
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { statusConfig } from '../../types/project';
 import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminProjectsPage() {
   const { projects, profiles, loading, updateProjectProgress, updateProjectStatus, createProject, refreshData } = useAdmin();
@@ -46,6 +47,40 @@ export default function AdminProjectsPage() {
   const handleSaveProgress = async (id: string) => {
     await updateProjectProgress(id, sliderVal);
     setEditingId(null);
+  };
+
+  const handleDeleteProject = async (projectId: string, name: string) => {
+    if (!confirm(`Deseja realmente remover o projeto "${name}"? Todos os marcos, faturas, arquivos e chamados associados a ele serão excluídos permanentemente.`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const response = await fetch('/api/admin/delete-item', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: 'project',
+          id: projectId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao remover projeto.');
+      }
+
+      alert('Projeto removido com sucesso!');
+      await refreshData();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro inesperado ao remover projeto.');
+    }
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -204,7 +239,7 @@ export default function AdminProjectsPage() {
                 </div>
 
                 {/* Status dropdown selector */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <select
                     value={p.status}
                     onChange={e => updateProjectStatus(p.id, e.target.value as any)}
@@ -218,6 +253,16 @@ export default function AdminProjectsPage() {
                     <option value="publicado">🌐 Publicado</option>
                     <option value="em-manutencao">Em Manutenção</option>
                   </select>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleDeleteProject(p.id, p.name)}
+                    title="Remover projeto"
+                    className="hover:bg-red-50 hover:text-red-600 hover:border-red-100 px-3 py-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  </Button>
                 </div>
               </div>
             );

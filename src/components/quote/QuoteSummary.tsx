@@ -49,7 +49,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href={`https://wa.me/5511999999999?text=Olá! Acabei de solicitar um orçamento na Nextia. Meu nome é ${encodeURIComponent(formData.name)}.`}
+            href={`https://wa.me/5514996405496?text=Olá! Acabei de solicitar um orçamento na Nextia. Meu nome é ${encodeURIComponent(formData.name)}.`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -104,7 +104,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
             Solicitar proposta
           </Button>
           <a
-            href="https://wa.me/5511999999999"
+            href="https://wa.me/5514996405496"
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1"
@@ -245,7 +245,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
           Solicitar proposta detalhada
         </Button>
         <a
-          href={`https://wa.me/5511999999999?text=Olá! Gerei um orçamento na Nextia para um ${projectLabel}. Gostaria de saber mais!`}
+          href={`https://wa.me/5514996405496?text=Olá! Gerei um orçamento na Nextia para um ${projectLabel}. Gostaria de saber mais!`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1"

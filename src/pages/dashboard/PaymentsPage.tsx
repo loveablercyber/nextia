@@ -8,12 +8,49 @@ import Button from '../../components/ui/Button';
 export default function PaymentsPage() {
   const { project, simulatePayment } = useProject();
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'pending'; text: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success') === 'true') {
+      return { type: 'success', text: 'Pagamento processado com sucesso! Seu status será atualizado em instantes.' };
+    }
+    if (params.get('failure') === 'true') {
+      return { type: 'error', text: 'O pagamento não pôde ser concluído. Por favor, tente novamente.' };
+    }
+    if (params.get('pending') === 'true') {
+      return { type: 'pending', text: 'Seu pagamento está em processamento pelo Mercado Pago.' };
+    }
+    return null;
+  });
 
   if (!project) return null;
 
   const handlePay = async (id: string) => {
     setPayingId(id);
-    await simulatePayment(id);
+    const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (isSupabaseEnabled) {
+      try {
+        const response = await fetch('/api/payments/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ paymentId: id }),
+        });
+        const data = await response.json();
+        if (response.ok && data.initPoint) {
+          window.location.href = data.initPoint;
+          return;
+        } else {
+          console.error('Failed to create payment preference:', data.error || data);
+          setStatusMessage({ type: 'error', text: 'Erro ao iniciar pagamento com Mercado Pago. Tente novamente.' });
+        }
+      } catch (err) {
+        console.error('Error initiating checkout:', err);
+        setStatusMessage({ type: 'error', text: 'Erro de conexão ao iniciar o Mercado Pago.' });
+      }
+    } else {
+      await simulatePayment(id);
+    }
     setPayingId(null);
   };
 
@@ -50,6 +87,23 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
+      {statusMessage && (
+        <div className={`p-4 rounded-2xl flex items-center gap-3 border text-xs font-semibold ${
+          statusMessage.type === 'success' 
+            ? 'bg-green-50 border-green-100 text-green-700' 
+            : statusMessage.type === 'error'
+            ? 'bg-red-50 border-red-100 text-red-700'
+            : 'bg-amber-50 border-amber-100 text-amber-700'
+        }`}>
+          {statusMessage.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${statusMessage.type === 'error' ? 'text-red-600' : 'text-amber-600'}`} />
+          )}
+          <span>{statusMessage.text}</span>
+        </div>
+      )}
+
       {/* Cards stats */}
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-3xl p-6 border border-gray-100 flex items-center gap-4">

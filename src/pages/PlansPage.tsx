@@ -97,7 +97,7 @@ export default function PlansPage() {
                     <Link to="/projeto-personalizado">
                       <Button variant="gradient" size="md" fullWidth>{plan.ctaLabel}</Button>
                     </Link>
-                    <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+                    <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
                       <Button variant="outline" size="sm" fullWidth>
                         <MessageCircle className="w-3.5 h-3.5 text-green-500" />
                         Falar no WhatsApp
@@ -201,7 +201,7 @@ export default function PlansPage() {
           </h2>
           <p className="text-white/80 mb-6">Nossa equipe está pronta para ajudar você a escolher o melhor plano.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
               <Button variant="white" size="lg">
                 <MessageCircle className="w-4 h-4 text-green-500" />
                 WhatsApp

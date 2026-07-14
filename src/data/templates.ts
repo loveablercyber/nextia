@@ -102,7 +102,7 @@ export const templates: Template[] = [
     ],
     recommendedPlan: "Pro",
     estimatedDays: 5,
-    demoUrl: "#",
+    demoUrl: "/demo/restaurante-premium",
     testimonials: [testimonials[0], testimonials[3]],
   },
   {
@@ -141,7 +141,7 @@ export const templates: Template[] = [
     ],
     recommendedPlan: "Pro",
     estimatedDays: 5,
-    demoUrl: "#",
+    demoUrl: "/demo/salao-elegance",
     testimonials: [testimonials[1], testimonials[3]],
   },
   {
@@ -179,7 +179,7 @@ export const templates: Template[] = [
     ],
     recommendedPlan: "Start",
     estimatedDays: 4,
-    demoUrl: "#",
+    demoUrl: "/demo/servicos-profissionais",
     testimonials: [testimonials[2], testimonials[0]],
   },
   {
@@ -207,7 +207,7 @@ export const templates: Template[] = [
     pages: ["Página inicial", "Catálogo", "Produto", "Sobre", "Contato"],
     recommendedPlan: "Business",
     estimatedDays: 6,
-    demoUrl: "#",
+    demoUrl: "/demo/loja-catalogo",
     testimonials: [testimonials[3]],
   },
   {
@@ -242,7 +242,7 @@ export const templates: Template[] = [
     ],
     recommendedPlan: "Pro",
     estimatedDays: 6,
-    demoUrl: "#",
+    demoUrl: "/demo/clinica-estetica",
     testimonials: [testimonials[1]],
   },
   {
@@ -275,7 +275,7 @@ export const templates: Template[] = [
     ],
     recommendedPlan: "Start",
     estimatedDays: 4,
-    demoUrl: "#",
+    demoUrl: "/demo/contabilidade",
     testimonials: [testimonials[2]],
   },
   {
@@ -303,7 +303,7 @@ export const templates: Template[] = [
     pages: ["Página inicial", "Imóveis", "Imóvel individual", "Sobre", "Contato"],
     recommendedPlan: "Business",
     estimatedDays: 7,
-    demoUrl: "#",
+    demoUrl: "/demo/imobiliaria",
     testimonials: [testimonials[0]],
   },
   {
@@ -330,7 +330,7 @@ export const templates: Template[] = [
     pages: ["Página inicial", "Serviços", "Orçamento", "Localização", "Contato"],
     recommendedPlan: "Start",
     estimatedDays: 3,
-    demoUrl: "#",
+    demoUrl: "/demo/oficina-mecanica",
     testimonials: [testimonials[3]],
   },
 ];
@@ -345,4 +345,25 @@ export const templateCategories = [
   { label: "Contabilidade", slug: "contabilidade" },
   { label: "Imobiliária", slug: "imobiliaria" },
   { label: "Oficina Mecânica", slug: "oficina-mecanica" },
+];
+
+export interface OptionalFeature {
+  id: string;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  oneTimePrice: number;
+}
+
+export const OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-chatbot', name: 'Chatbot de Atendimento', description: 'Atendimento automatizado integrado ao WhatsApp.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-reservas', name: 'Calendário de Reservas Avançado', description: 'Evite overbooking com confirmação automática.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-delivery', name: 'Painel de Pedidos / Delivery', description: 'Receba e gerencie pedidos direto pelo seu site.', monthlyPrice: 89, oneTimePrice: 0 },
+  { id: 'opt-pdv', name: 'Integração com Caixa (PDV)', description: 'Sincronize vendas e estoque em tempo real.', monthlyPrice: 99, oneTimePrice: 0 },
+  { id: 'opt-fidelidade', name: 'Programa de Fidelidade', description: 'Cashback e cupons para clientes recorrentes.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-idiomas', name: 'Multi-idioma (Inglês/Espanhol)', description: 'Tradução do site para atrair estrangeiros.', monthlyPrice: 0, oneTimePrice: 199 },
+  { id: 'opt-fotos', name: 'Fotografia Profissional', description: 'Fotos profissionais de pratos, produtos ou estabelecimento em alta resolução.', monthlyPrice: 0, oneTimePrice: 299 },
+  { id: 'opt-disparos', name: 'Disparo de Cupons WhatsApp', description: 'Campanhas de marketing automatizadas.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-seo', name: 'SEO Avançado (Google)', description: 'Melhor posicionamento nas buscas locais.', monthlyPrice: 0, oneTimePrice: 149 },
+  { id: 'opt-suporte', name: 'Suporte Prioritário 24h', description: 'Tempo de resposta de até 2 horas úteis.', monthlyPrice: 39, oneTimePrice: 0 }
 ];

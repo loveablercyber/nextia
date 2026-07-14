@@ -29,7 +29,11 @@ export default function LoginPage() {
     if (res.error) {
       setError(res.error);
     } else {
-      navigate(from, { replace: true });
+      let targetPath = from;
+      if (from === '/painel' && res.user?.role === 'admin') {
+        targetPath = '/admin';
+      }
+      navigate(targetPath, { replace: true });
     }
   };
 
@@ -111,16 +115,6 @@ export default function LoginPage() {
               Cadastre-se
             </Link>
           </p>
-
-          <div className="mt-8 pt-6 border-t border-gray-100 space-y-2">
-            <p className="text-xs text-gray-400 text-center font-semibold">
-              🔑 Contas de demonstração:
-            </p>
-            <div className="bg-gray-50 rounded-xl p-3 text-[11px] text-gray-500 space-y-1">
-              <div><strong>Cliente:</strong> <code className="bg-gray-200 px-1 rounded">joao@restaurante.com.br</code> / <code className="bg-gray-200 px-1 rounded">123456</code></div>
-              <div><strong>Admin:</strong> <code className="bg-gray-200 px-1 rounded">admin@nextia.com.br</code> / <code className="bg-gray-200 px-1 rounded">admin123</code></div>
-            </div>
-          </div>
         </div>
       </div>
 

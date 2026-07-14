@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Star, CheckCircle, Clock, ChevronRight,
@@ -6,17 +6,25 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { templates } from '../data/templates';
+import { templates, OPTIONAL_FEATURES } from '../data/templates';
 import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 
 export default function TemplateDetailPage() {
   const { slug } = useParams();
   const template = templates.find(t => t.slug === slug);
 
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+
   useEffect(() => {
     if (template) document.title = `${template.name} — Nextia`;
     window.scrollTo(0, 0);
   }, [template]);
+
+  const handleToggleOption = (id: string) => {
+    setSelectedOptions((prev) =>
+      prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id]
+    );
+  };
 
   if (!template) {
     return (
@@ -37,6 +45,21 @@ export default function TemplateDetailPage() {
     Pro: '#5B4FE9',
     Business: '#7c3aed',
   };
+
+  const selectedMonthlyPrice = selectedOptions.reduce((acc, optId) => {
+    const opt = OPTIONAL_FEATURES.find(o => o.id === optId);
+    return acc + (opt?.monthlyPrice || 0);
+  }, 0);
+
+  const selectedOneTimePrice = selectedOptions.reduce((acc, optId) => {
+    const opt = OPTIONAL_FEATURES.find(o => o.id === optId);
+    return acc + (opt?.oneTimePrice || 0);
+  }, 0);
+
+  const totalMonthly = template.price + selectedMonthlyPrice;
+  const totalActivation = template.activationFee + selectedOneTimePrice;
+
+  const registerUrl = `/cadastro?template=${template.slug}${selectedOptions.length > 0 ? `&options=${selectedOptions.join(',')}` : ''}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -69,7 +92,7 @@ export default function TemplateDetailPage() {
               {/* Quick info */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
-                  <div className="text-2xl font-black text-[#5B4FE9]">R$ {template.price}</div>
+                  <div className="text-2xl font-black text-[#5B4FE9]">R$ {totalMonthly}</div>
                   <div className="text-xs text-gray-400">/mês</div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
@@ -91,20 +114,29 @@ export default function TemplateDetailPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Link to={`/cadastro?template=${template.slug}`}>
+                <Link to={registerUrl}>
                   <Button variant="gradient" size="lg">
                     <Zap className="w-4 h-4" />
                     Escolher este modelo
                   </Button>
                 </Link>
-                <Button variant="outline" size="lg">
-                  <ExternalLink className="w-4 h-4" />
-                  Ver demonstração
-                </Button>
+                {template.demoUrl !== '#' ? (
+                  <Link to={template.demoUrl}>
+                    <Button variant="outline" size="lg">
+                      <ExternalLink className="w-4 h-4" />
+                      Ver demonstração
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button variant="outline" size="lg">
+                    <ExternalLink className="w-4 h-4" />
+                    Ver demonstração
+                  </Button>
+                )}
               </div>
 
               <p className="text-xs text-gray-400 mt-3">
-                Taxa de ativação: R$ {template.activationFee} · Plano recomendado: {template.recommendedPlan}
+                Taxa de ativação: R$ {totalActivation} · Plano recomendado: {template.recommendedPlan}
               </p>
             </div>
 
@@ -154,6 +186,49 @@ export default function TemplateDetailPage() {
                     <span className="text-gray-700 text-sm">{feature}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Recursos Opcionais */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Recursos opcionais</h2>
+                  <p className="text-xs text-gray-400 mt-1">Personalize seu site adicionando recursos adicionais.</p>
+                </div>
+                <Badge variant="primary">{selectedOptions.length} selecionado{selectedOptions.length !== 1 ? 's' : ''}</Badge>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {OPTIONAL_FEATURES.map((opt) => {
+                  const isChecked = selectedOptions.includes(opt.id);
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => handleToggleOption(opt.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                        isChecked
+                          ? 'border-[#5B4FE9] bg-[#5B4FE9]/5 shadow-sm'
+                          : 'border-gray-100 bg-white hover:border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // Handled by parent div onClick
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-[#5B4FE9] focus:ring-[#5B4FE9] flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-sm text-gray-900">
+                          {opt.name}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{opt.description}</p>
+                        <div className="text-xs font-bold text-[#5B4FE9] mt-2">
+                          {opt.monthlyPrice > 0 ? `+ R$ ${opt.monthlyPrice}/mês` : `+ R$ ${opt.oneTimePrice} taxa única`}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -213,10 +288,10 @@ export default function TemplateDetailPage() {
                   Nextia {template.recommendedPlan}
                 </span>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-black text-gray-900">R$ {template.price}</span>
+                  <span className="text-4xl font-black text-gray-900">R$ {totalMonthly}</span>
                   <span className="text-gray-400">/mês</span>
                 </div>
-                <div className="text-sm text-gray-400 mt-1">+ R$ {template.activationFee} taxa de ativação</div>
+                <div className="text-sm text-gray-400 mt-1">+ R$ {totalActivation} taxa de ativação</div>
               </div>
 
               <div className="space-y-3 mb-6">
@@ -234,7 +309,7 @@ export default function TemplateDetailPage() {
                 </div>
               </div>
 
-              <Link to={`/cadastro?template=${template.slug}`}>
+              <Link to={registerUrl}>
                 <Button variant="gradient" size="lg" fullWidth className="mb-3">
                   <Zap className="w-4 h-4" />
                   Escolher este modelo
@@ -242,7 +317,7 @@ export default function TemplateDetailPage() {
               </Link>
 
               <a
-                href="https://wa.me/5511999999999"
+                href="https://wa.me/5514996405496"
                 target="_blank"
                 rel="noopener noreferrer"
               >

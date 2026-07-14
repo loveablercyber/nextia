@@ -45,15 +45,15 @@ export default function Footer() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <MessageCircle className="w-4 h-4 text-green-400" />
-                <span>(11) 99999-9999</span>
+                <span>(14) 99640-5496</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Mail className="w-4 h-4 text-[#818cf8]" />
-                <span>ola@nextia.com.br</span>
+                <span>ola@nextia.dev.br</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <MapPin className="w-4 h-4 text-[#818cf8]" />
-                <span>São Paulo, SP — Brasil</span>
+                <span>Bauru, SP — Brasil</span>
               </div>
             </div>
             {/* Social */}
@@ -146,7 +146,7 @@ export default function Footer() {
             <div className="mt-6 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
               <p className="text-xs text-gray-400 mb-2">Precisa de ajuda agora?</p>
               <a
-                href="https://wa.me/5511999999999"
+                href="https://wa.me/5514996405496"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-green-400 font-semibold text-sm hover:text-green-300 transition-colors"

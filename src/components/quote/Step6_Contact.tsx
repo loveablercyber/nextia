@@ -64,7 +64,7 @@ export default function Step6_Contact({ formData, updateField }: Step6Props) {
             <input
               id="q-whatsapp"
               type="tel"
-              placeholder="(11) 99999-9999"
+              placeholder="(14) 99640-5496"
               value={formData.whatsapp}
               onChange={e => updateField('whatsapp', e.target.value)}
               className={inputClass}

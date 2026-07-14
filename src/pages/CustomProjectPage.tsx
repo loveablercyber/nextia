@@ -37,7 +37,7 @@ export default function CustomProjectPage() {
                     Montar meu orçamento
                   </Button>
                 </Link>
-                <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+                <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="xl" className="border-white/40 text-white hover:bg-white/10">
                     <MessageCircle className="w-5 h-5" />
                     Falar no WhatsApp
@@ -168,7 +168,7 @@ export default function CustomProjectPage() {
                 Montar meu orçamento
               </Button>
             </Link>
-            <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="xl" className="border-white/40 text-white hover:bg-white/10">
                 <MessageCircle className="w-5 h-5" />
                 WhatsApp

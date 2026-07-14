@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
   Upload, Settings, LogOut, Zap, Menu, ChevronRight,
-  Bell, ExternalLink
+  Bell, ExternalLink, HelpCircle
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +19,7 @@ const navItems = [
   { to: '/painel/projeto', icon: FolderOpen, label: 'Meu projeto' },
   { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
+  { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/painel/configuracoes', icon: Settings, label: 'Configurações' },
 ];
@@ -259,7 +260,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
               )}
             </div>
             <a
-              href="https://wa.me/5511999999999"
+              href="https://wa.me/5514996405496"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors"

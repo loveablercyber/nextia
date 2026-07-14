@@ -4,7 +4,7 @@ import { MOCK_USERS } from '../types/auth';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<{ error: string | null }>;
+  login: (email: string, password: string) => Promise<{ error: string | null, user?: User }>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
 }
@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── login ──
-  const login = useCallback(async (email: string, password: string): Promise<{ error: string | null }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ error: string | null, user?: User }> => {
     setState(s => ({ ...s, loading: true, error: null }));
 
     if (isSupabaseEnabled) {
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               createdAt: profile.created_at || new Date().toISOString(),
             };
             setState({ user, loading: false, error: null });
-            return { error: null };
+            return { error: null, user };
           }
         }
         const noProfileErr = 'Perfil do usuário não encontrado.';
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { password: _pw, ...user } = found;
       localStorage.setItem(SESSION_KEY, JSON.stringify(user));
       setState({ user, loading: false, error: null });
-      return { error: null };
+      return { error: null, user };
     }
   }, []);
 

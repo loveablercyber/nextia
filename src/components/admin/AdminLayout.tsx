@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   LogOut, Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText
+  FileText, Briefcase, HelpCircle
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -16,9 +16,11 @@ interface AdminLayoutProps {
 
 const navItems = [
   { to: '/admin', icon: LayoutDashboard, label: 'Visão Geral', exact: true },
+  { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
   { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
-  { to: '/admin/projetos', icon: Users, label: 'Gerenciar Projetos' },
+  { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
   { to: '/admin/chamados', icon: MessageSquare, label: 'Solicitações' },
+  { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/admin/cobrancas', icon: CreditCard, label: 'Financeiro / Faturas' },
 ];
 

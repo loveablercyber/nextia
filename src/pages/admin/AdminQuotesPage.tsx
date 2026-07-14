@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import {
   FileText, CheckCircle2, AlertCircle, Calendar,
-  Building, Mail, Phone, Search, Check
+  Building, Mail, Phone, Search, Check, Trash2
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminQuotesPage() {
   const { quotes, profiles, updateQuoteStatus, createProject, loading, refreshData } = useAdmin();
@@ -105,6 +106,40 @@ export default function AdminQuotesPage() {
       alert('Erro inesperado.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteQuote = async (quoteId: string) => {
+    if (!confirm('Deseja realmente remover este orçamento? Esta ação é irreversível.')) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const response = await fetch('/api/admin/delete-item', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: 'quote',
+          id: quoteId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao remover orçamento.');
+      }
+
+      alert('Orçamento removido com sucesso!');
+      await refreshData();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro inesperado ao remover orçamento.');
     }
   };
 
@@ -244,10 +279,20 @@ export default function AdminQuotesPage() {
                             Aprovar
                           </Button>
                         ) : (
-                          <span className="text-green-600 bg-green-50 p-1 rounded-lg" title="Projeto já Ativo">
+                          <span className="text-green-600 bg-green-50 p-1.5 rounded-lg" title="Projeto já Ativo">
                             <Check className="w-3.5 h-3.5" />
                           </span>
                         )}
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleDeleteQuote(q.id)}
+                          title="Remover orçamento"
+                          className="px-2 py-1 text-[10px] hover:bg-red-50 hover:text-red-600 hover:border-red-100"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                        </Button>
                       </div>
                     </td>
                   </tr>

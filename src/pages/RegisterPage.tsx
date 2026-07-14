@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { templates } from '../data/templates';
+import { templates, OPTIONAL_FEATURES } from '../data/templates';
 import { supabase } from '../lib/supabase';
 
 const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -16,6 +16,27 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
+
+  // Parse options
+  const optionsParam = searchParams.get('options') || '';
+  const initialOptions = optionsParam ? optionsParam.split(',') : [];
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(initialOptions);
+
+  const handleToggleOption = (id: string) => {
+    setSelectedOptions(prev =>
+      prev.includes(id) ? prev.filter(o => o !== id) : [...prev, id]
+    );
+  };
+
+  const selectedFeatures = OPTIONAL_FEATURES.filter(opt => selectedOptions.includes(opt.id));
+  
+  const monthlyFee = selectedTemplate
+    ? selectedTemplate.price + selectedFeatures.reduce((sum, f) => sum + f.monthlyPrice, 0)
+    : 0;
+    
+  const activationFee = selectedTemplate
+    ? selectedTemplate.activationFee + selectedFeatures.reduce((sum, f) => sum + f.oneTimePrice, 0)
+    : 0;
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,6 +85,10 @@ export default function RegisterPage() {
               phone: form.phone,
               role: 'client',
               avatar_initials: initials,
+              template: selectedTemplate ? selectedTemplate.name : '',
+              segment: selectedTemplate ? selectedTemplate.category : '',
+              monthly_fee: monthlyFee,
+              activation_fee: activationFee,
             }
           }
         });
@@ -88,6 +113,71 @@ export default function RegisterPage() {
     } else {
       // Simulação sem Supabase
       await new Promise(r => setTimeout(r, 1500));
+
+      if (selectedTemplate) {
+        // Create mock user
+        const newUserId = `usr-${Date.now()}`;
+        const newProfilesStored = localStorage.getItem('nextia_profiles_state');
+        const profilesList = newProfilesStored ? JSON.parse(newProfilesStored) : [];
+        const nameParts = form.name.trim().split(/\s+/);
+        const initials = nameParts.length >= 2
+          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+          : form.name.substring(0, 2).toUpperCase();
+
+        profilesList.push({
+          id: newUserId,
+          name: form.name,
+          company: form.company,
+          phone: form.phone,
+          role: 'client',
+          avatar_initials: initials,
+          created_at: new Date().toISOString()
+        });
+        localStorage.setItem('nextia_profiles_state', JSON.stringify(profilesList));
+
+        // Create mock project
+        const newProjId = `proj-${Date.now()}`;
+        const storedProj = localStorage.getItem('nextia_projects_state');
+        const projectsList = storedProj ? JSON.parse(storedProj) : [];
+
+        projectsList.push({
+          id: newProjId,
+          userId: newUserId,
+          name: form.company || `Projeto ${selectedTemplate.name}`,
+          template: selectedTemplate.name,
+          segment: selectedTemplate.category,
+          status: 'aguardando-briefing',
+          plan: 'Pro',
+          monthlyFee: monthlyFee,
+          activationFee: activationFee,
+          startedAt: new Date().toISOString(),
+          estimatedDelivery: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+          progressPercent: 0,
+          requestsRemaining: 5,
+          requestsTotal: 5,
+          milestones: [
+            { id: `m1-${Date.now()}`, title: 'Briefing recebido', description: 'Formulário de briefing preenchido e arquivos enviados.', status: 'pendente', estimatedAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString() },
+            { id: `m2-${Date.now()}`, title: 'Design aprovado', description: 'Wireframes e paleta de cores aprovados pelo cliente.', status: 'pendente', estimatedAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() },
+            { id: `m3-${Date.now()}`, title: 'Desenvolvimento', description: 'Construção do site com base no design aprovado.', status: 'pendente', estimatedAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString() },
+            { id: `m4-${Date.now()}`, title: 'Revisão do cliente', description: 'Site enviado para revisão. Aguardando aprovação ou ajustes.', status: 'pendente', estimatedAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString() },
+            { id: `m5-${Date.now()}`, title: 'Publicação', description: 'Publicação do site no domínio contratado.', status: 'pendente', estimatedAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() }
+          ],
+          files: [],
+          changeRequests: [],
+          payments: [
+            {
+              id: `pay-${Date.now()}`,
+              description: `Taxa de ativação — Plano Pro (${selectedTemplate.name})`,
+              amount: activationFee,
+              dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'pendente',
+              type: 'ativacao'
+            }
+          ]
+        });
+        localStorage.setItem('nextia_projects_state', JSON.stringify(projectsList));
+      }
+
       setSuccess(true);
       setLoading(false);
       setTimeout(() => {
@@ -126,10 +216,36 @@ export default function RegisterPage() {
           ))}
 
           {selectedTemplate && (
-            <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10">
+            <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10 text-left w-full">
               <div className="text-xs text-gray-400 mb-1">Modelo selecionado</div>
               <div className="text-white font-bold">{selectedTemplate.name}</div>
-              <div className="text-[#818cf8] text-sm">R$ {selectedTemplate.price}/mês</div>
+              <div className="text-gray-300 text-xs mt-1">Mensalidade: R$ {selectedTemplate.price}/mês</div>
+              <div className="text-gray-300 text-xs font-semibold">Ativação: R$ {selectedTemplate.activationFee}</div>
+              
+              {selectedFeatures.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/10 space-y-1">
+                  <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Recursos Opcionais:</div>
+                  {selectedFeatures.map(f => (
+                    <div key={f.id} className="text-xs text-gray-300 flex justify-between">
+                      <span>• {f.name}</span>
+                      <span>
+                        {f.monthlyPrice > 0 ? `+R$ ${f.monthlyPrice}/mês` : `+R$ ${f.oneTimePrice}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="mt-3 pt-3 border-t border-white/10 text-xs text-[#818cf8] font-bold space-y-1">
+                <div className="flex justify-between">
+                  <span>Total Mensal:</span>
+                  <span>R$ {monthlyFee}/mês</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Ativação:</span>
+                  <span>R$ {activationFee}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -174,13 +290,59 @@ export default function RegisterPage() {
               )}
 
               {selectedTemplate && (
-                <div className="mb-6 p-3 bg-[#eef2ff] border border-[#c7d2fe] rounded-xl flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#5B4FE9] flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-4 h-4 text-white" />
+                <div className="mb-6 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400 font-semibold">Modelo selecionado</div>
+                      <div className="text-gray-900 font-bold text-base">{selectedTemplate.name}</div>
+                      <div className="text-xs text-gray-500">
+                        Base: R$ {selectedTemplate.price}/mês + R$ {selectedTemplate.activationFee} ativação
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-400">Modelo selecionado</div>
-                    <div className="text-[#5B4FE9] font-bold text-sm">{selectedTemplate.name}</div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                      Recursos Opcionais
+                    </h4>
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 border border-gray-100 rounded-xl p-2 bg-gray-50">
+                      {OPTIONAL_FEATURES.map((opt) => {
+                        const isChecked = selectedOptions.includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className="flex items-center justify-between gap-3 text-xs p-1.5 rounded hover:bg-gray-100 cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleOption(opt.id)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-[#5B4FE9] focus:ring-[#5B4FE9]"
+                              />
+                              <span className="text-gray-700 font-medium">{opt.name}</span>
+                            </div>
+                            <span className="text-gray-500 font-bold">
+                              {opt.monthlyPrice > 0 ? `+R$ ${opt.monthlyPrice}/mês` : `+R$ ${opt.oneTimePrice}`}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex justify-between gap-4 text-sm font-bold">
+                    <div>
+                      <div className="text-xs text-gray-400 font-normal">Total Mensal</div>
+                      <div className="text-[#5B4FE9] text-base">R$ {monthlyFee}/mês</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-400 font-normal">Taxa de Ativação</div>
+                      <div className="text-gray-900 text-base">R$ {activationFee}</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -211,7 +373,7 @@ export default function RegisterPage() {
                       required
                       value={form.phone}
                       onChange={e => setForm({ ...form, phone: e.target.value })}
-                      placeholder="(11) 99999-9999"
+                      placeholder="(14) 99640-5496"
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm"
                     />
                   </div>

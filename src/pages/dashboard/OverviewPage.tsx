@@ -274,7 +274,7 @@ export default function OverviewPage() {
                   <ArrowUpRight className="w-4 h-4 text-gray-400" />
                 </div>
               </Link>
-              <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
                   <span className="flex items-center gap-2.5">
                     💬 Falar com suporte técnico

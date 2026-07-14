@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Mail, MessageCircle, MapPin, Phone, Send, CheckCircle } from 'lucide-react';
+import { Mail, MessageCircle, MapPin, Phone, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { supabase } from '../lib/supabase';
 
 export default function ContactPage() {
   useEffect(() => {
@@ -10,18 +11,47 @@ export default function ContactPage() {
 
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ticketTrackingLink, setTicketTrackingLink] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: '', email: '', phone: '', company: '', subject: '', message: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulated submit
-    setTimeout(() => {
-      setLoading(false);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/support/create-ticket', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(form)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Erro ao criar chamado de suporte');
+      }
+
+      const data = await response.json();
+      setTicketTrackingLink(data.trackingLink);
       setSubmitted(true);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Ocorreu um erro ao enviar sua mensagem. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const subjects = [
@@ -61,8 +91,8 @@ export default function ContactPage() {
                 bg: '#f0fdf4',
                 title: 'WhatsApp',
                 subtitle: 'Resposta rápida',
-                value: '(11) 99999-9999',
-                action: 'https://wa.me/5511999999999',
+                value: '(14) 99640-5496',
+                action: 'https://wa.me/5514996405496',
                 label: 'Iniciar conversa',
               },
               {
@@ -71,8 +101,8 @@ export default function ContactPage() {
                 bg: '#eef2ff',
                 title: 'E-mail',
                 subtitle: 'Resposta em até 24h úteis',
-                value: 'ola@nextia.com.br',
-                action: 'mailto:ola@nextia.com.br',
+                value: 'ola@nextia.dev.br',
+                action: 'mailto:ola@nextia.dev.br',
                 label: 'Enviar e-mail',
               },
               {
@@ -81,8 +111,8 @@ export default function ContactPage() {
                 bg: '#f5f3ff',
                 title: 'Telefone',
                 subtitle: 'Seg–Sex, 9h–18h',
-                value: '(11) 99999-9999',
-                action: 'tel:+5511999999999',
+                value: '(14) 99640-5496',
+                action: 'tel:+5514996405496',
                 label: 'Ligar agora',
               },
               {
@@ -91,9 +121,9 @@ export default function ContactPage() {
                 bg: '#fef2f2',
                 title: 'Localização',
                 subtitle: 'Atendimento remoto',
-                value: 'São Paulo, SP — Brasil',
+                value: 'Bauru, SP — Brasil',
                 action: '#',
-                label: 'Ver no mapa',
+                label: 'Atendimento remoto',
               },
             ].map(({ icon: Icon, color, bg, title, subtitle, value, action, label }) => (
               <a
@@ -134,20 +164,38 @@ export default function ContactPage() {
                   <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="w-8 h-8 text-green-600" />
                   </div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-2">Mensagem enviada!</h3>
-                  <p className="text-gray-500 mb-6">
-                    Recebemos sua mensagem e entraremos em contato em breve. Você também pode nos acionar pelo WhatsApp para uma resposta mais rápida.
+                  <h3 className="text-2xl font-black text-gray-900 mb-2">Chamado criado!</h3>
+                  <p className="text-gray-500 mb-6 leading-relaxed">
+                    Recebemos sua solicitação! Um e-mail de confirmação contendo o link de acompanhamento foi enviado. 
+                    Você pode visualizar o status e responder à nossa equipe clicando no botão abaixo:
                   </p>
-                  <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
-                    <Button variant="primary" size="lg">
-                      <MessageCircle className="w-4 h-4" />
-                      Falar no WhatsApp
-                    </Button>
-                  </a>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    {ticketTrackingLink && (
+                      <a href={ticketTrackingLink} className="w-full sm:w-auto">
+                        <Button variant="gradient" size="lg" fullWidth>
+                          Acompanhar Chamado
+                        </Button>
+                      </a>
+                    )}
+                    <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                      <Button variant="outline" size="lg" fullWidth>
+                        <MessageCircle className="w-4 h-4" />
+                        WhatsApp
+                      </Button>
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <>
                   <h2 className="text-2xl font-black text-gray-900 mb-6">Envie sua mensagem</h2>
+
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-sm text-red-600 font-semibold animate-fade-in">
+                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid sm:grid-cols-2 gap-5">
                       <div>

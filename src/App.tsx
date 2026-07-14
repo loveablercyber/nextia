@@ -11,6 +11,7 @@ import ContactPage from './pages/ContactPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import QuotePage from './pages/QuotePage';
+import TemplateDemoPage from './pages/TemplateDemoPage';
 
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
@@ -33,6 +34,12 @@ import AdminProjectsPage from './pages/admin/AdminProjectsPage';
 import AdminRequestsPage from './pages/admin/AdminRequestsPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 import AdminQuotesPage from './pages/admin/AdminQuotesPage';
+import AdminClientsPage from './pages/admin/AdminClientsPage';
+
+// Support & Tickets Pages
+import TicketDetailPage from './pages/TicketDetailPage';
+import ClientSupportPage from './pages/dashboard/ClientSupportPage';
+import AdminSupportPage from './pages/admin/AdminSupportPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -86,13 +93,14 @@ function AdminContainer({ children, title }: { children: React.ReactNode; title?
 
 function AppRoutes() {
   const { pathname } = useLocation();
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin');
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo');
 
   const content = (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sites-prontos" element={<TemplatesPage />} />
       <Route path="/templates/:slug" element={<TemplateDetailPage />} />
+      <Route path="/demo/:slug" element={<TemplateDemoPage />} />
       <Route path="/planos" element={<PlansPage />} />
       <Route path="/como-funciona" element={<HowItWorksPage />} />
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
@@ -100,6 +108,7 @@ function AppRoutes() {
       <Route path="/orcamento" element={<QuotePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
+      <Route path="/suporte/ticket/:id" element={<TicketDetailPage />} />
 
       {/* Dashboard Subroutes */}
       <Route
@@ -150,6 +159,14 @@ function AppRoutes() {
           </DashboardContainer>
         }
       />
+      <Route
+        path="/painel/suporte"
+        element={
+          <DashboardContainer title="Suporte / Tickets">
+            <ClientSupportPage />
+          </DashboardContainer>
+        }
+      />
 
       {/* Admin Subroutes */}
       <Route
@@ -157,6 +174,14 @@ function AppRoutes() {
         element={
           <AdminContainer title="Painel de controle geral">
             <AdminOverviewPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/clientes"
+        element={
+          <AdminContainer title="Gestão de clientes">
+            <AdminClientsPage />
           </AdminContainer>
         }
       />
@@ -181,6 +206,14 @@ function AppRoutes() {
         element={
           <AdminContainer title="Gestão de solicitações">
             <AdminRequestsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/suporte"
+        element={
+          <AdminContainer title="Chamados Suporte">
+            <AdminSupportPage />
           </AdminContainer>
         }
       />

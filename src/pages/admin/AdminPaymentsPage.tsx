@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
-  Plus, CheckCircle2, AlertTriangle, Send
+  Plus, CheckCircle2, AlertTriangle, Send, Trash2
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import Button from '../../components/ui/Button';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminPaymentsPage() {
-  const { projects, loading, createInvoice } = useAdmin();
+  const { projects, loading, createInvoice, refreshData } = useAdmin();
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
@@ -37,6 +38,40 @@ export default function AdminPaymentsPage() {
     setForm({ projectId: '', description: '', amount: '', type: 'mensalidade' });
     setSubmitting(false);
     setModalOpen(false);
+  };
+
+  const handleDeletePayment = async (paymentId: string, desc: string) => {
+    if (!confirm(`Deseja realmente remover a cobrança "${desc}"? Esta ação é irreversível.`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const response = await fetch('/api/admin/delete-item', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: 'payment',
+          id: paymentId
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao remover cobrança.');
+      }
+
+      alert('Cobrança removida com sucesso!');
+      await refreshData();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Erro inesperado ao remover cobrança.');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -91,6 +126,7 @@ export default function AdminPaymentsPage() {
                 <th className="pb-3 w-[100px]">Vencimento</th>
                 <th className="pb-3 w-[100px]">Valor</th>
                 <th className="pb-3 w-[120px]">Status</th>
+                <th className="pb-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50/50">
@@ -106,6 +142,17 @@ export default function AdminPaymentsPage() {
                     R$ {p.amount.toLocaleString('pt-BR')}
                   </td>
                   <td className="py-4">{getStatusBadge(p.status)}</td>
+                  <td className="py-4 text-right">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDeletePayment(p.id, p.description)}
+                      title="Remover cobrança"
+                      className="hover:bg-red-50 hover:text-red-600 hover:border-red-100 px-2 py-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
