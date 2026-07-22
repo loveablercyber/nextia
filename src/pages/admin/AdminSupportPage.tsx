@@ -33,7 +33,8 @@ export default function AdminSupportPage() {
       setError(null);
 
       const response = await fetch('/api/admin/list-support-tickets', {
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
 
       if (!response.ok) {

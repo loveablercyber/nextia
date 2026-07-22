@@ -48,7 +48,10 @@ export default function TicketDetailPage() {
       setError(null);
 
       const url = `/api/support/get-ticket?id=${id}${token ? `&token=${token}` : ''}`;
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-store'
+      });
 
       if (!response.ok) {
         const errData = await response.json();

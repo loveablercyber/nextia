@@ -22,7 +22,8 @@ export default function ClientSupportPage() {
       setError(null);
 
       const response = await fetch('/api/support/list-tickets', {
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
 
       if (!response.ok) {
