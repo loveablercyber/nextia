@@ -16,7 +16,7 @@ interface ProjectContextValue {
 const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 const STORAGE_KEY = 'nextia_projects_state';
-const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isSupabaseEnabled = false;
 
 // Adapter: Maps database schema (snake_case) to UI models (camelCase)
 function mapProjectDbToUi(dbProj: any): Project {

@@ -30,7 +30,7 @@ interface AdminContextValue {
 const AdminContext = createContext<AdminContextValue | null>(null);
 
 const STORAGE_KEY = 'nextia_projects_state';
-const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isSupabaseEnabled = false;
 
 // Mock Data for Local Fallback
 const MOCK_QUOTES = [

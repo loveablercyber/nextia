@@ -26,7 +26,7 @@ export default function PaymentsPage() {
 
   const handlePay = async (id: string) => {
     setPayingId(id);
-    const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const isSupabaseEnabled = false;
     if (isSupabaseEnabled) {
       try {
         const response = await fetch('/api/payments/create', {

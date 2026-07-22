@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { type QuoteFormData, initialFormData, calculateQuote } from '../data/quoteCalculator';
 import { supabase } from '../lib/supabase';
 
-const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isSupabaseEnabled = false;
 
 // State store for the wizard — integrates with Supabase when configured
 export function useQuoteStore() {

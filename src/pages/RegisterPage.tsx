@@ -3,9 +3,6 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { templates, OPTIONAL_FEATURES } from '../data/templates';
-import { supabase } from '../lib/supabase';
-
-const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export default function RegisterPage() {
   useEffect(() => {
@@ -67,115 +64,26 @@ export default function RegisterPage() {
 
     setLoading(true);
 
-    if (isSupabaseEnabled) {
-      try {
-        // Gerar iniciais do avatar a partir do nome
-        const nameParts = form.name.trim().split(/\s+/);
-        const initials = nameParts.length >= 2
-          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-          : form.name.substring(0, 2).toUpperCase();
-
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
-          options: {
-            data: {
-              name: form.name,
-              company: form.company,
-              phone: form.phone,
-              role: 'client',
-              avatar_initials: initials,
-              template: selectedTemplate ? selectedTemplate.name : '',
-              segment: selectedTemplate ? selectedTemplate.category : '',
-              monthly_fee: monthlyFee,
-              activation_fee: activationFee,
-            }
-          }
-        });
-
-        if (signUpError) {
-          setError(signUpError.message);
-          setLoading(false);
-          return;
-        }
-
-        setSuccess(true);
-        setLoading(false);
-
-        // Redirecionar para o painel após 2 segundos
-        setTimeout(() => {
-          navigate('/painel');
-        }, 2500);
-      } catch (err: any) {
-        setError(err.message || 'Ocorreu um erro ao criar sua conta.');
-        setLoading(false);
-      }
-    } else {
-      // Simulação sem Supabase
-      await new Promise(r => setTimeout(r, 1500));
-
-      if (selectedTemplate) {
-        // Create mock user
-        const newUserId = `usr-${Date.now()}`;
-        const newProfilesStored = localStorage.getItem('nextia_profiles_state');
-        const profilesList = newProfilesStored ? JSON.parse(newProfilesStored) : [];
-        const nameParts = form.name.trim().split(/\s+/);
-        const initials = nameParts.length >= 2
-          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-          : form.name.substring(0, 2).toUpperCase();
-
-        profilesList.push({
-          id: newUserId,
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: form.name,
-          company: form.company,
+          email: form.email,
           phone: form.phone,
-          role: 'client',
-          avatar_initials: initials,
-          created_at: new Date().toISOString()
-        });
-        localStorage.setItem('nextia_profiles_state', JSON.stringify(profilesList));
-
-        // Create mock project
-        const newProjId = `proj-${Date.now()}`;
-        const storedProj = localStorage.getItem('nextia_projects_state');
-        const projectsList = storedProj ? JSON.parse(storedProj) : [];
-
-        projectsList.push({
-          id: newProjId,
-          userId: newUserId,
-          name: form.company || `Projeto ${selectedTemplate.name}`,
-          template: selectedTemplate.name,
-          segment: selectedTemplate.category,
-          status: 'aguardando-briefing',
-          plan: 'Pro',
-          monthlyFee: monthlyFee,
-          activationFee: activationFee,
-          startedAt: new Date().toISOString(),
-          estimatedDelivery: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-          progressPercent: 0,
-          requestsRemaining: 5,
-          requestsTotal: 5,
-          milestones: [
-            { id: `m1-${Date.now()}`, title: 'Briefing recebido', description: 'Formulário de briefing preenchido e arquivos enviados.', status: 'pendente', estimatedAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString() },
-            { id: `m2-${Date.now()}`, title: 'Design aprovado', description: 'Wireframes e paleta de cores aprovados pelo cliente.', status: 'pendente', estimatedAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() },
-            { id: `m3-${Date.now()}`, title: 'Desenvolvimento', description: 'Construção do site com base no design aprovado.', status: 'pendente', estimatedAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString() },
-            { id: `m4-${Date.now()}`, title: 'Revisão do cliente', description: 'Site enviado para revisão. Aguardando aprovação ou ajustes.', status: 'pendente', estimatedAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString() },
-            { id: `m5-${Date.now()}`, title: 'Publicação', description: 'Publicação do site no domínio contratado.', status: 'pendente', estimatedAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString() }
-          ],
-          files: [],
-          changeRequests: [],
-          payments: [
-            {
-              id: `pay-${Date.now()}`,
-              description: `Taxa de ativação — Plano Pro (${selectedTemplate.name})`,
-              amount: activationFee,
-              dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'pendente',
-              type: 'ativacao'
-            }
-          ]
-        });
-        localStorage.setItem('nextia_projects_state', JSON.stringify(projectsList));
+          company: form.company,
+          password: form.password,
+          template: selectedTemplate ? selectedTemplate.name : '',
+          segment: selectedTemplate ? selectedTemplate.category : '',
+          monthlyFee,
+          activationFee,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Ocorreu um erro ao criar sua conta.');
       }
 
       setSuccess(true);
@@ -183,7 +91,11 @@ export default function RegisterPage() {
       setTimeout(() => {
         navigate('/login');
       }, 2500);
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro ao criar sua conta.');
+      setLoading(false);
     }
+
   };
 
   return (
@@ -269,9 +181,7 @@ export default function RegisterPage() {
               </div>
               <h2 className="text-2xl font-black text-gray-900 mb-2">Conta criada com sucesso!</h2>
               <p className="text-gray-500 mb-4">
-                {isSupabaseEnabled
-                  ? 'Verifique seu e-mail para confirmar a conta. Redirecionando...'
-                  : 'Redirecionando para o login...'}
+                Redirecionando para o login...
               </p>
               <div className="w-8 h-8 border-4 border-[#5B4FE9] border-t-transparent rounded-full animate-spin mx-auto" />
             </div>

@@ -25,7 +25,7 @@ interface NotificationContextValue {
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 const STORAGE_KEY = 'nextia_notifications_state';
-const isSupabaseEnabled = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isSupabaseEnabled = false;
 
 // Adapter: Maps database schema (snake_case) to UI models (camelCase)
 function mapNotifDbToUi(dbNotif: any): Notification {
