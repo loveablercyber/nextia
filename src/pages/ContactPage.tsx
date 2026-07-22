@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Mail, MessageCircle, MapPin, Phone, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { supabase } from '../lib/supabase';
 
 export default function ContactPage() {
   useEffect(() => {
@@ -22,19 +21,10 @@ export default function ContactPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const response = await fetch('/api/support/create-ticket', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
 

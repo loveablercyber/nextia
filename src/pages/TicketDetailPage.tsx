@@ -5,7 +5,6 @@ import {
   ArrowLeft, AlertTriangle, User, ShieldAlert 
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 interface Ticket {
@@ -48,16 +47,8 @@ export default function TicketDetailPage() {
       setLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const sessionToken = session?.access_token;
-
-      const headers: Record<string, string> = {};
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const url = `/api/support/get-ticket?id=${id}${token ? `&token=${token}` : ''}`;
-      const response = await fetch(url, { headers });
+      const response = await fetch(url, { credentials: 'include' });
 
       if (!response.ok) {
         const errData = await response.json();
@@ -87,19 +78,10 @@ export default function TicketDetailPage() {
 
     setSending(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const sessionToken = session?.access_token;
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       const response = await fetch('/api/support/reply-ticket', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ticketId: id,
           message: replyText,

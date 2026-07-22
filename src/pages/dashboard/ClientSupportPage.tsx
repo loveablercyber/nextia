@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Clock, CheckCircle2, ChevronRight, HelpCircle, AlertCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import { supabase } from '../../lib/supabase';
 
 interface Ticket {
   id: string;
@@ -22,17 +21,8 @@ export default function ClientSupportPage() {
       setLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('Usuário não autenticado.');
-      }
-
       const response = await fetch('/api/support/list-tickets', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {

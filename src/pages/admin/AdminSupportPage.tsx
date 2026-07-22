@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import { supabase } from '../../lib/supabase';
 
 interface SupportTicket {
   id: string;
@@ -33,17 +32,8 @@ export default function AdminSupportPage() {
       setLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('Usuário não autenticado.');
-      }
-
       const response = await fetch('/api/admin/list-support-tickets', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -91,16 +81,11 @@ export default function AdminSupportPage() {
 
   const handleUpdateStatus = async (ticketId: string, newStatus: SupportTicket['status']) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) return;
-
       const response = await fetch('/api/admin/update-ticket-status', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ticketId, status: newStatus })
       });
