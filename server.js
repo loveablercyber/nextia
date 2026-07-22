@@ -155,7 +155,15 @@ async function handleAuth(req, res, pathname) {
         [email],
       );
       const row = result.rows[0];
-      if (!row || !verifyPassword(password, row.password_hash)) {
+      let validPassword = false;
+      if (row?.password_hash?.startsWith('pbkdf2_sha256$')) {
+        validPassword = verifyPassword(password, row.password_hash);
+      } else if (row?.password_hash) {
+        const cryptCheck = await client.query('SELECT $1 = crypt($2, $1) AS ok', [row.password_hash, password]);
+        validPassword = cryptCheck.rows[0]?.ok === true;
+      }
+
+      if (!row || !validPassword) {
         return json(res, 401, { error: 'E-mail ou senha incorretos.' });
       }
       const user = mapProfile(row);
