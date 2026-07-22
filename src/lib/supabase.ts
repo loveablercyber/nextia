@@ -1,13 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yyytinalsavikewukfxn.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseAnonKey && typeof window !== 'undefined') {
-  console.warn(
-    '[Nextia] Supabase Anon Key is missing. Auth and database features will use mock data.\n' +
-    'Add VITE_SUPABASE_ANON_KEY to your .env file or Vercel Environment Variables.'
-  );
+if (!isSupabaseConfigured && typeof window !== 'undefined') {
+  console.info('[Nextia] Supabase disabled; using local PostgreSQL data paths.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  isSupabaseConfigured ? supabaseUrl : 'https://supabase-disabled.invalid',
+  isSupabaseConfigured ? supabaseAnonKey : 'supabase-disabled',
+  isSupabaseConfigured
+    ? undefined
+    : {
+        auth: {
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          persistSession: false,
+        },
+      },
+);
