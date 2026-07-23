@@ -1,3 +1,12 @@
-# Examples 1:
+```
+# Dependencies
+node_modules/
 
-# Example 2 (Project with artifacts):
+# Build artifacts
+node_modules/.tmp/
+
+# Environment
+.env
+.env.local
+*.env.*
+```

@@ -8,8 +8,10 @@ export interface User {
   company: string;
   phone: string;
   avatarInitials: string;
+  avatarUrl?: string;
   role: 'client' | 'admin';
   createdAt: string;
+  lastLogin?: string;
 }
 
 export interface AuthState {

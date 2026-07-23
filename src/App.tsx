@@ -28,6 +28,8 @@ import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 
+import ProfilePage from './pages/ProfilePage';
+
 // Admin Pages
 import AdminOverviewPage from './pages/admin/AdminOverviewPage';
 import AdminProjectsPage from './pages/admin/AdminProjectsPage';
@@ -165,6 +167,14 @@ function AppRoutes() {
         element={
           <DashboardContainer title="Suporte / Tickets">
             <ClientSupportPage />
+          </DashboardContainer>
+        }
+      />
+      <Route
+        path="/perfil"
+        element={
+          <DashboardContainer title="Meu perfil">
+            <ProfilePage />
           </DashboardContainer>
         }
       />

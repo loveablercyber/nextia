@@ -4,23 +4,26 @@ import {
   User as UserIcon,
   Mail,
   Phone,
-  Building2,
+  Calendar,
+  Shield,
   Save,
   X,
-  Shield,
-  Users,
-  ClipboardList,
-  Briefcase,
+  Camera,
   Lock,
   CheckCircle2,
-  Calendar,
+  ClipboardList,
   Clock,
-  Camera,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 
-export default function AdminProfilePage() {
+interface ProfileFormData {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,10 +32,9 @@ export default function AdminProfilePage() {
   const [success, setSuccess] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
     email: user?.email || '',
-    company: user?.company || '',
     phone: user?.phone || '',
   });
 
@@ -84,10 +86,6 @@ export default function AdminProfilePage() {
       newErrors.email = 'E-mail inválido';
     }
 
-    if (!formData.company.trim()) {
-      newErrors.company = 'Empresa é obrigatória';
-    }
-
     if (!formData.phone.trim()) {
       newErrors.phone = 'Telefone é obrigatório';
     }
@@ -135,12 +133,11 @@ export default function AdminProfilePage() {
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
-      company: user?.company || '',
       phone: user?.phone || '',
     });
     setErrors({});
     setSuccess(false);
-    navigate('/admin');
+    navigate('/painel');
   };
 
   const formatDate = (dateString?: string) => {
@@ -152,49 +149,44 @@ export default function AdminProfilePage() {
     });
   };
 
-  // Mock dashboard data
-  const dashboardStats = {
-    totalClients: 47,
-    totalAppointments: 156,
-    totalServices: 23,
-  };
-
-  const quickLinks = [
-    { label: 'Gerenciar Usuários', icon: Users, href: '/admin/clientes', color: 'from-[#5B4FE9] to-[#7c3aed]' },
-    { label: 'Configurações', icon: Briefcase, href: '/admin', color: 'from-[#db2777] to-[#ec4899]' },
-    { label: 'Agenda', icon: Calendar, href: '/admin/projetos', color: 'from-[#059669] to-[#10b981]' },
+  // Mock data for demonstration
+  const appointmentCount = 3;
+  const lastAppointments = [
+    { id: 1, service: 'Criação de Landing Page', date: '2025-01-10', status: 'Concluído' },
+    { id: 2, service: 'Revisão de Design', date: '2025-01-05', status: 'Concluído' },
+    { id: 3, service: 'Suporte Técnico', date: '2024-12-20', status: 'Concluído' },
   ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900">Perfil do Administrador</h2>
-        <p className="text-sm text-gray-500 mt-1">Gerencie suas informações pessoais e de acesso</p>
+        <h2 className="text-lg font-bold text-gray-900">Meu Perfil</h2>
+        <p className="text-sm text-gray-500 mt-1">Gerencie suas informações pessoais e preferências de conta</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile Card & Dashboard */}
+        {/* Left Column - Profile Card & Security */}
         <div className="lg:col-span-1 space-y-6">
           {/* Profile Summary Card */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             {/* Banner */}
-            <div className="h-28 bg-gradient-to-r from-[#7c3aed] to-[#db2777] relative">
+            <div className="h-28 bg-gradient-to-r from-[#5B4FE9] to-[#7c3aed] relative">
               <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-2xl bg-white shadow-lg flex items-center justify-center border-4 border-white overflow-hidden">
                     {previewUrl ? (
                       <img src={previewUrl} alt="Foto de perfil" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#7c3aed] to-[#db2777] flex items-center justify-center text-white font-black text-xl">
-                        {user?.avatarInitials || 'AD'}
+                      <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] flex items-center justify-center text-white font-black text-xl">
+                        {user?.avatarInitials || 'CL'}
                       </div>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={triggerFileInput}
-                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#7c3aed] hover:bg-[#6d28d9] flex items-center justify-center shadow-md transition-colors"
+                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#5B4FE9] hover:bg-[#4338CA] flex items-center justify-center shadow-md transition-colors"
                     title="Alterar foto"
                   >
                     <Camera className="w-3.5 h-3.5 text-white" />
@@ -224,88 +216,57 @@ export default function AdminProfilePage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-3 p-3 bg-pink-50 rounded-xl">
-                  <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-4 h-4 text-pink-600" />
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-4 h-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-700">Cargo</p>
-                    <p className="text-xs font-bold text-pink-600 uppercase">Administrador</p>
+                    <p className="text-xs font-semibold text-gray-700">Status da conta</p>
+                    <p className="text-xs font-bold text-green-600 uppercase">Ativa</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Quick Dashboard Stats */}
+          {/* Account Type Card */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-[#7c3aed]" />
-              Dashboard Rápido
+              <Shield className="w-4 h-4 text-[#5B4FE9]" />
+              Tipo de Conta
             </h3>
-            <div className="space-y-3">
-              <div className="p-4 bg-gradient-to-r from-[#5B4FE9]/10 to-[#7c3aed]/10 rounded-2xl border border-[#5B4FE9]/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#5B4FE9] flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-600">Total de Clientes</p>
-                      <p className="text-xl font-black text-[#5B4FE9]">{dashboardStats.totalClients}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-[#db2777]/10 to-[#ec4899]/10 rounded-2xl border border-[#db2777]/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#db2777] flex items-center justify-center">
-                      <ClipboardList className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-600">Total de Agendamentos</p>
-                      <p className="text-xl font-black text-[#db2777]">{dashboardStats.totalAppointments}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 bg-gradient-to-r from-[#059669]/10 to-[#10b981]/10 rounded-2xl border border-[#059669]/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#059669] flex items-center justify-center">
-                      <Briefcase className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-600">Total de Serviços</p>
-                      <p className="text-xl font-black text-[#059669]">{dashboardStats.totalServices}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 bg-gradient-to-r from-[#5B4FE9]/10 to-[#7c3aed]/10 rounded-2xl border border-[#5B4FE9]/20">
+              <p className="text-sm font-bold text-[#5B4FE9] uppercase">Cliente</p>
+              <p className="text-xs text-gray-600 mt-1">Acesso completo ao painel do cliente</p>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Quick Stats */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#7c3aed]" />
-              Atalhos Rápidos
+              <ClipboardList className="w-4 h-4 text-[#5B4FE9]" />
+              Histórico
             </h3>
-            <div className="space-y-2">
-              {quickLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group"
-                >
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${link.color} flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}>
-                    <link.icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-semibold text-gray-700">{link.label}</span>
-                </a>
-              ))}
+            <div className="text-center py-4">
+              <p className="text-3xl font-black text-[#5B4FE9]">{appointmentCount}</p>
+              <p className="text-xs text-gray-600 mt-1">Agendamentos realizados</p>
             </div>
+            {lastAppointments.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Últimos agendamentos</p>
+                {lastAppointments.map((apt) => (
+                  <div key={apt.id} className="p-3 bg-gray-50 rounded-xl">
+                    <p className="text-xs font-semibold text-gray-900 truncate">{apt.service}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-gray-500">{formatDate(apt.date)}</span>
+                      <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                        {apt.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -315,8 +276,8 @@ export default function AdminProfilePage() {
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-pink-600" />
-                Informações Pessoais
+                <UserIcon className="w-4 h-4 text-[#5B4FE9]" />
+                Dados Pessoais
               </h3>
               <p className="text-xs text-gray-500 mt-1">Atualize suas informações de contato</p>
             </div>
@@ -360,7 +321,7 @@ export default function AdminProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-sm`}
+                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
                         placeholder="Seu nome completo"
                       />
                     </div>
@@ -384,7 +345,7 @@ export default function AdminProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-sm`}
+                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
                         placeholder="seu@email.com"
                       />
                     </div>
@@ -393,34 +354,10 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-5">
-                  {/* Company */}
-                  <div>
-                    <label htmlFor="company" className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Empresa *
-                    </label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <input
-                        type="text"
-                        id="company"
-                        name="company"
-                        value={formData.company}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
-                          errors.company ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-sm`}
-                        placeholder="Nome da empresa"
-                      />
-                    </div>
-                    {errors.company && <p className="mt-1 text-xs text-red-500 font-medium">{errors.company}</p>}
-                  </div>
-
                   {/* Phone */}
                   <div>
                     <label htmlFor="phone" className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Telefone *
+                      Telefone / WhatsApp *
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -434,11 +371,32 @@ export default function AdminProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-pink-500 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-sm`}
+                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
                         placeholder="(00) 00000-0000"
                       />
                     </div>
                     {errors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{errors.phone}</p>}
+                  </div>
+
+                  {/* Company (Read-only) */}
+                  <div>
+                    <label htmlFor="company" className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Empresa / Negócio
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        id="company"
+                        name="company"
+                        value={user?.company || ''}
+                        disabled
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed text-sm"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">Não é possível alterar</p>
                   </div>
                 </div>
 
@@ -456,8 +414,8 @@ export default function AdminProfilePage() {
                   </Button>
                   <Button
                     type="submit"
-                    variant="primary"
-                    className="flex-1 sm:flex-none justify-center bg-gradient-to-r from-[#7c3aed] to-[#db2777] hover:from-[#6d28d9] hover:to-[#be185d]"
+                    variant="gradient"
+                    className="flex-1 sm:flex-none justify-center"
                     disabled={loading}
                   >
                     {loading ? (
