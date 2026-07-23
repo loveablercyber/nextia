@@ -35,6 +35,7 @@ import AdminRequestsPage from './pages/admin/AdminRequestsPage';
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
 import AdminQuotesPage from './pages/admin/AdminQuotesPage';
 import AdminClientsPage from './pages/admin/AdminClientsPage';
+import AdminProfilePage from './pages/admin/AdminProfilePage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -222,6 +223,14 @@ function AppRoutes() {
         element={
           <AdminContainer title="Gestão financeira">
             <AdminPaymentsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/perfil"
+        element={
+          <AdminContainer title="Perfil do administrador">
+            <AdminProfilePage />
           </AdminContainer>
         }
       />
