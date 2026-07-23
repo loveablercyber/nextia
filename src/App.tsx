@@ -171,6 +171,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/painel/perfil"
+        element={
+          <DashboardContainer title="Meu perfil">
+            <ProfilePage />
+          </DashboardContainer>
+        }
+      />
+      <Route
         path="/perfil"
         element={
           <DashboardContainer title="Meu perfil">

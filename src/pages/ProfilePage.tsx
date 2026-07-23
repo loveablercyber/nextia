@@ -1,18 +1,22 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon,
   Mail,
   Phone,
-  Calendar,
-  Shield,
+  Building2,
   Save,
   X,
-  Camera,
+  Shield,
+  Users,
+  ClipboardList,
+  Briefcase,
   Lock,
   CheckCircle2,
-  ClipboardList,
+  Calendar,
   Clock,
+  Camera,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
@@ -21,12 +25,15 @@ interface ProfileFormData {
   name: string;
   email: string;
   phone: string;
+  company: string;
 }
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdmin = user?.role === 'admin';
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -36,7 +43,20 @@ export default function ProfilePage() {
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
+    company: user?.company || '',
   });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        company: user.company || '',
+      });
+      if (user.avatarUrl) setPreviewUrl(user.avatarUrl);
+    }
+  }, [user]);
 
   const [pwForm, setPwForm] = useState({
     currentPassword: '',
@@ -46,6 +66,7 @@ export default function ProfilePage() {
 
   const [pwLoading, setPwLoading] = useState(false);
   const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwError, setPwError] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -101,11 +122,27 @@ export default function ProfilePage() {
 
     setLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Gera iniciais a partir do nome
+    const initials = formData.name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'NX';
 
-    // Update profile in context
-    updateProfile(formData);
+    // Simula chamada à API / Atualiza contexto
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    updateProfile({
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+      company: formData.company.trim(),
+      avatarInitials: initials,
+      avatarUrl: previewUrl || undefined,
+    });
 
     setLoading(false);
     setSuccess(true);
@@ -115,13 +152,26 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pwForm.newPassword !== pwForm.confirmPassword) return;
+    setPwError('');
+
+    if (!pwForm.currentPassword) {
+      setPwError('Informe a senha atual');
+      return;
+    }
+    if (pwForm.newPassword.length < 6) {
+      setPwError('A nova senha deve ter no mínimo 6 caracteres');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('As senhas não coincidem');
+      return;
+    }
 
     setPwLoading(true);
     setPwSuccess(false);
 
-    // Simulate saving
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Simula atualização de senha
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     setPwLoading(false);
     setPwSuccess(true);
@@ -130,63 +180,104 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    setFormData({
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-    });
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        company: user.company || '',
+      });
+    }
     setErrors({});
     setSuccess(false);
-    navigate('/painel');
+    navigate(isAdmin ? '/admin' : '/painel');
   };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
   };
 
-  // Mock data for demonstration
-  const appointmentCount = 3;
+  // Dados ilustrativos para Admin
+  const adminDashboardStats = {
+    totalClients: 47,
+    totalAppointments: 156,
+    totalServices: 23,
+  };
+
+  const adminQuickLinks = [
+    { label: 'Gerenciar Clientes', icon: Users, href: '/admin/clientes', color: 'from-[#5B4FE9] to-[#7c3aed]' },
+    { label: 'Projetos Ativos', icon: Briefcase, href: '/admin/projetos', color: 'from-[#059669] to-[#10b981]' },
+    { label: 'Central de Suporte', icon: HelpCircle, href: '/admin/suporte', color: 'from-[#db2777] to-[#ec4899]' },
+  ];
+
+  // Dados ilustrativos para Cliente
   const lastAppointments = [
-    { id: 1, service: 'Criação de Landing Page', date: '2025-01-10', status: 'Concluído' },
-    { id: 2, service: 'Revisão de Design', date: '2025-01-05', status: 'Concluído' },
-    { id: 3, service: 'Suporte Técnico', date: '2024-12-20', status: 'Concluído' },
+    { id: 1, service: 'Criação de Landing Page', date: '2026-01-10', status: 'Concluído' },
+    { id: 2, service: 'Revisão de Design', date: '2026-01-05', status: 'Concluído' },
+    { id: 3, service: 'Suporte Técnico', date: '2025-12-20', status: 'Concluído' },
   ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900">Meu Perfil</h2>
-        <p className="text-sm text-gray-500 mt-1">Gerencie suas informações pessoais e preferências de conta</p>
+        <h2 className="text-lg font-bold text-gray-900">
+          {isAdmin ? 'Perfil do Administrador' : 'Meu Perfil'}
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          {isAdmin
+            ? 'Gerencie suas informações pessoais, de acesso e dados administrativos'
+            : 'Gerencie suas informações pessoais e preferências de conta'}
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile Card & Security */}
+        {/* Left Column - Avatar, Stats & Quick Links */}
         <div className="lg:col-span-1 space-y-6">
           {/* Profile Summary Card */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* Banner */}
-            <div className="h-28 bg-gradient-to-r from-[#5B4FE9] to-[#7c3aed] relative">
+            {/* Banner Theme */}
+            <div
+              className={`h-28 relative ${
+                isAdmin
+                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#db2777]'
+                  : 'bg-gradient-to-r from-[#5B4FE9] to-[#7c3aed]'
+              }`}
+            >
               <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-2xl bg-white shadow-lg flex items-center justify-center border-4 border-white overflow-hidden">
                     {previewUrl ? (
                       <img src={previewUrl} alt="Foto de perfil" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full rounded-xl bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] flex items-center justify-center text-white font-black text-xl">
-                        {user?.avatarInitials || 'CL'}
+                      <div
+                        className={`w-full h-full rounded-xl flex items-center justify-center text-white font-black text-xl ${
+                          isAdmin
+                            ? 'bg-gradient-to-br from-[#7c3aed] to-[#db2777]'
+                            : 'bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed]'
+                        }`}
+                      >
+                        {user?.avatarInitials || (isAdmin ? 'AD' : 'CL')}
                       </div>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={triggerFileInput}
-                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#5B4FE9] hover:bg-[#4338CA] flex items-center justify-center shadow-md transition-colors"
+                    className={`absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-colors ${
+                      isAdmin
+                        ? 'bg-[#7c3aed] hover:bg-[#6d28d9]'
+                        : 'bg-[#5B4FE9] hover:bg-[#4338CA]'
+                    }`}
                     title="Alterar foto"
                   >
                     <Camera className="w-3.5 h-3.5 text-white" />
@@ -198,8 +289,8 @@ export default function ProfilePage() {
             {/* Content */}
             <div className="pt-12 pb-6 px-6">
               <div className="text-center mb-4">
-                <h3 className="font-bold text-gray-900">{user?.name}</h3>
-                <p className="text-xs text-gray-500">{user?.company}</p>
+                <h3 className="font-bold text-gray-900">{user?.name || 'Usuário'}</h3>
+                {user?.company && <p className="text-xs text-gray-500 mt-0.5">{user.company}</p>}
               </div>
 
               <div className="space-y-3 pt-4 border-t border-gray-100">
@@ -216,80 +307,164 @@ export default function ProfilePage() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
-                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-4 h-4 text-green-600" />
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-xl ${
+                    isAdmin ? 'bg-pink-50' : 'bg-green-50'
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isAdmin ? 'bg-pink-100' : 'bg-green-100'
+                    }`}
+                  >
+                    <Shield
+                      className={`w-4 h-4 ${isAdmin ? 'text-pink-600' : 'text-green-600'}`}
+                    />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-700">Status da conta</p>
-                    <p className="text-xs font-bold text-green-600 uppercase">Ativa</p>
+                    <p className="text-xs font-semibold text-gray-700">Função da Conta</p>
+                    <p
+                      className={`text-xs font-bold uppercase ${
+                        isAdmin ? 'text-pink-600' : 'text-green-600'
+                      }`}
+                    >
+                      {isAdmin ? 'Administrador' : 'Cliente Ativo'}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Account Type Card */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#5B4FE9]" />
-              Tipo de Conta
-            </h3>
-            <div className="p-4 bg-gradient-to-r from-[#5B4FE9]/10 to-[#7c3aed]/10 rounded-2xl border border-[#5B4FE9]/20">
-              <p className="text-sm font-bold text-[#5B4FE9] uppercase">Cliente</p>
-              <p className="text-xs text-gray-600 mt-1">Acesso completo ao painel do cliente</p>
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-[#5B4FE9]" />
-              Histórico
-            </h3>
-            <div className="text-center py-4">
-              <p className="text-3xl font-black text-[#5B4FE9]">{appointmentCount}</p>
-              <p className="text-xs text-gray-600 mt-1">Agendamentos realizados</p>
-            </div>
-            {lastAppointments.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs font-semibold text-gray-700 mb-2">Últimos agendamentos</p>
-                {lastAppointments.map((apt) => (
-                  <div key={apt.id} className="p-3 bg-gray-50 rounded-xl">
-                    <p className="text-xs font-semibold text-gray-900 truncate">{apt.service}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-gray-500">{formatDate(apt.date)}</span>
-                      <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                        {apt.status}
-                      </span>
+          {/* Conditional Stats Section */}
+          {isAdmin ? (
+            /* Admin Quick Stats & Links */
+            <>
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#7c3aed]" />
+                  Dashboard Rápido
+                </h3>
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-gradient-to-r from-[#5B4FE9]/10 to-[#7c3aed]/10 rounded-2xl border border-[#5B4FE9]/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#5B4FE9] flex items-center justify-center">
+                          <Users className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600">Total de Clientes</p>
+                          <p className="text-lg font-black text-[#5B4FE9]">{adminDashboardStats.totalClients}</p>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="p-3.5 bg-gradient-to-r from-[#db2777]/10 to-[#ec4899]/10 rounded-2xl border border-[#db2777]/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#db2777] flex items-center justify-center">
+                          <ClipboardList className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600">Agendamentos</p>
+                          <p className="text-lg font-black text-[#db2777]">{adminDashboardStats.totalAppointments}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-gradient-to-r from-[#059669]/10 to-[#10b981]/10 rounded-2xl border border-[#059669]/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#059669] flex items-center justify-center">
+                          <Briefcase className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600">Serviços Catálogo</p>
+                          <p className="text-lg font-black text-[#059669]">{adminDashboardStats.totalServices}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-[#7c3aed]" />
+                  Atalhos Rápidos
+                </h3>
+                <div className="space-y-2">
+                  {adminQuickLinks.map((link) => (
+                    <button
+                      key={link.label}
+                      type="button"
+                      onClick={() => navigate(link.href)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
+                    >
+                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-r ${link.color} flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform`}>
+                        <link.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-700">{link.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Client Stats & Activity */
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-[#5B4FE9]" />
+                Histórico de Atividade
+              </h3>
+              <div className="text-center py-4 bg-gradient-to-r from-[#5B4FE9]/5 to-[#7c3aed]/5 rounded-2xl border border-[#5B4FE9]/10 mb-4">
+                <p className="text-3xl font-black text-[#5B4FE9]">{lastAppointments.length}</p>
+                <p className="text-xs text-gray-600 mt-1">Serviços / Agendamentos</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Últimas solicitações</p>
+                {lastAppointments.map((apt) => (
+                  <div key={apt.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                    <div className="min-w-0 pr-2">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{apt.service}</p>
+                      <span className="text-[10px] text-gray-500">{formatDate(apt.date)}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">
+                      {apt.status}
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Column - Forms */}
+        {/* Right Column - Edit Profile Form & Password Security */}
         <div className="lg:col-span-2 space-y-6">
           {/* Personal Information Form */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-[#5B4FE9]" />
-                Dados Pessoais
+                <UserIcon className={`w-4 h-4 ${isAdmin ? 'text-[#7c3aed]' : 'text-[#5B4FE9]'}`} />
+                Informações do Perfil
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Atualize suas informações de contato</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Atualize seus dados pessoais e de contato para comunicação
+              </p>
             </div>
 
             <div className="p-6">
-              {/* Success Message */}
+              {/* Success Alert */}
               {success && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-4 h-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-semibold text-green-700">Perfil atualizado com sucesso!</span>
+                  <span className="text-sm font-semibold text-green-700">
+                    Perfil atualizado com sucesso!
+                  </span>
                 </div>
               )}
 
@@ -321,7 +496,11 @@ export default function ProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
+                        } focus:bg-white ${
+                          isAdmin
+                            ? 'focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10'
+                            : 'focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10'
+                        } outline-none transition-all text-sm`}
                         placeholder="Seu nome completo"
                       />
                     </div>
@@ -331,7 +510,7 @@ export default function ProfilePage() {
                   {/* Email */}
                   <div>
                     <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      E-mail *
+                      E-mail de Acesso *
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -345,7 +524,11 @@ export default function ProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
+                        } focus:bg-white ${
+                          isAdmin
+                            ? 'focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10'
+                            : 'focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10'
+                        } outline-none transition-all text-sm`}
                         placeholder="seu@email.com"
                       />
                     </div>
@@ -371,42 +554,50 @@ export default function ProfilePage() {
                         onChange={handleChange}
                         className={`w-full pl-10 pr-4 py-2.5 rounded-xl border ${
                           errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
-                        } focus:bg-white focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10 outline-none transition-all text-sm`}
+                        } focus:bg-white ${
+                          isAdmin
+                            ? 'focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10'
+                            : 'focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10'
+                        } outline-none transition-all text-sm`}
                         placeholder="(00) 00000-0000"
                       />
                     </div>
                     {errors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{errors.phone}</p>}
                   </div>
 
-                  {/* Company (Read-only) */}
+                  {/* Company */}
                   <div>
                     <label htmlFor="company" className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Empresa / Negócio
                     </label>
                     <div className="relative">
                       <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <Mail className="w-4 h-4" />
+                        <Building2 className="w-4 h-4" />
                       </div>
                       <input
                         type="text"
                         id="company"
                         name="company"
-                        value={user?.company || ''}
-                        disabled
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed text-sm"
+                        value={formData.company}
+                        onChange={handleChange}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white ${
+                          isAdmin
+                            ? 'focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10'
+                            : 'focus:border-[#5B4FE9] focus:ring-2 focus:ring-[#5B4FE9]/10'
+                        } outline-none transition-all text-sm`}
+                        placeholder="Nome da sua empresa"
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-400">Não é possível alterar</p>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
+                {/* Form Actions */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100 justify-end">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleCancel}
-                    className="flex-1 sm:flex-none justify-center"
+                    className="justify-center"
                     disabled={loading}
                   >
                     <X className="w-4 h-4" />
@@ -415,7 +606,11 @@ export default function ProfilePage() {
                   <Button
                     type="submit"
                     variant="gradient"
-                    className="flex-1 sm:flex-none justify-center"
+                    className={`justify-center ${
+                      isAdmin
+                        ? 'bg-gradient-to-r from-[#7c3aed] to-[#db2777] hover:from-[#6d28d9] hover:to-[#be185d]'
+                        : ''
+                    }`}
                     disabled={loading}
                   >
                     {loading ? (
@@ -435,14 +630,14 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Change Password Form */}
+          {/* Security & Password Form */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#7c3aed]" />
-                Segurança
+                <Lock className={`w-4 h-4 ${isAdmin ? 'text-[#db2777]' : 'text-[#7c3aed]'}`} />
+                Segurança e Acesso
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Altere sua senha de acesso</p>
+              <p className="text-xs text-gray-500 mt-1">Altere sua senha de login com segurança</p>
             </div>
 
             <div className="p-6">
@@ -451,7 +646,13 @@ export default function ProfilePage() {
                   <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-4 h-4 text-green-600" />
                   </div>
-                  <span className="text-sm font-semibold text-green-700">Senha atualizada com sucesso!</span>
+                  <span className="text-sm font-semibold text-green-700">Senha alterada com sucesso!</span>
+                </div>
+              )}
+
+              {pwError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-sm text-red-700 font-medium">
+                  {pwError}
                 </div>
               )}
 
@@ -481,7 +682,7 @@ export default function ProfilePage() {
                       value={pwForm.newPassword}
                       onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10 outline-none transition-all text-sm"
-                      placeholder="Nova senha"
+                      placeholder="Mínimo 6 caracteres"
                     />
                   </div>
 
@@ -495,7 +696,7 @@ export default function ProfilePage() {
                       value={pwForm.confirmPassword}
                       onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/10 outline-none transition-all text-sm"
-                      placeholder="Confirme a nova senha"
+                      placeholder="Repita a nova senha"
                     />
                   </div>
                 </div>
@@ -506,6 +707,11 @@ export default function ProfilePage() {
                     variant="gradient"
                     size="sm"
                     loading={pwLoading}
+                    className={
+                      isAdmin
+                        ? 'bg-gradient-to-r from-[#7c3aed] to-[#db2777] hover:from-[#6d28d9] hover:to-[#be185d]'
+                        : ''
+                    }
                   >
                     <Save className="w-3.5 h-3.5" />
                     Alterar Senha

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
   Upload, Settings, LogOut, Zap, Menu, ChevronRight,
-  Bell, ExternalLink, HelpCircle
+  Bell, ExternalLink, HelpCircle, User
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,7 @@ const navItems = [
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
+  { to: '/painel/perfil', icon: User, label: 'Meu Perfil' },
   { to: '/painel/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
