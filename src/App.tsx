@@ -10,6 +10,8 @@ import CustomProjectPage from './pages/CustomProjectPage';
 import ContactPage from './pages/ContactPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
 
@@ -68,7 +70,7 @@ function NotFound() {
 }
 
 // Pages that DON'T use the Layout (Header/Footer)
-const noLayoutPages = ['/login', '/cadastro'];
+const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-senha'];
 
 function DashboardContainer({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
@@ -111,6 +113,8 @@ function AppRoutes() {
       <Route path="/orcamento" element={<QuotePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
+      <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
+      <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route path="/suporte/ticket/:id" element={<TicketDetailPage />} />
 
       {/* Dashboard Subroutes */}

@@ -223,6 +223,42 @@ async function sendSupportTicketEmail({ email, message, name, subject, trackingL
   }
 }
 
+async function sendPasswordResetEmail({ email, name, resetLink }) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    console.log(`[AUTH] Link de redefinição de senha para ${email}: ${resetLink}`);
+    return;
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: process.env.RESEND_FROM || 'Nextia Suporte <suporte@nextia.dev.br>',
+      to: [email],
+      subject: 'Nextia — Redefinição de Senha',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #5B4FE9;">Olá, ${escapeHtml(name || 'Cliente')}!</h2>
+          <p>Recebemos uma solicitação para redefinir a senha da sua conta no Nextia.</p>
+          <p>Clique no botão abaixo para cadastrar uma nova senha (link válido por 1 hora):</p>
+          <div style="margin: 30px 0;">
+            <a href="${escapeHtml(resetLink)}" style="background-color: #5B4FE9; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+          </div>
+          <p style="color: #666; font-size: 12px;">Se você não solicitou a alteração, por favor ignore este e-mail.</p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!response.ok) {
+    console.error(`Resend returned HTTP ${response.status} while sending password reset email`);
+  }
+}
+
 const supportApiMethods = new Map([
   ['/api/support/create-ticket', 'POST'],
   ['/api/support/list-tickets', 'GET'],
@@ -559,6 +595,138 @@ async function handleAuth(req, res, pathname) {
       if (String(err.message || '').includes('duplicate')) {
         return json(res, 409, { error: 'Este e-mail já está cadastrado.' });
       }
+      throw err;
+    } finally {
+      await client.end();
+    }
+  }
+
+  if (pathname === '/api/auth/forgot-password' && req.method === 'POST') {
+    const { email } = await readJson(req);
+    if (!email) return json(res, 400, { error: 'E-mail é obrigatório.' });
+
+    const client = dbClient();
+    await client.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      const userRes = await client.query(
+        `SELECT id, name, email FROM public.profiles WHERE lower(email) = lower($1)`,
+        [email.trim()],
+      );
+
+      if (userRes.rows.length > 0) {
+        const user = userRes.rows[0];
+        const resetToken = randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+        await client.query(`DELETE FROM public.password_reset_tokens WHERE user_id = $1`, [user.id]);
+        await client.query(
+          `INSERT INTO public.password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)`,
+          [user.id, resetToken, expiresAt.toISOString()],
+        );
+
+        const resetLink = `${appBaseUrl(req)}/redefinir-senha?token=${resetToken}`;
+        await sendPasswordResetEmail({ email: user.email, name: user.name, resetLink });
+      }
+
+      return json(res, 200, {
+        ok: true,
+        message: 'Se o e-mail estiver cadastrado, você receberá instruções para redefinir sua senha.',
+      });
+    } finally {
+      await client.end();
+    }
+  }
+
+  if (pathname === '/api/auth/verify-reset-token' && req.method === 'GET') {
+    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const token = url.searchParams.get('token');
+    if (!token) return json(res, 400, { valid: false, error: 'Token não informado.' });
+
+    const client = dbClient();
+    await client.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      const tokenRes = await client.query(
+        `SELECT id, expires_at FROM public.password_reset_tokens WHERE token = $1`,
+        [token],
+      );
+
+      if (tokenRes.rows.length === 0) {
+        return json(res, 200, { valid: false, error: 'Link de redefinição inválido.' });
+      }
+
+      const row = tokenRes.rows[0];
+      if (new Date(row.expires_at) < new Date()) {
+        return json(res, 200, { valid: false, error: 'Este link de redefinição já expirou.' });
+      }
+
+      return json(res, 200, { valid: true });
+    } finally {
+      await client.end();
+    }
+  }
+
+  if (pathname === '/api/auth/reset-password' && req.method === 'POST') {
+    const { token, password } = await readJson(req);
+    if (!token || !password || password.length < 6) {
+      return json(res, 400, { error: 'Token e nova senha (mínimo 6 caracteres) são obrigatórios.' });
+    }
+
+    const client = dbClient();
+    await client.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      const tokenRes = await client.query(
+        `SELECT user_id, expires_at FROM public.password_reset_tokens WHERE token = $1`,
+        [token],
+      );
+
+      if (tokenRes.rows.length === 0 || new Date(tokenRes.rows[0].expires_at) < new Date()) {
+        return json(res, 400, { error: 'Link de redefinição inválido ou expirado.' });
+      }
+
+      const userId = tokenRes.rows[0].user_id;
+      const newHash = hashPassword(password);
+
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+        [newHash, userId],
+      );
+      await client.query(`DELETE FROM public.password_reset_tokens WHERE token = $1`, [token]);
+      await client.query('COMMIT');
+
+      return json(res, 200, { ok: true, message: 'Senha redefinida com sucesso!' });
+    } catch (err) {
+      await client.query('ROLLBACK');
       throw err;
     } finally {
       await client.end();
