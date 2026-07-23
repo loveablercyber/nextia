@@ -1,12 +1,12 @@
 ```
+# Build artifacts
+dist/
+build/
+
 # Dependencies
 node_modules/
 
-# Build artifacts
+# Temporary files
+*.tmp
 node_modules/.tmp/
-
-# Environment
-.env
-.env.local
-*.env.*
 ```
