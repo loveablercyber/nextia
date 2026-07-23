@@ -518,6 +518,92 @@ async function handleAuth(req, res, pathname) {
     return json(res, 200, { user });
   }
 
+  if ((pathname === '/api/auth/update-profile' || pathname === '/api/auth/profile') && (req.method === 'PUT' || req.method === 'POST')) {
+    const token = requestToken(req);
+    const payload = verifyToken(token);
+    if (!payload?.sub) return json(res, 401, { error: 'Não autorizado. Sessão expirada.' });
+
+    const body = await readJson(req);
+    const name = String(body.name || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const phone = String(body.phone || '').trim();
+    const company = String(body.company || '').trim();
+    const avatarInitials = String(body.avatarInitials || '').trim() || 'NX';
+
+    if (!name || !email) {
+      return json(res, 400, { error: 'Nome e e-mail são obrigatórios.' });
+    }
+
+    const client = dbClient();
+    await client.connect();
+    try {
+      const result = await client.query(
+        `UPDATE public.profiles
+         SET name = $1, email = $2, phone = $3, company = $4, avatar_initials = $5
+         WHERE id = $6
+         RETURNING id, email, name, company, phone, role, avatar_initials, created_at`,
+        [name, email, phone, company, avatarInitials, payload.sub],
+      );
+
+      if (result.rows.length === 0) {
+        return json(res, 404, { error: 'Perfil não encontrado.' });
+      }
+
+      const user = mapProfile(result.rows[0]);
+      return json(res, 200, { ok: true, user });
+    } catch (err) {
+      if (String(err.message || '').includes('duplicate')) {
+        return json(res, 409, { error: 'Este e-mail já está sendo utilizado por outro usuário.' });
+      }
+      throw err;
+    } finally {
+      await client.end();
+    }
+  }
+
+  if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+    const token = requestToken(req);
+    const payload = verifyToken(token);
+    if (!payload?.sub) return json(res, 401, { error: 'Não autorizado. Sessão expirada.' });
+
+    const { currentPassword, newPassword } = await readJson(req);
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return json(res, 400, { error: 'Preencha a senha atual e a nova senha (mínimo de 6 caracteres).' });
+    }
+
+    const client = dbClient();
+    await client.connect();
+    try {
+      const userRes = await client.query(
+        `SELECT password_hash FROM public.local_auth_users WHERE id = $1`,
+        [payload.sub],
+      );
+
+      const row = userRes.rows[0];
+      let validPassword = false;
+      if (row?.password_hash?.startsWith('pbkdf2_sha256$')) {
+        validPassword = verifyPassword(currentPassword, row.password_hash);
+      } else if (row?.password_hash) {
+        const cryptCheck = await client.query('SELECT $1 = crypt($2, $1) AS ok', [row.password_hash, currentPassword]);
+        validPassword = cryptCheck.rows[0]?.ok === true;
+      }
+
+      if (!row || !validPassword) {
+        return json(res, 400, { error: 'A senha atual está incorreta.' });
+      }
+
+      const newHash = hashPassword(newPassword);
+      await client.query(
+        `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+        [newHash, payload.sub],
+      );
+
+      return json(res, 200, { ok: true, message: 'Senha alterada com sucesso!' });
+    } finally {
+      await client.end();
+    }
+  }
+
   if (pathname === '/api/auth/logout' && req.method === 'POST') {
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',

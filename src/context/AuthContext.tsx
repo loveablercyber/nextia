@@ -4,7 +4,8 @@ import type { AuthState, User } from '../types/auth';
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<{ error: string | null; user?: User }>;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => void;
+  updateProfile: (data: Partial<User>) => Promise<{ error: string | null; user?: User }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,15 +68,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user: null, loading: false, error: null });
   }, []);
 
-  const updateProfile = useCallback((data: Partial<User>) => {
-    setState((current) => {
-      if (!current.user) return current;
-      return { ...current, user: { ...current.user, ...data } };
-    });
+  const updateProfile = useCallback(async (data: Partial<User>) => {
+    try {
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const resData = await parseAuthResponse(response);
+      const updatedUser = resData.user as User;
+
+      setState((current) => ({
+        ...current,
+        user: updatedUser || (current.user ? { ...current.user, ...data } : null),
+      }));
+
+      return { error: null, user: updatedUser };
+    } catch (err: any) {
+      const message = err.message || 'Erro ao atualizar perfil.';
+      // Fallback local state update se API indisponivel
+      setState((current) => {
+        if (!current.user) return current;
+        return { ...current, user: { ...current.user, ...data } };
+      });
+      return { error: message };
+    }
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      await parseAuthResponse(response);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message || 'Erro ao alterar a senha.';
+      return { error: message };
+    }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ ...state, login, logout, updateProfile, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

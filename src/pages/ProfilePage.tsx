@@ -29,7 +29,7 @@ interface ProfileFormData {
 }
 
 export default function ProfilePage() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, changePassword } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +37,7 @@ export default function ProfilePage() {
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [formError, setFormError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
 
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -77,6 +78,7 @@ export default function ProfilePage() {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (success) setSuccess(false);
+    if (formError) setFormError('');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,12 +119,12 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
 
     if (!validateForm()) return;
 
     setLoading(true);
 
-    // Gera iniciais a partir do nome
     const initials = formData.name
       .trim()
       .split(/\s+/)
@@ -132,10 +134,7 @@ export default function ProfilePage() {
       .join('')
       .toUpperCase() || 'NX';
 
-    // Simula chamada à API / Atualiza contexto
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    updateProfile({
+    const res = await updateProfile({
       name: formData.name.trim(),
       email: formData.email.trim(),
       phone: formData.phone.trim(),
@@ -145,9 +144,13 @@ export default function ProfilePage() {
     });
 
     setLoading(false);
-    setSuccess(true);
 
-    setTimeout(() => setSuccess(false), 3000);
+    if (res.error) {
+      setFormError(res.error);
+    } else {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -170,13 +173,17 @@ export default function ProfilePage() {
     setPwLoading(true);
     setPwSuccess(false);
 
-    // Simula atualização de senha
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    const res = await changePassword(pwForm.currentPassword, pwForm.newPassword);
 
     setPwLoading(false);
-    setPwSuccess(true);
-    setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setTimeout(() => setPwSuccess(false), 3000);
+
+    if (res.error) {
+      setPwError(res.error);
+    } else {
+      setPwSuccess(true);
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => setPwSuccess(false), 3000);
+    }
   };
 
   const handleCancel = () => {
@@ -456,6 +463,13 @@ export default function ProfilePage() {
             </div>
 
             <div className="p-6">
+              {/* Form Error Alert */}
+              {formError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-sm text-red-700 font-medium">
+                  {formError}
+                </div>
+              )}
+
               {/* Success Alert */}
               {success && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl flex items-center gap-3">
