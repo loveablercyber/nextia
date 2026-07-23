@@ -81,9 +81,9 @@ export default function OverviewPage() {
                   </Link>
                 </>
               ) : (
-                <Link to="/painel/arquivos">
+                <Link to="/painel/briefing">
                   <Button variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700 border-none">
-                    Preencher briefing e enviar arquivos
+                    Preencher briefing do site
                   </Button>
                 </Link>
               )}

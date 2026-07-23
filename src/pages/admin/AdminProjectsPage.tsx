@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import {
-  Globe, Sliders, Plus, Trash2
+  Globe, Sliders, Plus, Trash2, ClipboardList, X, FileCheck, Building2, Palette, Layers, Phone
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
-import { statusConfig } from '../../types/project';
+import { statusConfig, type Project } from '../../types/project';
 import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +12,7 @@ export default function AdminProjectsPage() {
   const { projects, profiles, loading, updateProjectProgress, updateProjectStatus, createProject, refreshData } = useAdmin();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sliderVal, setSliderVal] = useState(0);
+  const [viewBriefingProject, setViewBriefingProject] = useState<Project | null>(null);
 
   // Modal and Form states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -240,6 +241,23 @@ export default function AdminProjectsPage() {
 
                 {/* Status dropdown selector */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {p.briefing?.submitted ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewBriefingProject(p)}
+                      title="Visualizar briefing do cliente"
+                      className="bg-[#5B4FE9]/10 text-[#5B4FE9] border-[#5B4FE9]/20 hover:bg-[#5B4FE9]/20 font-bold px-3 py-1.5 flex items-center gap-1 text-xs"
+                    >
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Ver Briefing
+                    </Button>
+                  ) : (
+                    <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-lg font-medium border border-amber-100">
+                      Briefing pendente
+                    </span>
+                  )}
+
                   <select
                     value={p.status}
                     onChange={e => updateProjectStatus(p.id, e.target.value as any)}
@@ -436,6 +454,81 @@ export default function AdminProjectsPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visualizar Briefing */}
+      {viewBriefingProject && viewBriefingProject.briefing && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#5B4FE9]/10 text-[#5B4FE9] flex items-center justify-center">
+                  <FileCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Briefing do Projeto — {viewBriefingProject.name}</h3>
+                  <p className="text-xs text-gray-400">
+                    Enviado em {viewBriefingProject.briefing.submittedAt ? new Date(viewBriefingProject.briefing.submittedAt).toLocaleDateString('pt-BR') : 'Data não registrada'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewBriefingProject(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 border border-gray-100">
+                <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#5B4FE9]" /> Informações da Empresa
+                </div>
+                <p><strong>Nome Fantasia:</strong> {viewBriefingProject.briefing.businessName}</p>
+                <p><strong>Ramo / Segmento:</strong> {viewBriefingProject.briefing.segment}</p>
+                {viewBriefingProject.briefing.slogan && <p><strong>Slogan:</strong> "{viewBriefingProject.briefing.slogan}"</p>}
+                <p><strong>Descrição:</strong> {viewBriefingProject.briefing.description}</p>
+                <p><strong>Público-Alvo:</strong> {viewBriefingProject.briefing.targetAudience}</p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 border border-gray-100">
+                <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#5B4FE9]" /> Identidade Visual & Estilo
+                </div>
+                <p><strong>Possui Logo:</strong> {viewBriefingProject.briefing.hasLogo === 'sim' ? 'Sim' : 'Não'}</p>
+                <p><strong>Cores de Preferência:</strong> {viewBriefingProject.briefing.colorPreference}</p>
+                <p><strong>Estilo Visual:</strong> <span className="capitalize font-semibold">{viewBriefingProject.briefing.visualStyle}</span></p>
+                {viewBriefingProject.briefing.referenceUrls && <p><strong>Referências:</strong> {viewBriefingProject.briefing.referenceUrls}</p>}
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 border border-gray-100">
+                <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-[#5B4FE9]" /> Conteúdo e Páginas
+                </div>
+                <p><strong>Páginas Selecionadas:</strong> {viewBriefingProject.briefing.pages.join(', ')}</p>
+                <p><strong>Principais Serviços:</strong> {viewBriefingProject.briefing.mainServices}</p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 border border-gray-100">
+                <div className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-[#5B4FE9]" /> Contato & Redes Sociais
+                </div>
+                <p><strong>WhatsApp:</strong> {viewBriefingProject.briefing.whatsapp}</p>
+                {viewBriefingProject.briefing.instagram && <p><strong>Instagram:</strong> {viewBriefingProject.briefing.instagram}</p>}
+                {viewBriefingProject.briefing.address && <p><strong>Endereço:</strong> {viewBriefingProject.briefing.address}</p>}
+                {viewBriefingProject.briefing.businessHours && <p><strong>Horários:</strong> {viewBriefingProject.briefing.businessHours}</p>}
+                {viewBriefingProject.briefing.additionalNotes && <p><strong>Observações:</strong> {viewBriefingProject.briefing.additionalNotes}</p>}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <Button variant="secondary" size="sm" onClick={() => setViewBriefingProject(null)}>
+                Fechar Briefing
+              </Button>
+            </div>
           </div>
         </div>
       )}

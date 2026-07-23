@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { Project, ProjectFile, ChangeRequest, Payment } from '../types/project';
+import type { Project, ProjectFile, ChangeRequest, Payment, ProjectBriefing } from '../types/project';
 import { MOCK_PROJECTS } from '../types/project';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
@@ -11,6 +11,7 @@ interface ProjectContextValue {
   uploadFile: (file: { name: string; size: string; type: ProjectFile['type'] }) => Promise<void>;
   addChangeRequest: (title: string, description: string, category: string, priority: 'baixa' | 'normal' | 'alta') => Promise<void>;
   simulatePayment: (paymentId: string) => Promise<void>;
+  saveBriefing: (briefingData: Omit<ProjectBriefing, 'submitted' | 'submittedAt'>) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -489,8 +490,56 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── saveBriefing ──
+  const saveBriefing = async (briefingData: Omit<ProjectBriefing, 'submitted' | 'submittedAt'>) => {
+    if (!project) return;
+
+    const fullBriefing: ProjectBriefing = {
+      ...briefingData,
+      submitted: true,
+      submittedAt: new Date().toISOString(),
+    };
+
+    const updatedMilestones = project.milestones.map((m, idx) => {
+      if (idx === 0 || m.id === 'm1' || m.title.toLowerCase().includes('briefing')) {
+        return { ...m, status: 'concluido' as const, completedAt: new Date().toISOString() };
+      }
+      if (idx === 1 || m.id === 'm2') {
+        return { ...m, status: 'em-andamento' as const };
+      }
+      return m;
+    });
+
+    const updatedProject: Project = {
+      ...project,
+      status: 'em-desenvolvimento',
+      progressPercent: 35,
+      briefing: fullBriefing,
+      milestones: updatedMilestones,
+    };
+
+    saveProjectStateMock(updatedProject);
+
+    try {
+      await addNotification(
+        'Briefing enviado com sucesso!',
+        'Recebemos as informações do seu site. Nossa equipe iniciará a criação da estrutura visual!',
+        'project',
+        user?.id || ''
+      );
+      await addNotification(
+        'Novo Briefing Recebido',
+        `O cliente ${user?.name || project.name} enviou o briefing do projeto.`,
+        'project',
+        'admins'
+      );
+    } catch (err) {
+      console.error('Error triggering notification for saveBriefing:', err);
+    }
+  };
+
   return (
-    <ProjectContext.Provider value={{ project, loading, uploadFile, addChangeRequest, simulatePayment }}>
+    <ProjectContext.Provider value={{ project, loading, uploadFile, addChangeRequest, simulatePayment, saveBriefing }}>
       {children}
     </ProjectContext.Provider>
   );

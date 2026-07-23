@@ -53,6 +53,28 @@ export interface Payment {
   invoiceUrl?: string;
 }
 
+export interface ProjectBriefing {
+  submitted: boolean;
+  submittedAt?: string;
+  businessName: string;
+  segment: string;
+  description: string;
+  targetAudience: string;
+  slogan?: string;
+  hasLogo: 'sim' | 'nao';
+  colorPreference: string;
+  visualStyle: string;
+  referenceUrls?: string;
+  pages: string[];
+  mainServices: string;
+  whatsapp: string;
+  instagram?: string;
+  facebook?: string;
+  address?: string;
+  businessHours?: string;
+  additionalNotes?: string;
+}
+
 export interface Project {
   id: string;
   userId: string;
@@ -76,6 +98,7 @@ export interface Project {
   payments: Payment[];
   requestsRemaining: number;
   requestsTotal: number;
+  briefing?: ProjectBriefing;
 }
 
 // ─── Mock Project Data ─────────────────────────────────────────────────────

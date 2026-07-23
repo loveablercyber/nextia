@@ -25,6 +25,7 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import AdminLayout from './components/admin/AdminLayout';
 import OverviewPage from './pages/dashboard/OverviewPage';
 import ProjectPage from './pages/dashboard/ProjectPage';
+import BriefingPage from './pages/dashboard/BriefingPage';
 import FilesPage from './pages/dashboard/FilesPage';
 import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
@@ -135,9 +136,17 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/painel/briefing"
+        element={
+          <DashboardContainer title="Briefing do site">
+            <BriefingPage />
+          </DashboardContainer>
+        }
+      />
+      <Route
         path="/painel/arquivos"
         element={
-          <DashboardContainer title="Arquivos e Briefing">
+          <DashboardContainer title="Arquivos do projeto">
             <FilesPage />
           </DashboardContainer>
         }

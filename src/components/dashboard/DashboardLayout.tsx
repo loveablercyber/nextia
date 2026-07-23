@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
   Upload, Settings, LogOut, Zap, Menu, ChevronRight,
-  Bell, ExternalLink, HelpCircle, User
+  Bell, ExternalLink, HelpCircle, User, ClipboardList
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ interface DashboardLayoutProps {
 const navItems = [
   { to: '/painel', icon: LayoutDashboard, label: 'Visão geral', exact: true },
   { to: '/painel/projeto', icon: FolderOpen, label: 'Meu projeto' },
+  { to: '/painel/briefing', icon: ClipboardList, label: 'Briefing do Site' },
   { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
