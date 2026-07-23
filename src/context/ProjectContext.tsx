@@ -124,7 +124,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const p = await fetchSupabaseProject(user.id);
         setProject(p);
       } else {
-        // ── LocalStorage Mock Loader ──
+        // ── LocalStorage Loader ──
         const stored = localStorage.getItem(STORAGE_KEY);
         let projectsList: Project[] = [];
 
@@ -139,7 +139,100 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(projectsList));
         }
 
-        const userProj = projectsList.find(p => p.userId === user.id) || projectsList[0];
+        let userProj = projectsList.find(p => p.userId === user.id);
+
+        // Se o cliente nao possui um projeto instanciado, cria um novo projeto real com seus dados
+        if (!userProj && user.role !== 'admin') {
+          const companyName = user.company?.trim() || `Projeto de ${user.name}`;
+          const companySlug = (user.company || user.name || 'meusite')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+
+          userProj = {
+            id: `proj-${user.id}`,
+            userId: user.id,
+            name: companyName,
+            template: 'Site Profissional',
+            segment: 'Geral',
+            status: 'aguardando-briefing',
+            plan: 'Pro',
+            domain: `${companySlug || 'meusite'}.com.br`,
+            monthlyFee: 79,
+            activationFee: 497,
+            startedAt: user.createdAt || new Date().toISOString(),
+            estimatedDelivery: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            progressPercent: 10,
+            requestsRemaining: 5,
+            requestsTotal: 5,
+            milestones: [
+              {
+                id: 'm1',
+                title: 'Briefing e Materiais',
+                description: 'Formulário de briefing preenchido e arquivos enviados pelo cliente.',
+                status: 'em-andamento',
+                estimatedAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+              },
+              {
+                id: 'm2',
+                title: 'Wireframe e Design',
+                description: 'Criação da estrutura do site e paleta de cores para aprovação.',
+                status: 'pendente',
+                estimatedAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+              },
+              {
+                id: 'm3',
+                title: 'Desenvolvimento do Site',
+                description: 'Construção das páginas, integração com WhatsApp e formulários.',
+                status: 'pendente',
+                estimatedAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+              },
+              {
+                id: 'm4',
+                title: 'Revisão do Cliente',
+                description: 'Versão de testes enviada para aprovação do cliente.',
+                status: 'pendente',
+                estimatedAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
+              },
+              {
+                id: 'm5',
+                title: 'Publicação Oficial',
+                description: 'Publicação do site no domínio contratado.',
+                status: 'pendente',
+                estimatedAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+              },
+            ],
+            files: [],
+            changeRequests: [],
+            payments: [
+              {
+                id: `pay-act-${user.id}`,
+                description: 'Taxa de ativação — Plano Pro',
+                amount: 497,
+                dueDate: new Date().toISOString(),
+                status: 'pendente',
+                type: 'ativacao',
+              },
+              {
+                id: `pay-mon-${user.id}`,
+                description: `Mensalidade — ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+                amount: 79,
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'pendente',
+                type: 'mensalidade',
+              },
+            ],
+          };
+
+          projectsList = [userProj, ...projectsList];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(projectsList));
+        }
+
+        if (!userProj && user.role === 'admin') {
+          userProj = projectsList[0];
+        }
+
         setProject(userProj || null);
       }
 
