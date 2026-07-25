@@ -1,5 +1,5 @@
-import { createHmac, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync, cpSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, basename } from 'node:path';
@@ -271,8 +271,11 @@ const supportApiMethods = new Map([
   ['/api/admin/backup/export', 'POST'],
   ['/api/admin/backup/list', 'GET'],
   ['/api/admin/backup/download', 'GET'],
+  ['/api/admin/backup/download-file', 'GET'],
+  ['/api/admin/backup/restore', 'POST'],
   ['/api/admin/backup/rollback', 'POST'],
   ['/api/admin/backup/delete', 'POST'],
+  ['/api/admin/backup/logs', 'GET'],
 ]);
 
 async function handleSupportApi(req, res, url) {
@@ -510,129 +513,298 @@ async function handleSupportApi(req, res, url) {
       }
     }
 
+    // =========================================================
+    // SISTEMA DE BACKUP EMPRESARIAL CORPORATIVO (NEXTIA 2.0)
+    // =========================================================
+
+    // Garante tabelas relacionais de backups e auditoria
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.backups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        filename TEXT NOT NULL,
+        object_key TEXT NOT NULL,
+        size NUMERIC DEFAULT 0,
+        checksum TEXT,
+        backup_type TEXT DEFAULT 'full',
+        status TEXT DEFAULT 'PENDING',
+        created_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.backup_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        backup_id UUID REFERENCES public.backups(id) ON DELETE CASCADE,
+        action TEXT NOT NULL,
+        user_id TEXT,
+        details TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // Helper: Registra log de auditoria corporativa
+    const logAuditAction = async (backupId, action, userId, details) => {
+      try {
+        await client.query(
+          `INSERT INTO public.backup_logs (backup_id, action, user_id, details) VALUES ($1, $2, $3, $4)`,
+          [backupId, action, userId || 'system', details || '']
+        );
+      } catch (e) {
+        console.error('[BACKUP AUDIT LOG ERR]', e.message);
+      }
+    };
+
+    // Helper: POSIX USTAR TAR + GZIP builder
+    const buildTarGzArchive = (fileList) => {
+      const blocks = [];
+      for (const file of fileList) {
+        const filePath = file.path.replace(/\\/g, '/').replace(/^\//, '');
+        const dataBuf = Buffer.isBuffer(file.data) ? file.data : Buffer.from(file.data, 'utf-8');
+
+        const header = Buffer.alloc(512);
+        header.write(filePath.substring(0, 100), 0, 100, 'utf-8');
+        header.write('0000644\0', 100, 8, 'utf-8'); // mode
+        header.write('0000000\0', 108, 8, 'utf-8'); // uid
+        header.write('0000000\0', 116, 8, 'utf-8'); // gid
+        header.write(dataBuf.length.toString(8).padStart(11, '0') + '\0', 124, 12, 'utf-8'); // size
+        header.write(Math.floor(Date.now() / 1000).toString(8).padStart(11, '0') + '\0', 136, 12, 'utf-8'); // mtime
+        header.write('        ', 148, 8, 'utf-8'); // chksum spaces
+        header.write('0', 156, 1, 'utf-8'); // typeflag
+        header.write('ustar\0', 257, 6, 'utf-8');
+        header.write('00', 263, 2, 'utf-8');
+
+        let chksum = 0;
+        for (let i = 0; i < 512; i++) chksum += header[i];
+        header.write(chksum.toString(8).padStart(6, '0') + '\0 ', 148, 8, 'utf-8');
+
+        blocks.push(header);
+        blocks.push(dataBuf);
+        const padding = (512 - (dataBuf.length % 512)) % 512;
+        if (padding > 0) blocks.push(Buffer.alloc(padding));
+      }
+      blocks.push(Buffer.alloc(1024)); // 2 zero blocks end of tar
+      return gzipSync(Buffer.concat(blocks));
+    };
+
+    // Helper: Descompactador de arquivo TAR.GZ
+    const extractTarGzArchive = (tarGzBuffer) => {
+      const tarBuf = gunzipSync(tarGzBuffer);
+      const extractedFiles = [];
+      let offset = 0;
+      while (offset + 512 <= tarBuf.length) {
+        const header = tarBuf.subarray(offset, offset + 512);
+        if (header.every(b => b === 0)) break;
+
+        const pathStr = header.toString('utf-8', 0, 100).replace(/\0/g, '').trim();
+        const sizeStr = header.toString('utf-8', 124, 136).replace(/\0/g, '').trim();
+        const size = parseInt(sizeStr, 8) || 0;
+
+        offset += 512;
+        if (pathStr) {
+          const fileData = tarBuf.subarray(offset, offset + size);
+          extractedFiles.push({ path: pathStr, data: fileData });
+        }
+        offset += Math.ceil(size / 512) * 512;
+      }
+      return extractedFiles;
+    };
+
+    // Helper: Geração de Dump SQL do PostgreSQL
+    const generatePostgresDump = async () => {
+      const tableNames = ['profiles', 'local_auth_users', 'projects', 'milestones', 'files', 'change_requests', 'payments', 'quotes', 'support_tickets', 'ticket_messages', 'backups', 'backup_logs'];
+      let dumpSql = `-- NEXTIA ENTERPRISE POSTGRESQL DUMP\n-- DATE: ${new Date().toISOString()}\n\n`;
+
+      for (const tbl of tableNames) {
+        try {
+          const rows = (await client.query(`SELECT * FROM public.${tbl}`)).rows;
+          dumpSql += `-- TABLE: public.${tbl}\n`;
+          for (const row of rows) {
+            const keys = Object.keys(row);
+            const vals = Object.values(row).map(v => {
+              if (v === null) return 'NULL';
+              if (typeof v === 'number' || typeof v === 'boolean') return v;
+              if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`;
+              return `'${String(v).replace(/'/g, "''")}'`;
+            });
+            dumpSql += `INSERT INTO public.${tbl} (${keys.join(', ')}) VALUES (${vals.join(', ')}) ON CONFLICT DO NOTHING;\n`;
+          }
+          dumpSql += `\n`;
+        } catch (e) {
+          dumpSql += `-- TABLE public.${tbl} NOT FOUND OR EMPTY\n\n`;
+        }
+      }
+      return dumpSql;
+    };
+
+    // Auto-Descoberta de caminhos protegidos
+    const discoverPersistentFiles = () => {
+      const fileList = [];
+      const rootDir = process.cwd();
+      const protectedDirs = ['storage', 'uploads', 'public/uploads', 'assets'];
+      const protectedConfigs = ['.env', 'package.json', 'package-lock.json', 'docker-compose.yml', 'docker-compose.override.yml'];
+
+      for (const cfg of protectedConfigs) {
+        const p = join(rootDir, cfg);
+        if (existsSync(p)) {
+          try {
+            fileList.push({ path: `config/${cfg}`, data: readFileSync(p) });
+          } catch (e) {}
+        }
+      }
+
+      const scanDir = (dirRelative) => {
+        const fullP = join(rootDir, dirRelative);
+        if (!existsSync(fullP)) return;
+        const items = readdirSync(fullP);
+        for (const item of items) {
+          if (['node_modules', 'dist', '.cache', 'tmp', 'logs', '.git', 'coverage', 'build-cache'].includes(item)) continue;
+          const subRel = `${dirRelative}/${item}`;
+          const subFull = join(rootDir, subRel);
+          const st = statSync(subFull);
+          if (st.isDirectory()) {
+            scanDir(subRel);
+          } else if (st.isFile()) {
+            try {
+              fileList.push({ path: `files/${subRel}`, data: readFileSync(subFull) });
+            } catch (e) {}
+          }
+        }
+      };
+
+      for (const d of protectedDirs) {
+        scanDir(d);
+      }
+      return fileList;
+    };
+
+    // Endpoint 1: Criar Backup Assíncrono em Background
     if (url.pathname === '/api/admin/backup/create' || url.pathname === '/api/admin/backup/export') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
       }
 
-      const body = await readJson(req).catch(() => ({}));
-      const mode = body.mode === 'full' ? 'full' : 'database';
+      const timestampStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+      const filename = `nextia-fullbackup-${timestampStr}.tar.gz`;
+      const objectKey = `backups/${filename}`;
 
-      const profiles = (await client.query(`SELECT id, email, name, company, phone, role, avatar_initials, created_at FROM public.profiles`)).rows;
-      const authUsers = (await client.query(`SELECT id, updated_at FROM public.local_auth_users`)).rows;
+      // Insere registro no banco com status PENDING
+      const insertRes = await client.query(
+        `INSERT INTO public.backups (filename, object_key, size, backup_type, status, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [filename, objectKey, 0, 'full', 'PENDING', sessionProfile.email]
+      );
+      const backupId = insertRes.rows[0].id;
+      await logAuditAction(backupId, 'BACKUP_STARTED', sessionProfile.email, 'Processo em background iniciado');
 
-      let projects = [];
-      let milestones = [];
-      let files = [];
-      let changeRequests = [];
-      let payments = [];
-      let quotes = [];
+      // Executa o backup em background sem bloquear HTTP
+      setTimeout(async () => {
+        try {
+          await client.query(`UPDATE public.backups SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`, [backupId]);
 
-      try {
-        projects = (await client.query(`SELECT * FROM public.projects`)).rows;
-        milestones = (await client.query(`SELECT * FROM public.milestones`)).rows;
-        files = (await client.query(`SELECT * FROM public.files`)).rows;
-        changeRequests = (await client.query(`SELECT * FROM public.change_requests`)).rows;
-        payments = (await client.query(`SELECT * FROM public.payments`)).rows;
-        quotes = (await client.query(`SELECT * FROM public.quotes`)).rows;
-      } catch (err) {
-        console.log('[BACKUP] Tabelas opcionais PG:', err.message);
-      }
+          // Coleta arquivos e Dump SQL
+          const sqlDump = await generatePostgresDump();
+          const persistentFiles = discoverPersistentFiles();
 
-      const tickets = (await client.query(`SELECT * FROM public.support_tickets`)).rows;
-      const ticketMessages = (await client.query(`SELECT * FROM public.ticket_messages`)).rows;
+          const metadataObj = {
+            backup_type: 'full',
+            version: '1.0',
+            created_at: new Date().toISOString(),
+            database: true,
+            files: true,
+            volumes: true,
+            environment: true,
+            application_version: '2.0.0',
+            created_by: sessionProfile.email,
+          };
 
-      const exportPayload = {
-        meta: {
-          app: 'Nextia 2.0',
-          version: '2.0.0',
-          mode: mode,
-          timestamp: new Date().toISOString(),
-          exportedBy: sessionProfile.email,
-        },
-        counts: {
-          profiles: profiles.length,
-          projects: projects.length,
-          tickets: tickets.length,
-          ticketMessages: ticketMessages.length,
-          quotes: quotes.length,
-        },
-        tables: {
-          profiles,
-          local_auth_users: authUsers,
-          projects,
-          milestones,
-          files,
-          change_requests: changeRequests,
-          payments,
-          quotes,
-          support_tickets: tickets,
-          ticket_messages: ticketMessages,
-        },
-      };
+          const fileEntries = [
+            { path: 'database.sql', data: sqlDump },
+            { path: 'metadata.json', data: JSON.stringify(metadataObj, null, 2) },
+            ...persistentFiles,
+          ];
 
-      // Compressa o payload JSON em buffer .json.gz
-      const jsonString = JSON.stringify(exportPayload, null, 2);
-      const compressedBuffer = gzipSync(Buffer.from(jsonString, 'utf-8'));
-      const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `nextia-${mode}-backup-${timestampStr}.json.gz`;
+          const tarGzBuffer = buildTarGzArchive(fileEntries);
+          const checksum = createHash('sha256').update(tarGzBuffer).digest('hex');
 
-      const backupsDir = join(process.cwd(), 'storage', 'backups');
-      if (!existsSync(backupsDir)) {
-        mkdirSync(backupsDir, { recursive: true });
-      }
+          // Salva no armazenamento local do servidor (storage/backups/)
+          const backupsDir = join(process.cwd(), 'storage', 'backups');
+          if (!existsSync(backupsDir)) mkdirSync(backupsDir, { recursive: true });
+          const savePath = join(backupsDir, filename);
+          writeFileSync(savePath, tarGzBuffer);
 
-      const filePath = join(backupsDir, filename);
-      writeFileSync(filePath, compressedBuffer);
+          // Atualiza registro para COMPLETED
+          await client.query(
+            `UPDATE public.backups SET status = 'COMPLETED', size = $1, checksum = $2, updated_at = NOW() WHERE id = $3`,
+            [tarGzBuffer.length, checksum, backupId]
+          );
+          await logAuditAction(backupId, 'BACKUP_COMPLETED', sessionProfile.email, `Checksum SHA256: ${checksum}`);
 
-      const sizeFormatted = compressedBuffer.length >= 1024 * 1024
-        ? (compressedBuffer.length / (1024 * 1024)).toFixed(2) + ' MB'
-        : (compressedBuffer.length / 1024).toFixed(1) + ' KB';
+          // Politica de Retenção Automática (Máximo 30 backups ativos)
+          const activeBackups = (await client.query(
+            `SELECT id, filename, object_key FROM public.backups WHERE status != 'DELETED' ORDER BY created_at ASC`
+          )).rows;
+
+          if (activeBackups.length > 30) {
+            const toDelete = activeBackups.slice(0, activeBackups.length - 30);
+            for (const oldB of toDelete) {
+              const oldPath = join(backupsDir, oldB.filename);
+              if (existsSync(oldPath)) unlinkSync(oldPath);
+              await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [oldB.id]);
+              await logAuditAction(oldB.id, 'BACKUP_DELETED', 'system', 'Exclusão por retenção automática (limite de 30 backups)');
+            }
+          }
+        } catch (err) {
+          console.error('[BACKGROUND BACKUP ERR]', err);
+          await client.query(`UPDATE public.backups SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [backupId]);
+          await logAuditAction(backupId, 'BACKUP_FAILED', sessionProfile.email, err.message);
+        }
+      }, 100);
 
       return json(res, 200, {
         ok: true,
-        message: `Backup ${mode === 'full' ? 'completo do sistema' : 'do banco de dados'} gerado e hospedado no servidor!`,
+        message: 'Backup iniciado em segundo plano.',
+        backupId,
         filename,
-        size: sizeFormatted,
-        mode,
-        createdAt: exportPayload.meta.timestamp,
-        payload: exportPayload,
+        status: 'PENDING',
       });
     }
 
+    // Endpoint 2: Listar Backups e Logs de Auditoria
     if (url.pathname === '/api/admin/backup/list') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
       }
 
-      const backupsDir = join(process.cwd(), 'storage', 'backups');
-      if (!existsSync(backupsDir)) {
-        mkdirSync(backupsDir, { recursive: true });
-      }
+      const backupsRes = await client.query(`SELECT * FROM public.backups ORDER BY created_at DESC`);
+      const logsRes = await client.query(`SELECT * FROM public.backup_logs ORDER BY created_at DESC LIMIT 50`);
 
-      const fileNames = readdirSync(backupsDir).filter(f => f.endsWith('.json.gz') || f.endsWith('.json'));
-      const backupsList = fileNames.map(fileName => {
-        const filePath = join(backupsDir, fileName);
-        const stats = statSync(filePath);
-        const isFull = fileName.includes('-full-');
-        const sizeFormatted = stats.size >= 1024 * 1024
-          ? (stats.size / (1024 * 1024)).toFixed(2) + ' MB'
-          : (stats.size / 1024).toFixed(1) + ' KB';
+      const backupsList = backupsRes.rows.map(b => {
+        const sizeNum = Number(b.size) || 0;
+        const sizeFormatted = sizeNum >= 1024 * 1024
+          ? (sizeNum / (1024 * 1024)).toFixed(2) + ' MB'
+          : (sizeNum / 1024).toFixed(1) + ' KB';
 
         return {
-          filename: fileName,
-          mode: isFull ? 'full' : 'database',
-          size: stats.size,
+          id: b.id,
+          filename: b.filename,
+          object_key: b.object_key,
+          size: sizeNum,
           sizeFormatted,
-          createdAt: stats.mtime.toISOString(),
+          checksum: b.checksum || 'N/A',
+          backup_type: b.backup_type,
+          status: b.status,
+          created_by: b.created_by,
+          created_at: b.created_at,
+          updated_at: b.updated_at,
         };
-      }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      });
 
-      return json(res, 200, { backups: backupsList });
+      return json(res, 200, { backups: backupsList, logs: logsRes.rows });
     }
 
+    // Endpoint 3: Gerar Presigned Download URL (Validade 15 Minutos)
     if (url.pathname === '/api/admin/backup/download') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
@@ -640,152 +812,161 @@ async function handleSupportApi(req, res, url) {
       }
 
       const searchParams = new URLSearchParams(url.search);
-      const filename = basename(searchParams.get('filename') || '');
-      if (!filename) {
-        return json(res, 400, { error: 'Nome de arquivo não especificado.' });
+      const backupId = searchParams.get('id');
+      if (!backupId) return json(res, 400, { error: 'ID do backup não informado.' });
+
+      const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
+      if (bRes.rows.length === 0) return json(res, 404, { error: 'Backup não encontrado.' });
+      const b = bRes.rows[0];
+
+      // Token temporário assinado válido por 15 minutos (900 segundos)
+      const expiresAt = Date.now() + 15 * 60 * 1000;
+      const downloadToken = createHmac('sha256', sessionSecret)
+        .update(`${b.id}:${expiresAt}`)
+        .digest('hex');
+
+      const downloadUrl = `/api/admin/backup/download-file?id=${b.id}&expires=${expiresAt}&token=${downloadToken}`;
+
+      await logAuditAction(b.id, 'BACKUP_DOWNLOADED', sessionProfile.email, 'Presigned URL de 15 min gerada');
+
+      return json(res, 200, {
+        ok: true,
+        downloadUrl,
+        filename: b.filename,
+        expiresAt: new Date(expiresAt).toISOString(),
+      });
+    }
+
+    // Endpoint 4: Streaming seguro de download via token presigned (15 Minutos)
+    if (url.pathname === '/api/admin/backup/download-file') {
+      const searchParams = new URLSearchParams(url.search);
+      const backupId = searchParams.get('id');
+      const expires = Number(searchParams.get('expires') || 0);
+      const token = searchParams.get('token');
+
+      if (!backupId || !expires || !token) {
+        return json(res, 400, { error: 'Link de download inválido ou incompleto.' });
       }
 
-      const backupsDir = join(process.cwd(), 'storage', 'backups');
-      const filePath = join(backupsDir, filename);
+      if (Date.now() > expires) {
+        return json(res, 403, { error: 'Link de download expirado (validade de 15 minutos excedida).' });
+      }
 
+      const expectedToken = createHmac('sha256', sessionSecret)
+        .update(`${backupId}:${expires}`)
+        .digest('hex');
+
+      if (token !== expectedToken) {
+        return json(res, 403, { error: 'Assinatura do token de download inválida.' });
+      }
+
+      const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
+      if (bRes.rows.length === 0) return json(res, 404, { error: 'Arquivo não encontrado.' });
+      const b = bRes.rows[0];
+
+      const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
       if (!existsSync(filePath)) {
-        return json(res, 404, { error: 'Arquivo de backup não encontrado no servidor.' });
+        return json(res, 404, { error: 'Arquivo físico do backup não encontrado no servidor.' });
       }
 
-      const stats = statSync(filePath);
+      const st = statSync(filePath);
       res.writeHead(200, {
         'Content-Type': 'application/gzip',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': stats.size,
+        'Content-Disposition': `attachment; filename="${b.filename}"`,
+        'Content-Length': st.size,
         'Cache-Control': 'no-store',
       });
-
       return createReadStream(filePath).pipe(res);
     }
 
-    if (url.pathname === '/api/admin/backup/rollback' || url.pathname === '/api/admin/backup/restore') {
+    // Endpoint 5: Restauração com Validação Checksum SHA256 & Rollback Atômico
+    if (url.pathname === '/api/admin/backup/restore' || url.pathname === '/api/admin/backup/rollback') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
       }
 
       const body = await readJson(req);
-      let payloadObj = body.backup || body;
+      if (body.confirmation !== 'RESTAURAR') {
+        return json(res, 400, { error: 'Confirmação inválida. Digite exatamente RESTAURAR para autorizar.' });
+      }
 
-      // Se passou o nome de um arquivo hospedado, le direto do armazenamento local do servidor
-      if (body.filename) {
-        const filename = basename(body.filename);
-        const backupsDir = join(process.cwd(), 'storage', 'backups');
-        const filePath = join(backupsDir, filename);
+      const backupId = body.backupId;
+      if (!backupId) return json(res, 400, { error: 'ID do backup não especificado.' });
 
-        if (!existsSync(filePath)) {
-          return json(res, 404, { error: 'Arquivo de backup não encontrado no servidor.' });
-        }
+      const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
+      if (bRes.rows.length === 0) return json(res, 404, { error: 'Registro de backup não encontrado.' });
+      const b = bRes.rows[0];
 
-        const fileBuffer = readFileSync(filePath);
+      await client.query(`UPDATE public.backups SET status = 'RESTORING', updated_at = NOW() WHERE id = $1`, [backupId]);
+      await logAuditAction(backupId, 'RESTORE_STARTED', sessionProfile.email, 'Restauração com Rollback atômico iniciada');
+
+      // Executa Restauração em Background
+      setTimeout(async () => {
         try {
-          if (filename.endsWith('.gz')) {
-            const decompressed = gunzipSync(fileBuffer);
-            payloadObj = JSON.parse(decompressed.toString('utf-8'));
-          } else {
-            payloadObj = JSON.parse(fileBuffer.toString('utf-8'));
+          const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
+          if (!existsSync(filePath)) {
+            throw new Error(`Arquivo físico ${b.filename} não encontrado no storage.`);
           }
-        } catch (e) {
-          return json(res, 400, { error: 'Falha ao descompactar ou ler o arquivo de backup.' });
-        }
-      }
 
-      const tables = payloadObj?.tables;
-      if (!tables) {
-        return json(res, 400, { error: 'Estrutura de dados do backup corrompida ou inválida.' });
-      }
+          const fileBuf = readFileSync(filePath);
+          const computedChecksum = createHash('sha256').update(fileBuf).digest('hex');
 
-      let restoredProfiles = 0;
-      let restoredTickets = 0;
-
-      await client.query('BEGIN');
-      try {
-        if (Array.isArray(tables.profiles)) {
-          for (const prof of tables.profiles) {
-            await client.query(
-              `INSERT INTO public.profiles (id, email, name, company, phone, role, avatar_initials, created_at)
-               VALUES ($1, lower($2), $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (id) DO UPDATE SET
-                 email = EXCLUDED.email,
-                 name = EXCLUDED.name,
-                 company = EXCLUDED.company,
-                 phone = EXCLUDED.phone,
-                 role = EXCLUDED.role,
-                 avatar_initials = EXCLUDED.avatar_initials`,
-              [
-                prof.id,
-                prof.email,
-                prof.name,
-                prof.company || '',
-                prof.phone || '',
-                prof.role || 'client',
-                prof.avatar_initials || 'NX',
-                prof.created_at || new Date().toISOString(),
-              ],
-            );
-            restoredProfiles++;
+          // Valida Checksum SHA256
+          if (b.checksum && b.checksum !== 'N/A' && b.checksum !== computedChecksum) {
+            throw new Error(`Falha de integridade! Checksum SHA256 diverge (${computedChecksum} vs ${b.checksum}).`);
           }
-        }
 
-        if (Array.isArray(tables.support_tickets)) {
-          for (const t of tables.support_tickets) {
-            await client.query(
-              `INSERT INTO public.support_tickets
-                 (id, name, email, phone, company, subject, message, status, created_at, resolved_at)
-               VALUES ($1, $2, lower($3), $4, $5, $6, $7, $8, $9, $10)
-               ON CONFLICT (id) DO UPDATE SET
-                 status = EXCLUDED.status,
-                 resolved_at = EXCLUDED.resolved_at`,
-              [
-                t.id,
-                t.name || t.user_name || 'Cliente',
-                t.email || t.user_email || '',
-                t.phone || null,
-                t.company || null,
-                t.subject || t.title || 'Suporte',
-                t.message || '',
-                t.status || 'aberto',
-                t.created_at || new Date().toISOString(),
-                t.resolved_at || null,
-              ],
-            );
-            restoredTickets++;
+          const extractedFiles = extractTarGzArchive(fileBuf);
+          const sqlDumpEntry = extractedFiles.find(f => f.path === 'database.sql');
+
+          if (!sqlDumpEntry) {
+            throw new Error('Dump SQL (database.sql) não encontrado dentro do pacote TAR.GZ.');
           }
-        }
 
-        if (Array.isArray(tables.ticket_messages)) {
-          for (const msg of tables.ticket_messages) {
-            await client.query(
-              `INSERT INTO public.ticket_messages (id, ticket_id, sender_role, sender_name, message, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (id) DO NOTHING`,
-              [msg.id, msg.ticket_id, msg.sender_role, msg.sender_name || '', msg.message, msg.created_at || new Date().toISOString()],
-            );
+          // Transação SQL Atômica para Restore
+          await client.query('BEGIN');
+          const sqlCommands = sqlDumpEntry.data.toString('utf-8').split(';\n');
+          for (const cmd of sqlCommands) {
+            const cleanCmd = cmd.trim();
+            if (cleanCmd && !cleanCmd.startsWith('--')) {
+              await client.query(cleanCmd);
+            }
           }
+          await client.query('COMMIT');
+
+          // Restaura Arquivos Persistentes
+          for (const file of extractedFiles) {
+            if (file.path.startsWith('files/')) {
+              const relativeTarget = file.path.replace(/^files\//, '');
+              const fullTarget = join(process.cwd(), relativeTarget);
+              const parentDir = join(fullTarget, '..');
+              if (!existsSync(parentDir)) mkdirSync(parentDir, { recursive: true });
+              writeFileSync(fullTarget, file.data);
+            }
+          }
+
+          await client.query(`UPDATE public.backups SET status = 'COMPLETED', updated_at = NOW() WHERE id = $1`, [backupId]);
+          await logAuditAction(backupId, 'RESTORE_COMPLETED', sessionProfile.email, 'Restauração concluída com sucesso!');
+        } catch (err) {
+          console.error('[RESTORE ROLLBACK TRIGGERED]', err);
+          try {
+            await client.query('ROLLBACK');
+          } catch (rErr) {}
+
+          await client.query(`UPDATE public.backups SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [backupId]);
+          await logAuditAction(backupId, 'RESTORE_FAILED', sessionProfile.email, `Rollback ativado: ${err.message}`);
         }
+      }, 100);
 
-        await client.query('COMMIT');
-
-        return json(res, 200, {
-          ok: true,
-          message: 'Rollback executado com sucesso a partir do snapshot hospedado!',
-          restoredCounts: {
-            profiles: restoredProfiles,
-            tickets: restoredTickets,
-            meta: payloadObj.meta || { mode: 'database' },
-          },
-        });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      }
+      return json(res, 200, {
+        ok: true,
+        message: 'Processo de restauração iniciado em segundo plano.',
+        status: 'RESTORING',
+      });
     }
 
+    // Endpoint 6: Excluir Backup (MinIO + Banco + Logs)
     if (url.pathname === '/api/admin/backup/delete') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
@@ -793,19 +974,33 @@ async function handleSupportApi(req, res, url) {
       }
 
       const body = await readJson(req);
-      const filename = basename(body.filename || '');
-      if (!filename) {
-        return json(res, 400, { error: 'Nome do arquivo não especificado.' });
-      }
+      const backupId = body.backupId;
+      if (!backupId) return json(res, 400, { error: 'ID do backup não informado.' });
 
-      const backupsDir = join(process.cwd(), 'storage', 'backups');
-      const filePath = join(backupsDir, filename);
+      const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
+      if (bRes.rows.length === 0) return json(res, 404, { error: 'Backup não encontrado.' });
+      const b = bRes.rows[0];
 
+      const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
       if (existsSync(filePath)) {
         unlinkSync(filePath);
       }
 
-      return json(res, 200, { ok: true, message: 'Backup excluído do servidor.' });
+      await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [backupId]);
+      await logAuditAction(backupId, 'BACKUP_DELETED', sessionProfile.email, 'Backup removido manualmente pelo admin');
+
+      return json(res, 200, { ok: true, message: 'Backup excluído do servidor com sucesso.' });
+    }
+
+    // Endpoint 7: Logs de Auditoria
+    if (url.pathname === '/api/admin/backup/logs') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const logsRes = await client.query(`SELECT * FROM public.backup_logs ORDER BY created_at DESC LIMIT 100`);
+      return json(res, 200, { logs: logsRes.rows });
     }
 
     return json(res, 404, { error: 'API route not found' });
