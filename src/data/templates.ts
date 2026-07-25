@@ -1,3 +1,11 @@
+export interface OptionalFeature {
+  id: string;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  oneTimePrice: number;
+}
+
 export interface Template {
   id: string;
   slug: string;
@@ -17,6 +25,7 @@ export interface Template {
   estimatedDays: number;
   demoUrl: string;
   testimonials: Testimonial[];
+  optionalFeatures?: OptionalFeature[];
   previewDesktop?: string;
   previewMobile?: string;
 }
@@ -65,6 +74,74 @@ const testimonials: Testimonial[] = [
   },
 ];
 
+// Recurso Opcionais (Addons) Específicos por Segmento
+export const RESTAURANTE_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-chatbot', name: 'Chatbot de Atendimento 24/7', description: 'Atendimento automatizado inteligente integrado ao WhatsApp.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-reservas', name: 'Calendário de Reservas Avançado', description: 'Evite overbooking com confirmação automática de mesas.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-delivery', name: 'Painel de Pedidos & Delivery', description: 'Receba e gerencie pedidos com status em tempo real.', monthlyPrice: 89, oneTimePrice: 0 },
+  { id: 'opt-pdv', name: 'Integração com Caixa (PDV) / iFood', description: 'Sincronize vendas, estoque e sistemas de caixa.', monthlyPrice: 99, oneTimePrice: 0 },
+  { id: 'opt-fidelidade', name: 'Programa de Fidelidade & Cashback', description: 'Acumulação de pontos e cupons para clientes recorrentes.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-idiomas', name: 'Multi-idioma (Inglês / Espanhol)', description: 'Tradução completa do cardápio e site para estrangeiros.', monthlyPrice: 0, oneTimePrice: 199 },
+  { id: 'opt-fotos', name: 'Fotografia Profissional de Pratos', description: 'Fotos profissionais de pratos em altíssima resolução.', monthlyPrice: 0, oneTimePrice: 299 },
+];
+
+export const SALAO_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-agendamento-salao', name: 'Agendamento Online Inteligente', description: 'Escolha de profissional, serviço e horário com confirmação.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-lembrete-whatsapp', name: 'Lembretes Automáticos WhatsApp', description: 'Reduza faltas e atrasos enviando lembretes automatizados.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-fidelidade-salao', name: 'Clube de Fidelidade & Cashback', description: 'Recompense clientes assíduos com pontos e descontos.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-galeria-trabalhos', name: 'Galeria Interativa de Resultados', description: 'Exiba transformações, cortes e estilos atualizados.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-fotos-salao', name: 'Fotografia Profissional do Salão', description: 'Sessão de fotos do ambiente e equipe profissional.', monthlyPrice: 0, oneTimePrice: 299 },
+];
+
+export const SERVICOS_PROFISSIONAIS_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-portal-cliente', name: 'Portal do Cliente Exclusivo', description: 'Área do cliente para acompanhamento de solicitações e prazos.', monthlyPrice: 59, oneTimePrice: 0 },
+  { id: 'opt-consulta-processual', name: 'Consulta Processual & Notificações', description: 'Atualização e alertas de andamentos para clientes e processos.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-assinatura-digital', name: 'Assinatura Digital de Contratos', description: 'Assinatura eletrônica com validade jurídica sem burocracia.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-upload-seguro', name: 'Upload Seguro de Documentos', description: 'Envio de arquivos com criptografia e organização por pasta.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-agendamento-consultas', name: 'Agendamento de Consultas Online', description: 'Agenda sincronizada para marcação direta de reuniões.', monthlyPrice: 29, oneTimePrice: 0 },
+];
+
+export const LOJA_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-checkout-integrado', name: 'Checkout Integrado (Cartão & Pix)', description: 'Receba pagamentos direto no site via Mercado Pago ou Pagar.me.', monthlyPrice: 79, oneTimePrice: 0 },
+  { id: 'opt-calculo-frete', name: 'Cálculo Automático de Frete', description: 'Cotação em tempo real com Correios e Melhor Envio.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-cupons-whatsapp', name: 'Disparo de Cupons WhatsApp', description: 'Campanhas de marketing automatizadas para novos cupons.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-estoque-real', name: 'Gestão de Estoque em Tempo Real', description: 'Controle de variações (cor, tamanho) e baixa automática.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-moedas-idiomas', name: 'Multi-idioma & Moedas', description: 'Adaptação do catálogo para vendas internacionais.', monthlyPrice: 0, oneTimePrice: 199 },
+];
+
+export const CLINICA_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-agendamento-clinica', name: 'Agendamento Online de Consultas', description: 'Marcação rápida por especialidade e profissional.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-prontuario-eletronico', name: 'Prontuário Eletrônico Simplificado', description: 'Histórico de tratamentos e anamnese em ambiente seguro.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-teleconsulta', name: 'Módulo de Teleconsulta em Vídeo', description: 'Atendimento à distância com sala virtual criptografada.', monthlyPrice: 69, oneTimePrice: 0 },
+  { id: 'opt-area-paciente', name: 'Área do Paciente', description: 'Acesso a orientações pós-procedimento, exames e dados.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-receitas-digitais', name: 'Receitas & Atestados Digitais', description: 'Emissão e assinatura de receitas com QR Code.', monthlyPrice: 29, oneTimePrice: 0 },
+];
+
+export const CONTABILIDADE_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-portal-contabil', name: 'Portal do Cliente Contábil', description: 'Envio mensal de guias de impostos, folhas e relatórios.', monthlyPrice: 59, oneTimePrice: 0 },
+  { id: 'opt-armazenamento-xml', name: 'Armazenamento & Gestão de XML', description: 'Guarda e consulta automatizada de NFe/NFSe.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-assinatura-contabil', name: 'Assinatura Digital de Documentos', description: 'Assinatura ágil de balanços, declarações e contratos.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-upload-contabil', name: 'Upload Seguro de Documentos', description: 'Recebimento de extratos bancários e notas dos clientes.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-integracao-dominio', name: 'Integração Domínio / Alterdata', description: 'Sincronização com os principais ERPs contábeis do mercado.', monthlyPrice: 89, oneTimePrice: 0 },
+  { id: 'opt-area-restrita-contabil', name: 'Área Restrita para Clientes', description: 'Painel protegido por senha com histórico fiscal.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-backup-nuvem', name: 'Backup de Documentos na Nuvem', description: 'Cópia de segurança diária criptografada.', monthlyPrice: 29, oneTimePrice: 0 },
+];
+
+export const IMOBILIARIA_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-portal-imobiliaria', name: 'Portal do Inquilino & Proprietário', description: 'Emissão de 2ª via de boleto, extratos de repasse e IR.', monthlyPrice: 69, oneTimePrice: 0 },
+  { id: 'opt-busca-geolocalizacao', name: 'Busca Avançada por Mapa & Bairro', description: 'Filtro geográfico dinâmico para busca de imóveis.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-simulador-financiamento', name: 'Simulador de Financiamento', description: 'Calculadora de parcelas com taxas atualizadas dos bancos.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-tour-360', name: 'Tour Virtual 360° de Imóveis', description: 'Integração para visualização tridimensional imersiva.', monthlyPrice: 0, oneTimePrice: 299 },
+  { id: 'opt-integracao-portais', name: 'Integração com Portais (Zap/VivaReal)', description: 'Publicação automática do catálogo de imóveis.', monthlyPrice: 89, oneTimePrice: 0 },
+];
+
+export const OFICINA_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-agendamento-oficina', name: 'Agendamento de Revisão Online', description: 'Escolha de data e horário para serviços preventivos.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-orcamento-whatsapp', name: 'Orçamento Rápido via WhatsApp', description: 'Envio simplificado de cotação de peças e mão de obra.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-acompanhamento-os', name: 'Acompanhamento de Ordem de Serviço', description: 'Status do reparo do veículo visível pelo cliente.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-historico-veiculo', name: 'Histórico do Veículo do Cliente', description: 'Registro digital de trocas de óleo, peças e revisões.', monthlyPrice: 29, oneTimePrice: 0 },
+];
+
 export const templates: Template[] = [
   {
     id: "1",
@@ -104,6 +181,7 @@ export const templates: Template[] = [
     estimatedDays: 5,
     demoUrl: "/demo/restaurante-premium",
     testimonials: [testimonials[0], testimonials[3]],
+    optionalFeatures: RESTAURANTE_OPTIONAL_FEATURES,
   },
   {
     id: "2",
@@ -143,6 +221,7 @@ export const templates: Template[] = [
     estimatedDays: 5,
     demoUrl: "/demo/salao-elegance",
     testimonials: [testimonials[1], testimonials[3]],
+    optionalFeatures: SALAO_OPTIONAL_FEATURES,
   },
   {
     id: "3",
@@ -181,6 +260,7 @@ export const templates: Template[] = [
     estimatedDays: 4,
     demoUrl: "/demo/servicos-profissionais",
     testimonials: [testimonials[2], testimonials[0]],
+    optionalFeatures: SERVICOS_PROFISSIONAIS_OPTIONAL_FEATURES,
   },
   {
     id: "4",
@@ -209,6 +289,7 @@ export const templates: Template[] = [
     estimatedDays: 6,
     demoUrl: "/demo/loja-catalogo",
     testimonials: [testimonials[3]],
+    optionalFeatures: LOJA_OPTIONAL_FEATURES,
   },
   {
     id: "5",
@@ -244,6 +325,7 @@ export const templates: Template[] = [
     estimatedDays: 6,
     demoUrl: "/demo/clinica-estetica",
     testimonials: [testimonials[1]],
+    optionalFeatures: CLINICA_OPTIONAL_FEATURES,
   },
   {
     id: "6",
@@ -277,6 +359,7 @@ export const templates: Template[] = [
     estimatedDays: 4,
     demoUrl: "/demo/contabilidade",
     testimonials: [testimonials[2]],
+    optionalFeatures: CONTABILIDADE_OPTIONAL_FEATURES,
   },
   {
     id: "7",
@@ -305,6 +388,7 @@ export const templates: Template[] = [
     estimatedDays: 7,
     demoUrl: "/demo/imobiliaria",
     testimonials: [testimonials[0]],
+    optionalFeatures: IMOBILIARIA_OPTIONAL_FEATURES,
   },
   {
     id: "8",
@@ -332,6 +416,7 @@ export const templates: Template[] = [
     estimatedDays: 3,
     demoUrl: "/demo/oficina-mecanica",
     testimonials: [testimonials[3]],
+    optionalFeatures: OFICINA_OPTIONAL_FEATURES,
   },
 ];
 
@@ -347,23 +432,25 @@ export const templateCategories = [
   { label: "Oficina Mecânica", slug: "oficina-mecanica" },
 ];
 
-export interface OptionalFeature {
-  id: string;
-  name: string;
-  description: string;
-  monthlyPrice: number;
-  oneTimePrice: number;
-}
-
-export const OPTIONAL_FEATURES: OptionalFeature[] = [
-  { id: 'opt-chatbot', name: 'Chatbot de Atendimento', description: 'Atendimento automatizado integrado ao WhatsApp.', monthlyPrice: 49, oneTimePrice: 0 },
-  { id: 'opt-reservas', name: 'Calendário de Reservas Avançado', description: 'Evite overbooking com confirmação automática.', monthlyPrice: 29, oneTimePrice: 0 },
-  { id: 'opt-delivery', name: 'Painel de Pedidos / Delivery', description: 'Receba e gerencie pedidos direto pelo seu site.', monthlyPrice: 89, oneTimePrice: 0 },
-  { id: 'opt-pdv', name: 'Integração com Caixa (PDV)', description: 'Sincronize vendas e estoque em tempo real.', monthlyPrice: 99, oneTimePrice: 0 },
-  { id: 'opt-fidelidade', name: 'Programa de Fidelidade', description: 'Cashback e cupons para clientes recorrentes.', monthlyPrice: 39, oneTimePrice: 0 },
-  { id: 'opt-idiomas', name: 'Multi-idioma (Inglês/Espanhol)', description: 'Tradução do site para atrair estrangeiros.', monthlyPrice: 0, oneTimePrice: 199 },
-  { id: 'opt-fotos', name: 'Fotografia Profissional', description: 'Fotos profissionais de pratos, produtos ou estabelecimento em alta resolução.', monthlyPrice: 0, oneTimePrice: 299 },
-  { id: 'opt-disparos', name: 'Disparo de Cupons WhatsApp', description: 'Campanhas de marketing automatizadas.', monthlyPrice: 19, oneTimePrice: 0 },
-  { id: 'opt-seo', name: 'SEO Avançado (Google)', description: 'Melhor posicionamento nas buscas locais.', monthlyPrice: 0, oneTimePrice: 149 },
-  { id: 'opt-suporte', name: 'Suporte Prioritário 24h', description: 'Tempo de resposta de até 2 horas úteis.', monthlyPrice: 39, oneTimePrice: 0 }
+// Coleção mestre com todos os recursos opcionais do sistema (para buscas por id)
+export const ALL_OPTIONAL_FEATURES: OptionalFeature[] = [
+  ...RESTAURANTE_OPTIONAL_FEATURES,
+  ...SALAO_OPTIONAL_FEATURES,
+  ...SERVICOS_PROFISSIONAIS_OPTIONAL_FEATURES,
+  ...LOJA_OPTIONAL_FEATURES,
+  ...CLINICA_OPTIONAL_FEATURES,
+  ...CONTABILIDADE_OPTIONAL_FEATURES,
+  ...IMOBILIARIA_OPTIONAL_FEATURES,
+  ...OFICINA_OPTIONAL_FEATURES,
 ];
+
+// Alias para compatibilidade com chamadas legado
+export const OPTIONAL_FEATURES: OptionalFeature[] = ALL_OPTIONAL_FEATURES;
+
+/**
+ * Retorna os recursos opcionais específicos do template informado.
+ */
+export function getTemplateOptionalFeatures(template?: Template): OptionalFeature[] {
+  if (!template) return RESTAURANTE_OPTIONAL_FEATURES;
+  return template.optionalFeatures || RESTAURANTE_OPTIONAL_FEATURES;
+}

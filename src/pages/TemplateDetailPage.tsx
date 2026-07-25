@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { templates, OPTIONAL_FEATURES } from '../data/templates';
+import { templates, getTemplateOptionalFeatures } from '../data/templates';
 import { plans } from '../data/plans';
 import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 
@@ -50,17 +50,19 @@ export default function TemplateDetailPage() {
     Business: '#7c3aed',
   };
 
+  const templateOptionalFeatures = getTemplateOptionalFeatures(template);
+
   const selectedPlanObj = plans.find(p => p.id === selectedPlanId) || plans.find(p => p.id === 'pro') || plans[0];
   const basePrice = selectedPlanId === 'pro' && template ? template.price : selectedPlanObj.price;
   const baseActivationFee = selectedPlanId === 'pro' && template ? template.activationFee : selectedPlanObj.activationFee;
 
   const selectedMonthlyPrice = selectedOptions.reduce((acc, optId) => {
-    const opt = OPTIONAL_FEATURES.find(o => o.id === optId);
+    const opt = templateOptionalFeatures.find(o => o.id === optId);
     return acc + (opt?.monthlyPrice || 0);
   }, 0);
 
   const selectedOneTimePrice = selectedOptions.reduce((acc, optId) => {
-    const opt = OPTIONAL_FEATURES.find(o => o.id === optId);
+    const opt = templateOptionalFeatures.find(o => o.id === optId);
     return acc + (opt?.oneTimePrice || 0);
   }, 0);
 
@@ -206,13 +208,13 @@ export default function TemplateDetailPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Recursos opcionais</h2>
-                  <p className="text-xs text-gray-400 mt-1">Personalize seu site adicionando recursos adicionais.</p>
+                  <h2 className="text-xl font-bold text-gray-900">Recursos opcionais para {template.category}</h2>
+                  <p className="text-xs text-gray-400 mt-1">Personalize seu site adicionando recursos adicionais específicos para seu segmento.</p>
                 </div>
                 <Badge variant="primary">{selectedOptions.length} selecionado{selectedOptions.length !== 1 ? 's' : ''}</Badge>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                {OPTIONAL_FEATURES.map((opt) => {
+                {templateOptionalFeatures.map((opt) => {
                   const isChecked = selectedOptions.includes(opt.id);
                   return (
                     <div

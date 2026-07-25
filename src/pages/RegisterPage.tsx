@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { templates, OPTIONAL_FEATURES } from '../data/templates';
+import { templates, ALL_OPTIONAL_FEATURES, getTemplateOptionalFeatures } from '../data/templates';
 import { plans } from '../data/plans';
 
 export default function RegisterPage() {
@@ -17,6 +17,7 @@ export default function RegisterPage() {
 
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
   const selectedPlanObj = plans.find(p => p.id === planoParam.toLowerCase()) || plans.find(p => p.id === 'pro') || plans[0];
+  const templateOptionalFeatures = getTemplateOptionalFeatures(selectedTemplate);
 
   // Parse options
   const optionsParam = searchParams.get('options') || '';
@@ -29,7 +30,7 @@ export default function RegisterPage() {
     );
   };
 
-  const selectedFeatures = OPTIONAL_FEATURES.filter(opt => selectedOptions.includes(opt.id));
+  const selectedFeatures = ALL_OPTIONAL_FEATURES.filter(opt => selectedOptions.includes(opt.id));
   
   const baseMonthlyPrice = selectedTemplate
     ? (selectedPlanObj.id === 'pro' ? selectedTemplate.price : selectedPlanObj.price)
@@ -230,7 +231,7 @@ export default function RegisterPage() {
                       Recursos Opcionais
                     </h4>
                     <div className="max-h-48 overflow-y-auto space-y-2 pr-1 border border-gray-100 rounded-xl p-2 bg-gray-50">
-                      {OPTIONAL_FEATURES.map((opt) => {
+                      {templateOptionalFeatures.map((opt) => {
                         const isChecked = selectedOptions.includes(opt.id);
                         return (
                           <label
