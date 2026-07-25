@@ -4,7 +4,7 @@ import {
   ShoppingBag, Calendar, MessageSquare, Search,
   CheckCircle2, X, Phone, Award, Send, Star, ArrowLeft,
   ShieldCheck, Check, FileText, Globe, Home, MapPin, Building,
-  DollarSign, Eye, Play, UserCheck, Key, Sliders, CheckSquare, Layers, Maximize2, Calculator, Video
+  Eye, Calculator, Video
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 
@@ -1794,6 +1794,43 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       </div>
+
+      {/* Real Estate Blog & Market Articles */}
+      {activeSlug === 'imobiliaria-premium' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-gray-800/40 text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#D97706] uppercase tracking-widest block">CONTEÚDO EXCLUSIVO</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog & Inteligência Imobiliária</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#D97706] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {realEstateArticles.map((art, i) => (
+              <div key={i} className="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden group hover:border-[#D97706]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-[#0B0F19]/90 text-[#D97706] border border-[#D97706]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#D97706] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#D97706] font-bold flex items-center gap-1 pt-2 border-t border-gray-800/80">
+                    Ler Artigo Completo →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* SEO Preview - OPTIONAL_FEATURE: SEO Avançado */}
       <div className="max-w-6xl mx-auto px-4 py-8">
