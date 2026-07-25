@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import {
   ShoppingBag, Calendar, MessageSquare, Search,
   CheckCircle2, X, Phone, Award, Send, Star, ArrowLeft,
-  ShieldCheck, Check, FileText, Globe
+  ShieldCheck, Check, FileText, Globe, Home, MapPin, Building,
+  DollarSign, Eye, Play, UserCheck, Key, Sliders, CheckSquare, Layers, Maximize2, Calculator, Video
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 
@@ -955,6 +956,173 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
       description: "Revisão preventiva, freios, suspensão e diagnósticos eletrônicos de marcas importadas.",
       sitelinks: ["🔧 Serviços Automotivos", "📅 Agendar Revisão", "📍 Onde Estamos", "📞 WhatsApp Oficina"]
     }
+  },
+  'imobiliaria-premium': {
+    name: "Imobiliária Premium",
+    category: "Imobiliária",
+    colorTheme: {
+      bg: "#0B0F19",
+      bgPanel: "#111827",
+      border: "#1F2937",
+      text: "#F9FAFB",
+      primary: "#D97706",
+      primaryHover: "#B45309"
+    },
+    ctas: {
+      primaryText: { pt: "Buscar Imóveis", en: "Search Properties", es: "Buscar Propiedades" },
+      secondaryText: { pt: "Agendar Visita", en: "Schedule Visit", es: "Agendar Visita" },
+      type: "booking"
+    },
+    title: {
+      pt: "Encontre o Imóvel dos Seus Sonhos",
+      en: "Find Your Dream Property",
+      es: "Encuentre la Propiedad de sus Sueños"
+    },
+    subtitle: {
+      pt: "Casas de luxo, coberturas, terrenos e imóveis comerciais selecionados com exclusividade para você.",
+      en: "Luxury homes, penthouses, land, and commercial properties exclusively curated for you.",
+      es: "Casas de lujo, áticos, terrenos e inmuebles comerciales seleccionados con exclusividad."
+    },
+    menuTitle: {
+      pt: "Imóveis de Alto Padrão em Destaque",
+      en: "Featured High-End Properties",
+      es: "Propiedades Destacadas de Alto Nivel"
+    },
+    menuSubtitle: {
+      pt: "Confira nossa seleção exclusiva com tour virtual 360°, localização privilegiada e arquitetura autoral.",
+      en: "Check out our exclusive selection featuring 360° virtual tours, prime locations, and signature architecture.",
+      es: "Consulte nuestra selección exclusiva con recorrido virtual 360°, ubicación privilegiada y arquitectura de autor."
+    },
+    items: [
+      {
+        id: "prop-1",
+        name: {
+          pt: "Mansão Suspensa Jardins — 450m²",
+          en: "Jardins Suspended Mansion — 450m²",
+          es: "Mansión Suspendida Jardins — 450m²"
+        },
+        description: {
+          pt: "4 Suítes · 6 Vagas · Automação Lutron · Vista Panorâmica · Varanda Gourmet integrada com piscina aquecida privativa.",
+          en: "4 Suites · 6 Parking slots · Lutron Automation · Panoramic view · Gourmet balcony with private heated pool.",
+          es: "4 Suites · 6 Plazas de garaje · Automatización · Vista panorámica · Balcón gourmet con piscina privada."
+        },
+        price: 8500000,
+        image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=600&auto=format&fit=crop"
+      },
+      {
+        id: "prop-2",
+        name: {
+          pt: "Villa Contemporânea Alphaville — 680m²",
+          en: "Alphaville Contemporary Villa — 680m²",
+          es: "Villa Contemporánea Alphaville — 680m²"
+        },
+        description: {
+          pt: "5 Suítes · Heliponto homologado · Quadra de Tênis · Cinema privativo · Energia fotovoltaica e paisagismo assinado.",
+          en: "5 Suites · Certified Helipad · Tennis Court · Private Cinema · Solar energy and designer landscaping.",
+          es: "5 Suites · Helipuerto certificado · Pista de tenis · Cine privado · Energía solar y diseño paisajístico."
+        },
+        price: 12900000,
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=600&auto=format&fit=crop"
+      },
+      {
+        id: "prop-3",
+        name: {
+          pt: "Penthouse Triplex Barra da Tijuca — 380m²",
+          en: "Barra da Tijuca Triplex Penthouse — 380m²",
+          es: "Penthouse Triplex Barra da Tijuca — 380m²"
+        },
+        description: {
+          pt: "Frente Mar · 4 Suítes · Jacuzzi privativa na cobertura · Sauna a vapor · Segurança armada 24h e concierge.",
+          en: "Oceanfront · 4 Suites · Private rooftop Jacuzzi · Steam sauna · 24/7 armed security and concierge.",
+          es: "Frente al mar · 4 Suites · Jacuzzi privado en azotea · Sauna de vapor · Seguridad 24h y conserjería."
+        },
+        price: 6750000,
+        image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=600&auto=format&fit=crop"
+      },
+      {
+        id: "prop-4",
+        name: {
+          pt: "Residencial Frente Mar Balneário Camboriú — 290m²",
+          en: "Balneário Camboriú Beachfront Residence — 290m²",
+          es: "Residencia Frente al Mar Balneário Camboriú — 290m²"
+        },
+        description: {
+          pt: "Mobiliado e Decorado por Arquiteto · 4 Suítes · 4 Vagas · Marina privativa para iates · Vista definitiva para a orla.",
+          en: "Fully Furnished & Architect Decorated · 4 Suites · 4 Parking slots · Private Yacht Marina · Unobstructed ocean view.",
+          es: "Totalmente amueblado · 4 Suites · 4 Plazas · Marina privada para yates · Vista despejada al mar."
+        },
+        price: 9800000,
+        image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=600&auto=format&fit=crop"
+      },
+      {
+        id: "prop-5",
+        name: {
+          pt: "Casa de Campo Alto Padrão Quinta da Baroneza — 950m²",
+          en: "Quinta da Baroneza Luxury Country Estate — 950m²",
+          es: "Finca de Lujo Quinta da Baroneza — 950m²"
+        },
+        description: {
+          pt: "6 Suítes · Horta orgânica · Baia para cavalos · Adega climatizada para 1.000 garrafas · Fogo de chão e piscina de borda infinita.",
+          en: "6 Suites · Organic garden · Horse stable · Temperature-controlled 1,000-bottle wine cellar · Infinity pool.",
+          es: "6 Suites · Huerto orgánico · Establo de caballos · Bodega climatizada de 1.000 botellas · Piscina infinita."
+        },
+        price: 18500000,
+        image: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?q=80&w=600&auto=format&fit=crop"
+      },
+      {
+        id: "prop-6",
+        name: {
+          pt: "Corporate Tower Faria Lima (Laje Corporativa) — 520m²",
+          en: "Corporate Tower Faria Lima (Commercial Floor) — 520m²",
+          es: "Corporate Tower Faria Lima (Piso Comercial) — 520m²"
+        },
+        description: {
+          pt: "Certificação LEED Gold · 16 Vagas · Piso elevado · Gerador 100% · Auditório e heliporto no edifício corporativo.",
+          en: "LEED Gold Certified · 16 Parking slots · Raised floor · 100% full power generator · Auditorium & helipad.",
+          es: "Certificación LEED Gold · 16 Plazas · Suelo elevado · Generador 100% · Auditorio y helipuerto."
+        },
+        price: 15400000,
+        image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop"
+      }
+    ],
+    chatbot: {
+      welcome: {
+        pt: "Olá! Seja bem-vindo à Imobiliária Premium. Sou seu consultor imobiliário virtual. Procura imóveis para comprar, alugar ou deseja anunciar o seu?",
+        en: "Hello! Welcome to Premium Real Estate. I am your virtual real estate advisor. Looking to buy, rent, or list your property?",
+        es: "¡Hola! Bienvenido a Inmobiliaria Premium. Soy su asesor virtual. ¿Busca comprar, alquilar o listar su propiedad?"
+      },
+      prompts: [
+        {
+          q: { pt: "Como agendar uma visita presencial?", en: "How to schedule an in-person visit?", es: "¿Cómo agendar una visita presencial?" },
+          a: {
+            pt: "Você pode clicar no botão 'Agendar Visita' em qualquer imóvel ou nos enviar uma mensagem direta no WhatsApp. Nossos corretores atendem com horário exclusivo.",
+            en: "Click 'Schedule Visit' on any property or message us on WhatsApp. Our realtors offer exclusive appointments with private transport if requested.",
+            es: "Haga clic en 'Agendar Visita' en cualquier inmueble o envíenos un WhatsApp. Nuestros asesores atienden con horario exclusivo."
+          }
+        },
+        {
+          q: { pt: "Como simular meu financiamento bancário?", en: "How to calculate my bank financing?", es: "¿Cómo calcular mi financiamiento bancario?" },
+          a: {
+            pt: "Temos um Simulador de Financiamento integrado no site com taxas atualizadas de Caixa, Itaú, Bradesco e Santander. Nossos correspondentes bancários cuidam de todo o processo de aprovação sem custo.",
+            en: "We have an integrated Mortgage Calculator with real-time rates from major banks. Our banking brokers handle your approval process free of charge.",
+            es: "Contamos con un Calculador de Hipotecas integrado con tasas actualizadas. Nuestros agentes bancarios gestionan su aprobación sin costo."
+          }
+        },
+        {
+          q: { pt: "Quero anunciar meu imóvel com vocês", en: "I want to list my property with you", es: "Quiero vender/alquilar mi propiedad" },
+          a: {
+            pt: "Excelente! Clique na opção 'Anuncie Seu Imóvel'. Faremos a avaliação gratuita de mercado com tecnologia de dados e fotos/vídeo em alta resolução sem custo de produção.",
+            en: "Great! Click 'List Your Property'. We provide free market appraisal backed by data, plus high-res photos and videos at no production cost.",
+            es: "¡Excelente! Haga clic en 'Anuncie su Inmueble'. Hacemos la tasación gratuita de mercado con tecnología de datos y fotos/video profesional."
+          }
+        }
+      ]
+    },
+    seo: {
+      title: "Imobiliária Premium | Imóveis de Alto Padrão e Casas de Luxo",
+      description: "Casas de luxo, coberturas, terrenos e imóveis comerciais. Tour virtual 360°, agendamento de visitas e atendimento personalizado com corretores CRECI.",
+      sitelinks: ["🏡 Imóveis de Luxo", "🧮 Simulador de Financiamento", "📝 Anuncie Seu Imóvel", "👨‍💼 Corretores CRECI", "📞 WhatsApp Atendimento"]
+    }
   }
 };
 
@@ -997,6 +1165,85 @@ export default function TemplateDemoPage() {
   // 6. Loyalty State
   const [loyaltyPhone, setLoyaltyPhone] = useState('');
   const [loyaltyData, setLoyaltyData] = useState<{ points: number; coupon: string | null } | null>(null);
+
+  // 7. Real Estate Interactive State
+  const [propCategoryFilter, setPropCategoryFilter] = useState('todos');
+  const [propTypeFilter, setPropTypeFilter] = useState('todos');
+  const [propCityFilter, setPropCityFilter] = useState('todas');
+  const [propPriceFilter, setPropPriceFilter] = useState('todos');
+  const [propSearchCode, setPropSearchCode] = useState('');
+
+  // Selected Property Detail Modal
+  const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
+  const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
+
+  // Visit Scheduling Modal
+  const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
+  const [visitPropTitle, setVisitPropTitle] = useState('');
+  const [visitForm, setVisitForm] = useState({ name: '', phone: '', email: '', date: '', time: '15:00', note: '' });
+  const [visitSuccess, setVisitSuccess] = useState(false);
+
+  // Property Submission Modal ("Anuncie Seu Imóvel")
+  const [isListPropModalOpen, setIsListPropModalOpen] = useState(false);
+  const [listPropForm, setListPropForm] = useState({ name: '', phone: '', email: '', address: '', type: 'Casa de Luxo', estValue: '', notes: '' });
+  const [listPropSuccess, setListPropSuccess] = useState(false);
+
+  // Financing Calculator State
+  const [calcPrice, setCalcPrice] = useState(2500000);
+  const [calcDown, setCalcDown] = useState(500000);
+  const [calcMonths, setCalcMonths] = useState(360);
+  const [calcRate, setCalcRate] = useState(9.5);
+
+  const loanAmount = Math.max(0, calcPrice - calcDown);
+  const monthlyRate = (calcRate / 100) / 12;
+  const estimatedMonthlyPayment = monthlyRate > 0 && calcMonths > 0
+    ? Math.round((loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, calcMonths))) / (Math.pow(1 + monthlyRate, calcMonths) - 1))
+    : 0;
+
+  const realtors = [
+    {
+      name: "Dra. Helena Martins",
+      creci: "CRECI 48.912-F",
+      role: "Especialista em Casas de Luxo & Alphaville",
+      phone: "5514996405496",
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop"
+    },
+    {
+      name: "Roberto Albuquerque",
+      creci: "CRECI 39.401-F",
+      role: "Especialista em Coberturas nos Jardins",
+      phone: "5514996405496",
+      avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200&auto=format&fit=crop"
+    },
+    {
+      name: "Camila Siqueira",
+      creci: "CRECI 52.109-F",
+      role: "Especialista em Imóveis de Praia & Balneário",
+      phone: "5514996405496",
+      avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop"
+    }
+  ];
+
+  const realEstateArticles = [
+    {
+      title: "Tendências do Mercado Imobiliário de Luxo para 2026",
+      category: "Mercado & Tendências",
+      date: "20 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Como Funciona o Financiamento de Imóveis Acima de R$ 1 Milhão",
+      category: "Financiamento",
+      date: "15 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Checklist Completo de Documentação para Compra Segura",
+      category: "Documentação & Jurídico",
+      date: "10 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1450133064473-71024230f91b?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
 
   // Initialize Chat Bot welcome message
   useEffect(() => {
@@ -1138,43 +1385,136 @@ export default function TemplateDemoPage() {
         </div>
       </div>
 
-      {/* Services/Products Grid */}
-      <div id="servicos" className="max-w-6xl mx-auto px-4 py-16 space-y-12">
-        <div className="text-center space-y-2">
-          <h2 className="text-3xl font-serif font-bold" style={{ color: config.colorTheme.primary }}>
-            {menuTitleText}
-          </h2>
-          <p className="text-gray-400 max-w-md mx-auto text-sm">{menuSubtitleText}</p>
+      {/* Real Estate Categories Bar */}
+      {activeSlug === 'imobiliaria-premium' && (
+        <div id="imoveis" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#D97706] uppercase tracking-widest block">CATÁLOGO EXCLUSIVO</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Imóveis de Alto Padrão em Destaque</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#111827] border border-gray-800 px-3 py-1.5 rounded-full">
+              <Building className="w-3.5 h-3.5 text-[#D97706]" />
+              Exclusividade & Atendimento V.I.P
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todos os Imóveis' },
+              { id: 'venda', label: 'Comprar' },
+              { id: 'aluguel', label: 'Alugar' },
+              { id: 'lancamento', label: 'Lançamentos' },
+              { id: 'alto-padrao', label: 'Alto Padrão' },
+              { id: 'comercial', label: 'Comercial' },
+              { id: 'terrenos', label: 'Terrenos' },
+              { id: 'casas', label: 'Casas' },
+              { id: 'apartamentos', label: 'Apartamentos' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setPropCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  propCategoryFilter === cat.id
+                    ? 'bg-[#D97706] text-white border-[#D97706] shadow-lg'
+                    : 'bg-[#111827] text-gray-300 border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Services/Products Grid */}
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-12">
+        {activeSlug !== 'imobiliaria-premium' && (
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-serif font-bold" style={{ color: config.colorTheme.primary }}>
+              {menuTitleText}
+            </h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">{menuSubtitleText}</p>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {config.items.map(item => (
             <div
               key={item.id}
-              className="rounded-2xl overflow-hidden transition-all flex flex-col border"
+              className="rounded-2xl overflow-hidden transition-all flex flex-col border group hover:border-[#D97706]/50"
               style={{
                 backgroundColor: config.colorTheme.bgPanel,
                 borderColor: config.colorTheme.border
               }}
             >
-              <div className="h-48 overflow-hidden relative">
-                <img src={item.image} alt={item.name[lang]} className="w-full h-full object-cover" />
-                <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-bold bg-[#1F2937]/80 text-gray-300 px-2 py-0.5 rounded border border-white/10">
-                  <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                  <span>{t.optionalBadge}: Foto Profissional</span>
+              <div className="h-56 overflow-hidden relative">
+                <img src={item.image} alt={item.name[lang]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-bold bg-[#111827]/90 text-white px-2.5 py-1 rounded-full border border-white/10 backdrop-blur-md">
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  <span>{activeSlug === 'imobiliaria-premium' ? 'ALTO PADRÃO' : `${t.optionalBadge}: Foto Profissional`}</span>
                 </div>
-                <div className="absolute top-2 right-2 bg-black/60 px-2 py-0.5 rounded text-xs font-bold" style={{ color: config.colorTheme.primary }}>
+                <div className="absolute top-3 right-3 bg-[#D97706] text-white px-3 py-1 rounded-xl text-xs font-black shadow-lg">
                   R$ {item.price.toLocaleString('pt-BR')}
                 </div>
+                {activeSlug === 'imobiliaria-premium' && (
+                  <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/70 backdrop-blur-sm text-gray-300 text-[10px] px-2 py-0.5 rounded font-mono">
+                    <Video className="w-3 h-3 text-amber-400" />
+                    TOUR 360° DISPONÍVEL
+                  </div>
+                )}
               </div>
               <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                 <div>
                   <h3 className="font-bold text-lg text-white font-serif">{item.name[lang]}</h3>
                   <p className="text-xs text-gray-400 mt-1.5 leading-relaxed line-clamp-2">{item.description[lang]}</p>
                 </div>
-                {/* Action button based on ctas.type */}
-                <div className="pt-2">
-                  {config.ctas.type === 'cart' ? (
+
+                {activeSlug === 'imobiliaria-premium' && (
+                  <div className="grid grid-cols-4 gap-1 text-[10px] text-gray-300 py-2 border-y border-gray-800 text-center font-medium">
+                    <div className="bg-[#0B0F19] p-1.5 rounded-lg border border-gray-800">
+                      <span className="block text-gray-500 text-[9px]">ÁREA</span>
+                      <strong className="text-white">450m²</strong>
+                    </div>
+                    <div className="bg-[#0B0F19] p-1.5 rounded-lg border border-gray-800">
+                      <span className="block text-gray-500 text-[9px]">SUÍTES</span>
+                      <strong className="text-white">4</strong>
+                    </div>
+                    <div className="bg-[#0B0F19] p-1.5 rounded-lg border border-gray-800">
+                      <span className="block text-gray-500 text-[9px]">BANHOS</span>
+                      <strong className="text-white">6</strong>
+                    </div>
+                    <div className="bg-[#0B0F19] p-1.5 rounded-lg border border-gray-800">
+                      <span className="block text-gray-500 text-[9px]">VAGAS</span>
+                      <strong className="text-white">6</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="pt-1 flex gap-2">
+                  {activeSlug === 'imobiliaria-premium' ? (
+                    <>
+                      <button
+                        onClick={() => setSelectedPropertyModal(item)}
+                        className="flex-1 bg-[#D97706] hover:bg-[#B45309] text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver Detalhes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setVisitPropTitle(item.name.pt);
+                          setIsVisitModalOpen(true);
+                        }}
+                        className="bg-[#1F2937] hover:bg-gray-700 text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 border border-gray-700"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-[#D97706]" />
+                        Visita
+                      </button>
+                    </>
+                  ) : config.ctas.type === 'cart' ? (
                     <button
                       onClick={() => handleAddToCart(item)}
                       className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2"
@@ -1209,6 +1549,158 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Real Estate Financing Simulator Widget */}
+      {activeSlug === 'imobiliaria-premium' && (
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-4 right-4 flex items-center gap-1 text-[9px] font-bold bg-[#D97706]/10 border border-[#D97706]/30 text-[#D97706] px-3 py-1 rounded-full uppercase">
+              <Calculator className="w-3 h-3" />
+              Recurso Opcional: Simulador Avançado
+            </div>
+
+            <div className="max-w-2xl mb-8">
+              <span className="text-xs font-bold text-[#D97706] uppercase tracking-widest block mb-1">CÁLCULO EM TEMPO REAL</span>
+              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-white">Simulador de Financiamento Imobiliário</h3>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                Simule as parcelas do seu imóvel de alto padrão com taxas de juros atualizadas dos principais bancos (Caixa, Itaú, Bradesco, Santander).
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              {/* Inputs */}
+              <div className="space-y-4 text-xs">
+                <div>
+                  <div className="flex justify-between text-gray-300 font-semibold mb-1">
+                    <span>Valor do Imóvel</span>
+                    <span className="text-[#D97706] font-bold">R$ {calcPrice.toLocaleString('pt-BR')}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="500000"
+                    max="20000000"
+                    step="250000"
+                    value={calcPrice}
+                    onChange={(e) => setCalcPrice(Number(e.target.value))}
+                    className="w-full accent-[#D97706] cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-gray-300 font-semibold mb-1">
+                    <span>Entrada Estimada</span>
+                    <span className="text-[#D97706] font-bold">R$ {calcDown.toLocaleString('pt-BR')} ({Math.round((calcDown / calcPrice) * 100)}%)</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="100000"
+                    max={calcPrice * 0.8}
+                    step="50000"
+                    value={calcDown}
+                    onChange={(e) => setCalcDown(Number(e.target.value))}
+                    className="w-full accent-[#D97706] cursor-pointer"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-gray-400 font-semibold block mb-1">Prazo (Meses)</label>
+                    <select
+                      value={calcMonths}
+                      onChange={(e) => setCalcMonths(Number(e.target.value))}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    >
+                      <option value="120">120 meses (10 anos)</option>
+                      <option value="240">240 meses (20 anos)</option>
+                      <option value="360">360 meses (30 anos)</option>
+                      <option value="420">420 meses (35 anos)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-gray-400 font-semibold block mb-1">Taxa de Juros (a.a.)</label>
+                    <select
+                      value={calcRate}
+                      onChange={(e) => setCalcRate(Number(e.target.value))}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    >
+                      <option value="8.5">8,5% a.a. (Caixa/SBPE)</option>
+                      <option value="9.5">9,5% a.a. (Itaú Personalité)</option>
+                      <option value="10.5">10,5% a.a. (Bradesco Prime)</option>
+                      <option value="11.5">11,5% a.a. (Santander Select)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Output Display Card */}
+              <div className="bg-[#0B0F19] border border-gray-800 rounded-2xl p-6 space-y-4 text-center text-xs">
+                <div>
+                  <span className="text-gray-400 font-medium uppercase tracking-wider block">Valor a Financiar</span>
+                  <div className="text-xl font-bold text-white font-mono mt-0.5">
+                    R$ {loanAmount.toLocaleString('pt-BR')}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[#D97706]/10 border border-[#D97706]/30 rounded-xl space-y-1">
+                  <span className="text-gray-300 font-semibold block">1ª Parcela Estimada (Sistema SAC)</span>
+                  <div className="text-3xl font-black text-[#D97706] font-mono">
+                    R$ {estimatedMonthlyPayment.toLocaleString('pt-BR')} <span className="text-xs font-normal text-gray-400">/mês</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  *Valores aproximados para simulação. Nossos correspondentes bancários realizam a aprovação de crédito sem custo adicional.
+                </p>
+
+                <a
+                  href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20solicitar%20uma%20pre-aprovacao%20de%20credito%20imobiliario."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-[#D97706] hover:bg-[#B45309] text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Solicitar Pré-Aprovação Grátis
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real Estate Realtors & Brokers Section */}
+      {activeSlug === 'imobiliaria-premium' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-gray-800/40">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#D97706] uppercase tracking-widest">EQUIPE REGISTRADA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Corretores Especialistas CRECI</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Atendimento personalizado com corretores credenciados para negociações de alto valor.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {realtors.map((r, i) => (
+              <div key={i} className="bg-[#111827] border border-gray-800 rounded-2xl p-6 text-center space-y-4 flex flex-col items-center hover:border-[#D97706]/40 transition-all">
+                <img src={r.avatar} alt={r.name} className="w-20 h-20 rounded-full object-cover border-2 border-[#D97706]" />
+                <div>
+                  <h3 className="font-bold text-white text-base font-serif">{r.name}</h3>
+                  <span className="text-[10px] bg-[#D97706]/10 text-[#D97706] font-bold px-2 py-0.5 rounded border border-[#D97706]/20 inline-block mt-1 font-mono">
+                    {r.creci}
+                  </span>
+                  <p className="text-xs text-gray-400 mt-2">{r.role}</p>
+                </div>
+                <a
+                  href={`https://wa.me/${r.phone}?text=Ola%20${encodeURIComponent(r.name)},%20gostaria%20de%20atendimento%20imobiliario.`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-[#25D366] hover:bg-[#1EBE57] text-white py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md mt-auto"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  Atendimento Direct WhatsApp
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loyalty & Promotions panel */}
       <div className="max-w-6xl mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
@@ -1710,6 +2202,408 @@ export default function TemplateDemoPage() {
           </button>
         )}
       </div>
+      {/* Real Estate Property Details Modal */}
+      {selectedPropertyModal && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-md overflow-y-auto">
+          <div className="bg-[#111827] border border-gray-800 rounded-3xl max-w-3xl w-full relative overflow-hidden text-left my-8 shadow-2xl space-y-6 p-6 sm:p-8">
+            <button
+              onClick={() => setSelectedPropertyModal(null)}
+              className="absolute top-4 right-4 bg-black/50 text-gray-400 hover:text-white p-2 rounded-full border border-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header / Badges */}
+            <div className="space-y-1 pr-8">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] bg-[#D97706] text-white font-black px-2.5 py-0.5 rounded-full uppercase">EXCLUSIVIDADE</span>
+                <span className="text-[10px] bg-gray-800 text-gray-300 font-mono px-2 py-0.5 rounded">REF: RE-{Math.floor(Math.random() * 899 + 100)}</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold font-serif text-white">{selectedPropertyModal.name.pt}</h2>
+              <p className="text-xs text-gray-400">Jardins, São Paulo — SP · Código CRECI Protegido</p>
+            </div>
+
+            {/* Price Tag */}
+            <div className="bg-[#0B0F19] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
+              <div>
+                <span className="text-[10px] text-gray-500 font-semibold uppercase block">Valor de Venda</span>
+                <div className="text-2xl sm:text-3xl font-black text-[#D97706] font-mono">
+                  R$ {selectedPropertyModal.price.toLocaleString('pt-BR')}
+                </div>
+              </div>
+              <span className="text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-xl font-bold">
+                Documentação Ok (Escriturado)
+              </span>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex border-b border-gray-800 text-xs font-bold gap-6">
+              {[
+                { id: 'fotos', label: 'Galeria HD' },
+                { id: 'tour', label: 'Tour Virtual 360°' },
+                { id: 'mapa', label: 'Localização & Mapa' },
+                { id: 'financiamento', label: 'Financiamento' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActivePropTab(tab.id as any)}
+                  className={`pb-3 border-b-2 transition-colors ${
+                    activePropTab === tab.id
+                      ? 'border-[#D97706] text-[#D97706]'
+                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            {activePropTab === 'fotos' && (
+              <div className="space-y-4">
+                <div className="h-72 rounded-2xl overflow-hidden relative">
+                  <img src={selectedPropertyModal.image} alt={selectedPropertyModal.name.pt} className="w-full h-full object-cover" />
+                  <span className="absolute bottom-3 right-3 bg-black/70 text-white text-[10px] px-3 py-1 rounded-lg backdrop-blur-md">
+                    Foto 1 de 12 (Alta Resolução)
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  {selectedPropertyModal.description.pt}
+                </p>
+              </div>
+            )}
+
+            {activePropTab === 'tour' && (
+              <div className="h-72 bg-[#0B0F19] border border-gray-800 rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-3">
+                <Video className="w-12 h-12 text-[#D97706] animate-pulse" />
+                <h4 className="font-bold text-white text-base">Tour Virtual 360° Matterport Integrado</h4>
+                <p className="text-xs text-gray-400 max-w-md">
+                  Navegue interativamente por cada ambiente da propriedade com tecnologia de realidade virtual e scanner 3D.
+                </p>
+                <button
+                  onClick={() => alert('Abrindo visualização em fullscreen do Tour 360°...')}
+                  className="bg-[#D97706] text-white px-4 py-2 rounded-xl text-xs font-bold"
+                >
+                  Iniciar Tour Imersivo 3D
+                </button>
+              </div>
+            )}
+
+            {activePropTab === 'mapa' && (
+              <div className="h-72 bg-[#0B0F19] border border-gray-800 rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+                <MapPin className="w-10 h-10 text-[#D97706]" />
+                <h4 className="font-bold text-white text-sm">Localização Aproximada (Região Nobre)</h4>
+                <p className="text-xs text-gray-400 max-w-sm">
+                  Por privacidade e segurança dos proprietários, o endereço exato é fornecido após confirmação de agendamento de visita.
+                </p>
+              </div>
+            )}
+
+            {activePropTab === 'financiamento' && (
+              <div className="bg-[#0B0F19] border border-gray-800 rounded-2xl p-4 text-xs space-y-3">
+                <div className="flex justify-between text-gray-300">
+                  <span>Preço deste imóvel:</span>
+                  <strong className="text-white">R$ {selectedPropertyModal.price.toLocaleString('pt-BR')}</strong>
+                </div>
+                <div className="flex justify-between text-gray-300">
+                  <span>Entrada mínima (20%):</span>
+                  <strong className="text-[#D97706]">R$ {(selectedPropertyModal.price * 0.2).toLocaleString('pt-BR')}</strong>
+                </div>
+                <div className="flex justify-between text-gray-300">
+                  <span>Parcela estimada (SAC 360 meses):</span>
+                  <strong className="text-[#D97706] text-sm">R$ {Math.round((selectedPropertyModal.price * 0.8 * 0.0085)).toLocaleString('pt-BR')}/mês</strong>
+                </div>
+              </div>
+            )}
+
+            {/* Checklist of amenities */}
+            <div className="space-y-2 pt-2 border-t border-gray-800">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Recursos & Comodidades</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-300">
+                {['Piscina Aquecida', 'Área Gourmet', 'Academia Privativa', 'Portaria 24h Armada', 'Elevador Privativo', 'Pet Friendly'].map((feature, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 bg-[#0B0F19] p-2 rounded-xl border border-gray-800">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#D97706]" />
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <a
+                href={`https://wa.me/5514996405496?text=Ola!%20Tenho%20interesse%20no%20imovel%20${encodeURIComponent(selectedPropertyModal.name.pt)}.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-[#25D366] hover:bg-[#1EBE57] text-white py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                Falar no WhatsApp
+              </a>
+              <button
+                onClick={() => {
+                  setVisitPropTitle(selectedPropertyModal.name.pt);
+                  setIsVisitModalOpen(true);
+                  setSelectedPropertyModal(null);
+                }}
+                className="flex-1 bg-[#D97706] hover:bg-[#B45309] text-white py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Calendar className="w-4 h-4" />
+                Agendar Visita Presencial
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real Estate Visit Scheduling Modal */}
+      {isVisitModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-[#111827] border border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full relative text-left space-y-4 shadow-2xl">
+            <button
+              onClick={() => { setIsVisitModalOpen(false); setVisitSuccess(false); }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center space-y-1">
+              <span className="text-[9px] font-black bg-[#D97706] text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                AGENDAMENTO EXCLUSIVO V.I.P
+              </span>
+              <h3 className="font-bold text-xl text-white font-serif">Agendar Visita ao Imóvel</h3>
+              <p className="text-xs text-gray-400">
+                {visitPropTitle ? `Imóvel: ${visitPropTitle}` : 'Escolha o melhor dia e horário para a visita guiada.'}
+              </p>
+            </div>
+
+            {visitSuccess ? (
+              <div className="text-center py-6 space-y-3">
+                <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto border border-green-500/20">
+                  <Check className="w-6 h-6 text-green-500" />
+                </div>
+                <h4 className="font-bold text-green-400 text-sm">Visita Solicitada com Sucesso!</h4>
+                <p className="text-xs text-gray-300">
+                  Código da Visita: <strong>#VIS-{Math.floor(Math.random() * 8999 + 1000)}</strong>
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Nosso corretor especializado entrará em contato via WhatsApp para confirmar o horário.
+                </p>
+                <button
+                  onClick={() => { setIsVisitModalOpen(false); setVisitSuccess(false); }}
+                  className="w-full bg-[#D97706] text-white py-2.5 rounded-xl font-bold text-xs"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setVisitSuccess(true);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-400 block mb-1">Data da Visita *</label>
+                    <input
+                      type="date"
+                      required
+                      value={visitForm.date}
+                      onChange={(e) => setVisitForm({ ...visitForm, date: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 block mb-1">Horário *</label>
+                    <select
+                      value={visitForm.time}
+                      onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    >
+                      <option>09:00</option>
+                      <option>10:30</option>
+                      <option>14:00</option>
+                      <option>15:30</option>
+                      <option>17:00</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">Seu Nome Completo *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="João Silva"
+                    value={visitForm.name}
+                    onChange={(e) => setVisitForm({ ...visitForm, name: e.target.value })}
+                    className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-400 block mb-1">WhatsApp *</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="(14) 99640-5496"
+                      value={visitForm.phone}
+                      onChange={(e) => setVisitForm({ ...visitForm, phone: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 block mb-1">E-mail *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="joao@email.com"
+                      value={visitForm.email}
+                      onChange={(e) => setVisitForm({ ...visitForm, email: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#D97706] hover:bg-[#B45309] text-white py-3 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-lg mt-2"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Confirmar Solicitação de Visita
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Property Listing Submission Modal ("Anuncie Seu Imóvel") */}
+      {isListPropModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-[#111827] border border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full relative text-left space-y-4 shadow-2xl">
+            <button
+              onClick={() => { setIsListPropModalOpen(false); setListPropSuccess(false); }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center space-y-1">
+              <span className="text-[9px] font-black bg-[#D97706] text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                CAPTAÇÃO DE IMÓVEIS
+              </span>
+              <h3 className="font-bold text-xl text-white font-serif">Anuncie Seu Imóvel Conosco</h3>
+              <p className="text-xs text-gray-400">
+                Avaliação gratuita de mercado com tecnologia de IA e produção fotográfica profissional.
+              </p>
+            </div>
+
+            {listPropSuccess ? (
+              <div className="text-center py-6 space-y-3">
+                <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mx-auto border border-green-500/20">
+                  <Check className="w-6 h-6 text-green-500" />
+                </div>
+                <h4 className="font-bold text-green-400 text-sm">Cadastro de Imóvel Recebido!</h4>
+                <p className="text-xs text-gray-300">
+                  Protocolo de Captação: <strong>#CAP-{Math.floor(Math.random() * 8999 + 1000)}</strong>
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Um dos nossos gestores imobiliários entrará em contato para agendar a avaliação presencial.
+                </p>
+                <button
+                  onClick={() => { setIsListPropModalOpen(false); setListPropSuccess(false); }}
+                  className="w-full bg-[#D97706] text-white py-2.5 rounded-xl font-bold text-xs"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setListPropSuccess(true);
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div>
+                  <label className="text-gray-400 block mb-1">Seu Nome Completo *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Proprietário Silva"
+                    value={listPropForm.name}
+                    onChange={(e) => setListPropForm({ ...listPropForm, name: e.target.value })}
+                    className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-gray-400 block mb-1">WhatsApp *</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="(14) 99640-5496"
+                      value={listPropForm.phone}
+                      onChange={(e) => setListPropForm({ ...listPropForm, phone: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 block mb-1">Tipo de Imóvel</label>
+                    <select
+                      value={listPropForm.type}
+                      onChange={(e) => setListPropForm({ ...listPropForm, type: e.target.value })}
+                      className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                    >
+                      <option>Casa de Luxo</option>
+                      <option>Apartamento</option>
+                      <option>Cobertura</option>
+                      <option>Terreno</option>
+                      <option>Comercial</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">Endereço do Imóvel *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Rua Haddock Lobo, Jardins, São Paulo"
+                    value={listPropForm.address}
+                    onChange={(e) => setListPropForm({ ...listPropForm, address: e.target.value })}
+                    className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">Valor Estimado de Venda / Aluguel</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: R$ 5.000.000"
+                    value={listPropForm.estValue}
+                    onChange={(e) => setListPropForm({ ...listPropForm, estValue: e.target.value })}
+                    className="w-full bg-[#0B0F19] border border-gray-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-[#D97706]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-[#D97706] hover:bg-[#B45309] text-white py-3 rounded-xl font-bold transition-all text-xs flex items-center justify-center gap-1.5 shadow-lg mt-2"
+                >
+                  <Home className="w-4 h-4" />
+                  Enviar Imóvel para Avaliação
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

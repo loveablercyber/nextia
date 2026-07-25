@@ -142,6 +142,23 @@ export const OFICINA_OPTIONAL_FEATURES: OptionalFeature[] = [
   { id: 'opt-historico-veiculo', name: 'Histórico do Veículo do Cliente', description: 'Registro digital de trocas de óleo, peças e revisões.', monthlyPrice: 29, oneTimePrice: 0 },
 ];
 
+export const IMOBILIARIA_PREMIUM_OPTIONAL_FEATURES: OptionalFeature[] = [
+  { id: 'opt-portal-corretor', name: 'Portal do Corretor & Equipe', description: 'Painel exclusivo de gestão de corretores e divisão de leads.', monthlyPrice: 69, oneTimePrice: 0 },
+  { id: 'opt-crm-imobiliario', name: 'CRM Imobiliário Integrado', description: 'Funil de vendas, acompanhamento de clientes e histórico de visitas.', monthlyPrice: 99, oneTimePrice: 0 },
+  { id: 'opt-tour-360-premium', name: 'Tour Virtual 360° Matterport / VR', description: 'Suporte a tours imersivos tridimensionais e realidade virtual.', monthlyPrice: 0, oneTimePrice: 299 },
+  { id: 'opt-zap-vivareal', name: 'Integração Zap Imóveis & Viva Real', description: 'Sincronização automática de anúncios com o portal OLX/Zap.', monthlyPrice: 89, oneTimePrice: 0 },
+  { id: 'opt-olx-imoveis', name: 'Integração OLX & Portais Nacionais', description: 'Publicação de catálogo nos principais portais do Brasil.', monthlyPrice: 49, oneTimePrice: 0 },
+  { id: 'opt-captacao-auto', name: 'Captação Automática de Leads', description: 'Formulário "Anuncie Seu Imóvel" com notificação instantânea.', monthlyPrice: 59, oneTimePrice: 0 },
+  { id: 'opt-avaliacao-online', name: 'Avaliação Online de Imóveis por IA', description: 'Estimativa de valor de mercado baseada em m² e região.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-simulador-avancado', name: 'Simulador de Financiamento Avançado', description: 'Calculadora em tempo real de parcelas Caixa, Itaú e Bradesco.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-assinatura-propostas', name: 'Assinatura Digital de Propostas', description: 'Envio e validação eletrônica de propostas de compra e aluguel.', monthlyPrice: 39, oneTimePrice: 0 },
+  { id: 'opt-area-cliente-proprietario', name: 'Área do Cliente & Proprietário', description: 'Extratos de repasse de aluguel, 2ª via de boleto e relatórios.', monthlyPrice: 69, oneTimePrice: 0 },
+  { id: 'opt-comparador-favoritos', name: 'Comparador de Imóveis & Favoritos', description: 'Permite ao cliente salvar e comparar características de imóveis.', monthlyPrice: 19, oneTimePrice: 0 },
+  { id: 'opt-alertas-imoveis', name: 'Alertas Automáticos no WhatsApp', description: 'Notificações automáticas quando novos imóveis do perfil entram.', monthlyPrice: 29, oneTimePrice: 0 },
+  { id: 'opt-rd-meta-google', name: 'Integração RD Station & Meta Ads', description: 'Rastreamento avançado de pixels e conversões de anúncios.', monthlyPrice: 79, oneTimePrice: 0 },
+  { id: 'opt-chatbot-imobiliario', name: 'Chatbot Imobiliário 24/7', description: 'Atendimento e qualificação automática de clientes via WhatsApp.', monthlyPrice: 49, oneTimePrice: 0 },
+];
+
 export const templates: Template[] = [
   {
     id: "1",
@@ -418,6 +435,49 @@ export const templates: Template[] = [
     testimonials: [testimonials[3]],
     optionalFeatures: OFICINA_OPTIONAL_FEATURES,
   },
+  {
+    id: "9",
+    slug: "imobiliaria-premium",
+    name: "Imobiliária Premium",
+    category: "Imobiliária",
+    categorySlug: "imobiliaria",
+    description:
+      "Plataforma completa e sofisticada para imobiliárias de alto padrão, construtoras e corretoras. Busca avançada por geolocalização, simulador de financiamento, tour virtual 360°, agendamento de visitas e captação de leads de altíssimo valor.",
+    shortDescription: "Plataforma de alto padrão com busca avançada, simulador e tour 360°.",
+    coverImage: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=800&auto=format&fit=crop",
+    price: 149,
+    activationFee: 397,
+    featured: true,
+    badge: "Alto Padrão",
+    features: [
+      "Busca avançada multicritério",
+      "Galeria em alta definição com Lightbox",
+      "Tour Virtual 360° & Matterport",
+      "Simulador de Financiamento em tempo real",
+      "Agendamento online de visitas",
+      "Formulário 'Anuncie Seu Imóvel'",
+      "Cards de Corretores com CRECI e WhatsApp",
+      "Filtros por bairros nobres e categorias",
+      "Página de detalhes com mapa interativo",
+      "SEO técnico avançado com Schema.org",
+      "SSL e hospedagem de alto desempenho",
+    ],
+    pages: [
+      "Página inicial",
+      "Catálogo de Imóveis",
+      "Detalhes do Imóvel",
+      "Anuncie seu Imóvel",
+      "Simulador de Financiamento",
+      "Corretores",
+      "Blog Imobiliário",
+      "Contato",
+    ],
+    recommendedPlan: "Business",
+    estimatedDays: 5,
+    demoUrl: "/demo/imobiliaria-premium",
+    testimonials: [testimonials[0], testimonials[2]],
+    optionalFeatures: IMOBILIARIA_PREMIUM_OPTIONAL_FEATURES,
+  },
 ];
 
 export const templateCategories = [
@@ -442,6 +502,7 @@ export const ALL_OPTIONAL_FEATURES: OptionalFeature[] = [
   ...CONTABILIDADE_OPTIONAL_FEATURES,
   ...IMOBILIARIA_OPTIONAL_FEATURES,
   ...OFICINA_OPTIONAL_FEATURES,
+  ...IMOBILIARIA_PREMIUM_OPTIONAL_FEATURES,
 ];
 
 // Alias para compatibilidade com chamadas legado
