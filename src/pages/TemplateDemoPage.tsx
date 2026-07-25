@@ -1193,6 +1193,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 9. Salão & Barbearia Interactive State
+  const [salaoCategoryFilter, setSalaoCategoryFilter] = useState('todos');
+
+  const salaoArticles = [
+    {
+      title: "Tendências de Cortes Masculinos e Barba Ritualística para 2026",
+      category: "Visagismo Masculino",
+      date: "24 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Cronograma Capilar Kérastase: Como Recuperar Brilho e Nutrição",
+      category: "Tratamentos & Saúde",
+      date: "20 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "A Técnica do Visagismo: Harmonizando Corte com o Formato do Rosto",
+      category: "Consultoria de Imagem",
+      date: "15 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1605497746444-ac9dbd324ce8?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1368,7 +1392,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'restaurante-premium' ? (
+      {activeSlug === 'salao-elegance' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(15, 5, 29, 0.85), rgba(15, 5, 29, 0.95)), url("https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D946EF]/10 border border-[#D946EF]/30 text-[#D946EF] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#D946EF]" />
+              ESTILO, ELEGÂNCIA & VISAGISMO PESSOAL
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Salão & Barbearia Elegance
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Cortes de autor, barba ritualística, coloração e tratamentos capilares com produtos Kérastase e L'Oréal em um ambiente exclusivo com bar V.I.P.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <button
+                onClick={() => setIsReserveModalOpen(true)}
+                className="bg-[#D946EF] hover:bg-[#C026D3] text-white px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Agendar Horário Online
+              </button>
+              <a
+                href="#servicos-salao"
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <Scissors className="w-4 h-4 text-[#D946EF]" />
+                Ver Serviços & Tabela
+              </a>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20agendar%20um%20horario%20no%20Salao%20Elegance."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                WhatsApp Direct
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'restaurante-premium' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1497,6 +1566,86 @@ export default function TemplateDemoPage() {
                 <span className="text-[8px] bg-[#5B4FE9] text-white px-1 py-0.5 rounded-full font-bold ml-1">OPCIONAL</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Seção 2: Sobre a Empresa (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#311A4D]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">SOBRE O SALÃO & BARBEARIA</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Tradição em Visagismo, Estilo e Cuidado Pessoal de Excelência
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Desde 2016, o Salão & Barbearia Elegance unifica a arte da barbearia tradicional com as últimas tendências internacionais em visagismo, corte e tratamentos capilares femininos e masculinos. Nossa equipe é composta por profissionais certificados e especializados.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#190C2C] p-4 rounded-2xl border border-[#311A4D]">
+                  <span className="text-[#D946EF] font-bold block text-sm mb-1">Visagismo Personalizado</span>
+                  <p className="text-gray-400">Análise do formato do rosto e estilo para criar um visual harmonioso e único.</p>
+                </div>
+                <div className="bg-[#190C2C] p-4 rounded-2xl border border-[#311A4D]">
+                  <span className="text-[#D946EF] font-bold block text-sm mb-1">Marcas Importadas</span>
+                  <p className="text-gray-400">Utilizamos exclusivamente cosméticos de alta performance Kérastase, L'Oréal e Keune.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#311A4D] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=800&auto=format&fit=crop"
+                  alt="Equipe de Visagistas"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#D946EF] font-bold uppercase tracking-wider">Master Visagista</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Gabriel & Juliana Mello</h3>
+                  <p className="text-xs text-gray-300">Especialistas em Visagismo e Coloração Internacional</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Serviços Interativos (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div id="servicos-salao" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">TABELA DE SERVIÇOS PREMIUM</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Serviços & Agendamento Online</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#190C2C] border border-[#311A4D] px-3 py-1.5 rounded-full">
+              <Calendar className="w-3.5 h-3.5 text-[#D946EF]" />
+              Agendamento 24/7 Ativo
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todos os Serviços' },
+              { id: 'cortes', label: 'Cortes & Visagismo' },
+              { id: 'barba', label: 'Barba & Toalha Quente' },
+              { id: 'coloracao', label: 'Coloração & Mechas' },
+              { id: 'tratamentos', label: 'Tratamentos Kérastase' },
+              { id: 'estetica', label: 'Estética & Manicure' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSalaoCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  salaoCategoryFilter === cat.id
+                    ? 'bg-[#D946EF] text-white border-[#D946EF] shadow-lg'
+                    : 'bg-[#190C2C] text-gray-300 border-[#311A4D] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -1746,6 +1895,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais da Beleza (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#311A4D]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">EXCLUSIVIDADE & BEM-ESTAR</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Diferenciais do Salão Elegance</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Por que nossos clientes nos escolhem para cuidar da sua imagem e autoestima.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '✂️', title: 'Visagistas Certificados', desc: 'Profissionais com especialização internacional e análise técnica individual.' },
+              { icon: '🍹', title: 'Bar & Drinks V.I.P', desc: 'Espaço relaxante com café expresso, drinks autorais e cervejas artesanais gratuitas.' },
+              { icon: '📲', title: 'Agendamento 24/7', desc: 'Marcação online simplificada com lembrete automático no seu WhatsApp.' },
+              { icon: '🧪', title: 'Produtos Importados', desc: 'Kérastase, L\'Oréal e Keune aplicados com protocolos originais das marcas.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#190C2C] p-6 rounded-2xl border border-[#311A4D] hover:border-[#D946EF]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Transformações (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#311A4D]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">PORTFÓLIO DE RESULTADOS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Galeria de Transformações</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">RESULTADOS REAIS DA NOSSA EQUIPE</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1605497746444-ac9dbd324ce8?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#311A4D] group relative cursor-pointer">
+                <img src={img} alt="Galeria" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#D946EF]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas do Salão (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#311A4D]">
+          <div className="bg-[#190C2C] border border-[#311A4D] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#D946EF] font-mono">+4.800</div>
+              <span className="text-xs text-gray-400 font-medium">Atendimentos / Mês</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">4.9 / 5.0</div>
+              <span className="text-xs text-gray-400 font-medium">Avaliação Média no Google</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#D946EF] font-mono">18</div>
+              <span className="text-xs text-gray-400 font-medium">Profissionais Especialistas</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">10 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">Excelência & Estilo</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#311A4D]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">DÚVIDAS FREQUENTES</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas Frequentes</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Como funciona o agendamento online?", a: "Você escolhe o serviço desejado, o profissional de sua preferência, a data e horário. A confirmação chega direto no seu WhatsApp." },
+              { q: "Qual é a tolerância em caso de atraso?", a: "Mantemos uma tolerância de até 15 minutos para garantir o atendimento com a máxima qualidade e sem atrasar os próximos clientes." },
+              { q: "Quais marcas de cosméticos são utilizadas?", a: "Utilizamos exclusivamente linhas profissionais Kérastase, L'Oréal Professionnel e Keune." },
+              { q: "Posso ser atendido sem agendamento prévio?", a: "Sim, porém o atendimento sem reserva fica sujeito à disponibilidade da equipe no momento da chegada." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#190C2C] p-5 rounded-2xl border border-[#311A4D] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#D946EF]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog de Tendências (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#311A4D] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">DICAS DE BELEZA & VISAGISMO</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog de Tendências & Estilo</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#D946EF] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {salaoArticles.map((art, i) => (
+              <div key={i} className="bg-[#190C2C] border border-[#311A4D] rounded-2xl overflow-hidden group hover:border-[#D946EF]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#D946EF] border border-[#D946EF]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#D946EF] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#D946EF] font-bold flex items-center gap-1 pt-2 border-t border-[#311A4D]">
+                    Ler Artigo Completo →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Localização (Salão & Barbearia Elegance) */}
+      {activeSlug === 'salao-elegance' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#311A4D] text-left">
+          <div className="bg-[#190C2C] border border-[#311A4D] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#D946EF] uppercase tracking-widest block">LOCALIZAÇÃO PREMIUM</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Nosso Espaço</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Localizado em região nobre com facilidade de acesso, estacionamento com valete e bar exclusivo.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#D946EF]" />
+                  <span>Rua Oscar Freire, 890 — São Paulo, SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#D946EF]" />
+                  <span>(14) 99640-5496 · contato@salaoelegance.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#D946EF]" />
+                  <span>Seg a Sáb: 09h - 20h | Dom: 10h - 16h</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#0F051D] border border-[#311A4D] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#D946EF]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para abrir rotas no Waze ou Google Maps</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#D946EF] text-white px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais Gastronômicos (Restaurante Premium) */}
       {activeSlug === 'restaurante-premium' && (
