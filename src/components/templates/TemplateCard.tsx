@@ -83,9 +83,9 @@ export default function TemplateCard({ template }: TemplateCardProps) {
           </div>
           <div className="flex gap-2">
             <Link to={`/templates/${template.slug}`} className="flex-1">
-              <Button variant="outline" size="sm" fullWidth>Ver demonstração</Button>
+              <Button variant="outline" size="sm" fullWidth>Ver modelo</Button>
             </Link>
-            <Link to={`/cadastro?template=${template.slug}`} className="flex-1">
+            <Link to={`/cadastro?template=${template.slug}&plano=${template.recommendedPlan.toLowerCase()}`} className="flex-1">
               <Button variant="primary" size="sm" fullWidth>Escolher</Button>
             </Link>
           </div>
