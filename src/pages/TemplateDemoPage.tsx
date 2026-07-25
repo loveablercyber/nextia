@@ -4,7 +4,7 @@ import {
   ShoppingBag, Calendar, MessageSquare, Search,
   CheckCircle2, X, Phone, Award, Send, Star, ArrowLeft,
   ShieldCheck, Check, FileText, Globe, Home, MapPin, Building,
-  Eye, Calculator, Video
+  Eye, Calculator, Video, Scissors
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 

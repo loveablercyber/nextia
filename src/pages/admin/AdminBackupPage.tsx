@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Database, ShieldCheck, Download, CheckCircle2,
   AlertTriangle, RefreshCw, Server, Trash2, RotateCcw,
-  FileArchive, Activity, Copy, Clock
+  FileArchive, Activity, Copy, Clock, ScrollText, X
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useNotification } from '../../context/NotificationContext';
@@ -13,12 +13,14 @@ interface EnterpriseBackupItem {
   object_key: string;
   size: number;
   sizeFormatted: string;
-  checksum: string;
+  checksum: string | null;
   backup_type: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'RESTORING' | 'DELETED';
+  status: 'PENDING' | 'PROCESSING' | 'GENERATING_DATABASE' | 'GENERATING_ARCHIVE' | 'CALCULATING_CHECKSUM' | 'UPLOADING_TO_MINIO' | 'COMPLETED' | 'FAILED' | 'RESTORING' | 'DELETED';
   created_by: string;
   created_at: string;
   updated_at: string;
+  error_message?: string | null;
+  error_details?: string | null;
 }
 
 interface AuditLogItem {
@@ -43,6 +45,7 @@ export default function AdminBackupPage() {
   const [restoreModalBackup, setRestoreModalBackup] = useState<EnterpriseBackupItem | null>(null);
   const [confirmationInput, setConfirmationInput] = useState('');
   const [loadingRestore, setLoadingRestore] = useState(false);
+  const [logsModalBackup, setLogsModalBackup] = useState<EnterpriseBackupItem | null>(null);
 
   // Fetch list of backups and audit logs
   const fetchBackupData = async () => {
@@ -64,10 +67,10 @@ export default function AdminBackupPage() {
     fetchBackupData();
   }, []);
 
-  // Poll background job status every 4s if any backup is processing or restoring
+  // Atualiza o acompanhamento enquanto o servidor executa qualquer etapa do backup.
   useEffect(() => {
     const hasActiveJob = backups.some(
-      (b) => b.status === 'PENDING' || b.status === 'PROCESSING' || b.status === 'RESTORING'
+      (b) => ['PENDING', 'PROCESSING', 'GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_MINIO', 'RESTORING'].includes(b.status)
     );
 
     if (hasActiveJob) {
@@ -76,7 +79,7 @@ export default function AdminBackupPage() {
     }
   }, [backups]);
 
-  // Create Backup in Background
+  // A API só responde após persistir o resultado ou a falha do backup.
   const handleCreateBackup = async () => {
     setLoadingCreate(true);
     try {
@@ -92,8 +95,8 @@ export default function AdminBackupPage() {
       }
 
       addNotification(
-        'Backup Iniciado',
-        'O processo corporativo foi enviado para a fila de segundo plano.',
+        'Backup Concluído',
+        'Arquivo enviado ao MinIO e validado com SHA256.',
         'info'
       );
 
@@ -296,7 +299,7 @@ export default function AdminBackupPage() {
                     <th className="pb-3 px-3">Data & Hora</th>
                     <th className="pb-3 px-3">Tamanho</th>
                     <th className="pb-3 px-3">SHA256 Checksum</th>
-                    <th className="pb-3 px-3 text-right">Ações Corporativas</th>
+                    <th className="pb-3 px-3 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -318,6 +321,11 @@ export default function AdminBackupPage() {
                         {b.status === 'PROCESSING' && (
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200/60 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
                             <RefreshCw className="w-3 h-3 animate-spin" /> PROCESSING
+                          </span>
+                        )}
+                        {['GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_MINIO'].includes(b.status) && (
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200/60 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> {b.status}
                           </span>
                         )}
                         {b.status === 'PENDING' && (
@@ -351,47 +359,53 @@ export default function AdminBackupPage() {
                       </td>
 
                       <td className="py-4 px-3 font-mono text-gray-500 max-w-[150px] truncate">
-                        {b.checksum && b.checksum !== 'N/A' ? (
+                        {b.checksum ? (
                           <button
-                            onClick={() => handleCopyChecksum(b.checksum)}
+                            onClick={() => handleCopyChecksum(b.checksum!)}
                             className="flex items-center gap-1 hover:text-[#5B4FE9] transition-all group"
                             title="Clique para copiar SHA256"
                           >
                             <span className="truncate">{b.checksum.substring(0, 12)}...</span>
                             <Copy className="w-3 h-3 text-gray-400 group-hover:text-[#5B4FE9]" />
                           </button>
-                        ) : (
-                          'N/A'
-                        )}
+                        ) : b.status === 'COMPLETED' ? 'Indisponível' : 'Aguardando'}
                       </td>
 
                       <td className="py-4 px-3 text-right whitespace-nowrap">
                         {b.status !== 'DELETED' && (
                           <div className="flex items-center justify-end gap-2">
-                            {/* Baixar Presigned URL */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownload(b.id)}
-                              disabled={b.status !== 'COMPLETED'}
-                              className="px-2.5 py-1 text-xs flex items-center gap-1 hover:border-[#5B4FE9] hover:text-[#5B4FE9]"
-                            >
-                              <Download className="w-3.5 h-3.5" /> Baixar
-                            </Button>
+                            {b.status === 'COMPLETED' && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownload(b.id)}
+                                  className="px-2.5 py-1 text-xs flex items-center gap-1 hover:border-[#5B4FE9] hover:text-[#5B4FE9]"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Baixar
+                                </Button>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setRestoreModalBackup(b);
+                                    setConfirmationInput('');
+                                  }}
+                                  className="bg-amber-600 hover:bg-amber-700 border-none px-2.5 py-1 text-xs flex items-center gap-1 shadow-sm"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" /> Restaurar
+                                </Button>
+                              </>
+                            )}
 
-                            {/* Restaurar */}
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => {
-                                setRestoreModalBackup(b);
-                                setConfirmationInput('');
-                              }}
-                              disabled={b.status !== 'COMPLETED'}
-                              className="bg-amber-600 hover:bg-amber-700 border-none px-2.5 py-1 text-xs flex items-center gap-1 shadow-sm"
+                            <button
+                              onClick={() => setLogsModalBackup(b)}
+                              className="p-1.5 text-gray-400 hover:text-[#5B4FE9] rounded-lg hover:bg-indigo-50 transition-all"
+                              title="Ver logs"
+                              aria-label={`Ver logs do backup ${b.filename}`}
                             >
-                              <RotateCcw className="w-3.5 h-3.5" /> Restaurar
-                            </Button>
+                              <ScrollText className="w-4 h-4" />
+                            </button>
 
                             {/* Excluir */}
                             <button
@@ -440,6 +454,38 @@ export default function AdminBackupPage() {
           </div>
         )}
       </div>
+
+      {logsModalBackup && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="backup-logs-title">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[80vh] p-6 shadow-2xl flex flex-col gap-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="backup-logs-title" className="text-base font-bold text-gray-900">Logs do backup</h3>
+                <p className="text-xs text-gray-500 font-mono break-all mt-1">{logsModalBackup.filename}</p>
+              </div>
+              <button onClick={() => setLogsModalBackup(null)} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg" aria-label="Fechar logs">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {logsModalBackup.error_message && (
+              <div className="border border-red-200 bg-red-50 text-red-800 rounded-lg p-3 text-xs space-y-1">
+                <p className="font-bold">{logsModalBackup.error_message}</p>
+                {logsModalBackup.error_details && <pre className="whitespace-pre-wrap break-words text-red-700 max-h-36 overflow-y-auto">{logsModalBackup.error_details}</pre>}
+              </div>
+            )}
+            <div className="bg-gray-950 text-gray-200 rounded-lg p-4 font-mono text-xs overflow-y-auto space-y-2">
+              {logs.filter((log) => log.backup_id === logsModalBackup.id).length === 0 ? (
+                <p className="text-gray-500">Nenhum evento específico encontrado para este backup.</p>
+              ) : logs.filter((log) => log.backup_id === logsModalBackup.id).map((log) => (
+                <div key={log.id} className="border-b border-gray-800 pb-2 last:border-0">
+                  <span className="text-indigo-300">[{new Date(log.created_at).toLocaleString('pt-BR')}] {log.action}</span>
+                  <span className="text-gray-400"> {log.details}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mandatory Security Restore Modal */}
       {restoreModalBackup && (
