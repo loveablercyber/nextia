@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ShoppingBag, Calendar, MessageSquare, Globe, Search,
+  ShoppingBag, Calendar, MessageSquare, Search,
   CheckCircle2, X, Phone, Award, Send, Star, ArrowLeft,
   ShieldCheck, Check, FileText, Layers, ChevronDown, ArrowRight
 } from 'lucide-react';
