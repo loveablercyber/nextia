@@ -108,6 +108,7 @@ function AppRoutes() {
       <Route path="/sites-prontos" element={<TemplatesPage />} />
       <Route path="/templates/:slug" element={<TemplateDetailPage />} />
       <Route path="/demo/:slug" element={<TemplateDemoPage />} />
+      <Route path="/restaurante-premium" element={<RestauranteDemoPage />} />
       <Route path="/planos" element={<PlansPage />} />
       <Route path="/como-funciona" element={<HowItWorksPage />} />
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
