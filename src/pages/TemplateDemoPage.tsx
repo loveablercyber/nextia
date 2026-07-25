@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   ShoppingBag, Calendar, MessageSquare, Search,
   CheckCircle2, X, Phone, Award, Send, Star, ArrowLeft,
-  ShieldCheck, Check, FileText, Layers, ChevronDown, ArrowRight
+  ShieldCheck, Check, FileText, Globe
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 

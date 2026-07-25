@@ -96,6 +96,9 @@ export default function RegisterPage() {
 
       setSuccess(true);
       setLoading(false);
+      setTimeout(() => {
+        navigate('/login');
+      }, 2500);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao criar sua conta.');
       setLoading(false);
