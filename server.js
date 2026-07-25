@@ -1,8 +1,9 @@
 import { createHmac, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { createReadStream, existsSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, basename } from 'node:path';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
 
 const port = Number(process.env.PORT || 3000);
@@ -266,8 +267,12 @@ const supportApiMethods = new Map([
   ['/api/support/reply-ticket', 'POST'],
   ['/api/admin/list-support-tickets', 'GET'],
   ['/api/admin/update-ticket-status', 'POST'],
+  ['/api/admin/backup/create', 'POST'],
   ['/api/admin/backup/export', 'POST'],
-  ['/api/admin/backup/restore', 'POST'],
+  ['/api/admin/backup/list', 'GET'],
+  ['/api/admin/backup/download', 'GET'],
+  ['/api/admin/backup/rollback', 'POST'],
+  ['/api/admin/backup/delete', 'POST'],
 ]);
 
 async function handleSupportApi(req, res, url) {
@@ -505,7 +510,7 @@ async function handleSupportApi(req, res, url) {
       }
     }
 
-    if (url.pathname === '/api/admin/backup/export') {
+    if (url.pathname === '/api/admin/backup/create' || url.pathname === '/api/admin/backup/export') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
@@ -567,22 +572,134 @@ async function handleSupportApi(req, res, url) {
         },
       };
 
-      return json(res, 200, exportPayload);
+      // Compressa o payload JSON em buffer .json.gz
+      const jsonString = JSON.stringify(exportPayload, null, 2);
+      const compressedBuffer = gzipSync(Buffer.from(jsonString, 'utf-8'));
+      const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `nextia-${mode}-backup-${timestampStr}.json.gz`;
+
+      const backupsDir = join(process.cwd(), 'storage', 'backups');
+      if (!existsSync(backupsDir)) {
+        mkdirSync(backupsDir, { recursive: true });
+      }
+
+      const filePath = join(backupsDir, filename);
+      writeFileSync(filePath, compressedBuffer);
+
+      const sizeFormatted = compressedBuffer.length >= 1024 * 1024
+        ? (compressedBuffer.length / (1024 * 1024)).toFixed(2) + ' MB'
+        : (compressedBuffer.length / 1024).toFixed(1) + ' KB';
+
+      return json(res, 200, {
+        ok: true,
+        message: `Backup ${mode === 'full' ? 'completo do sistema' : 'do banco de dados'} gerado e hospedado no servidor!`,
+        filename,
+        size: sizeFormatted,
+        mode,
+        createdAt: exportPayload.meta.timestamp,
+        payload: exportPayload,
+      });
     }
 
-    if (url.pathname === '/api/admin/backup/restore') {
+    if (url.pathname === '/api/admin/backup/list') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const backupsDir = join(process.cwd(), 'storage', 'backups');
+      if (!existsSync(backupsDir)) {
+        mkdirSync(backupsDir, { recursive: true });
+      }
+
+      const fileNames = readdirSync(backupsDir).filter(f => f.endsWith('.json.gz') || f.endsWith('.json'));
+      const backupsList = fileNames.map(fileName => {
+        const filePath = join(backupsDir, fileName);
+        const stats = statSync(filePath);
+        const isFull = fileName.includes('-full-');
+        const sizeFormatted = stats.size >= 1024 * 1024
+          ? (stats.size / (1024 * 1024)).toFixed(2) + ' MB'
+          : (stats.size / 1024).toFixed(1) + ' KB';
+
+        return {
+          filename: fileName,
+          mode: isFull ? 'full' : 'database',
+          size: stats.size,
+          sizeFormatted,
+          createdAt: stats.mtime.toISOString(),
+        };
+      }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return json(res, 200, { backups: backupsList });
+    }
+
+    if (url.pathname === '/api/admin/backup/download') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const searchParams = new URLSearchParams(url.search);
+      const filename = basename(searchParams.get('filename') || '');
+      if (!filename) {
+        return json(res, 400, { error: 'Nome de arquivo não especificado.' });
+      }
+
+      const backupsDir = join(process.cwd(), 'storage', 'backups');
+      const filePath = join(backupsDir, filename);
+
+      if (!existsSync(filePath)) {
+        return json(res, 404, { error: 'Arquivo de backup não encontrado no servidor.' });
+      }
+
+      const stats = statSync(filePath);
+      res.writeHead(200, {
+        'Content-Type': 'application/gzip',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': stats.size,
+        'Cache-Control': 'no-store',
+      });
+
+      return createReadStream(filePath).pipe(res);
+    }
+
+    if (url.pathname === '/api/admin/backup/rollback' || url.pathname === '/api/admin/backup/restore') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
       }
 
       const body = await readJson(req);
-      const backup = body.backup || body;
-      if (!backup || !backup.tables) {
-        return json(res, 400, { error: 'Arquivo de backup inválido ou corrompido.' });
+      let payloadObj = body.backup || body;
+
+      // Se passou o nome de um arquivo hospedado, le direto do armazenamento local do servidor
+      if (body.filename) {
+        const filename = basename(body.filename);
+        const backupsDir = join(process.cwd(), 'storage', 'backups');
+        const filePath = join(backupsDir, filename);
+
+        if (!existsSync(filePath)) {
+          return json(res, 404, { error: 'Arquivo de backup não encontrado no servidor.' });
+        }
+
+        const fileBuffer = readFileSync(filePath);
+        try {
+          if (filename.endsWith('.gz')) {
+            const decompressed = gunzipSync(fileBuffer);
+            payloadObj = JSON.parse(decompressed.toString('utf-8'));
+          } else {
+            payloadObj = JSON.parse(fileBuffer.toString('utf-8'));
+          }
+        } catch (e) {
+          return json(res, 400, { error: 'Falha ao descompactar ou ler o arquivo de backup.' });
+        }
       }
 
-      const tables = backup.tables;
+      const tables = payloadObj?.tables;
+      if (!tables) {
+        return json(res, 400, { error: 'Estrutura de dados do backup corrompida ou inválida.' });
+      }
+
       let restoredProfiles = 0;
       let restoredTickets = 0;
 
@@ -656,17 +773,39 @@ async function handleSupportApi(req, res, url) {
 
         return json(res, 200, {
           ok: true,
-          message: 'Restauração realizada com sucesso!',
+          message: 'Rollback executado com sucesso a partir do snapshot hospedado!',
           restoredCounts: {
             profiles: restoredProfiles,
             tickets: restoredTickets,
-            meta: backup.meta || { mode: 'database' },
+            meta: payloadObj.meta || { mode: 'database' },
           },
         });
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
       }
+    }
+
+    if (url.pathname === '/api/admin/backup/delete') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const body = await readJson(req);
+      const filename = basename(body.filename || '');
+      if (!filename) {
+        return json(res, 400, { error: 'Nome do arquivo não especificado.' });
+      }
+
+      const backupsDir = join(process.cwd(), 'storage', 'backups');
+      const filePath = join(backupsDir, filename);
+
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+
+      return json(res, 200, { ok: true, message: 'Backup excluído do servidor.' });
     }
 
     return json(res, 404, { error: 'API route not found' });
