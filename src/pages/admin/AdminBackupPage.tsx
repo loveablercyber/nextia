@@ -349,7 +349,6 @@ export default function AdminBackupPage() {
                 size="sm"
                 onClick={() => {
                   setConfirmModalOpen(false);
-                  setSelectedFile(null);
                 }}
               >
                 Cancelar
