@@ -14,7 +14,6 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
-import RestauranteDemoPage from './pages/RestauranteDemoPage';
 
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
@@ -109,7 +108,6 @@ function AppRoutes() {
       <Route path="/sites-prontos" element={<TemplatesPage />} />
       <Route path="/templates/:slug" element={<TemplateDetailPage />} />
       <Route path="/demo/:slug" element={<TemplateDemoPage />} />
-      <Route path="/restaurante-premium" element={<RestauranteDemoPage />} />
       <Route path="/planos" element={<PlansPage />} />
       <Route path="/como-funciona" element={<HowItWorksPage />} />
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />

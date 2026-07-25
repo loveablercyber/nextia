@@ -174,104 +174,9 @@ const MENU_ITEMS: MenuItem[] = [
   }
 ];
 
-interface PlanDetails {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  popular?: boolean;
-  color: string;
-  description: string;
-  items: Array<{ text: string; included: boolean }>;
-}
-
-// Plans & Included Items Matrix
-const PLAN_DATA: Record<string, PlanDetails> = {
-  start: {
-    id: 'start',
-    name: 'Plano Start',
-    price: 'R$ 59',
-    period: '/mês',
-    color: '#64748b',
-    description: 'Presença digital essencial e atrativa para estabelecimentos em crescimento.',
-    items: [
-      { text: 'Site Responsivo 1 Página (Landing Page)', included: true },
-      { text: 'Hospedagem de Alto Desempenho + SSL Criptografado', included: true },
-      { text: 'Botão Direto de Atendimento WhatsApp', included: true },
-      { text: 'Formulário de Contato / Reservas Básico', included: true },
-      { text: '1 Atualização Estratégica por mês', included: true },
-      { text: 'Cardápio Digital Interativo por Categorias', included: false },
-      { text: 'Carrinho de Pedidos & Checkout PDV', included: false },
-      { text: 'Chatbot Inteligente 24/7 com Respostas Auto', included: false },
-      { text: 'Clube de Fidelidade & Recompensas', included: false },
-      { text: 'Suporte Multi-idioma (PT / EN / ES)', included: false },
-    ],
-  },
-  pro: {
-    id: 'pro',
-    name: 'Plano Pro',
-    price: 'R$ 99',
-    period: '/mês',
-    popular: true,
-    color: '#5B4FE9',
-    description: 'Solução completa para restaurantes gerarem autoridade, cardápio e agendamentos.',
-    items: [
-      { text: 'Site Completo Multi-páginas (até 5 páginas)', included: true },
-      { text: 'Hospedagem de Alto Desempenho + SSL Criptografado', included: true },
-      { text: 'Botão Direto de Atendimento WhatsApp', included: true },
-      { text: 'Cardápio Digital Interativo por Categorias', included: true },
-      { text: 'Sistema de Reservas & Agendamento de Mesas', included: true },
-      { text: 'Otimização Básica de SEO no Google', included: true },
-      { text: '2 Atualizações Estratégicas por mês', included: true },
-      { text: 'Carrinho de Pedidos & Checkout PDV', included: false },
-      { text: 'Chatbot Inteligente 24/7 com Respostas Auto', included: false },
-      { text: 'Clube de Fidelidade & Recompensas', included: false },
-    ],
-  },
-  business: {
-    id: 'business',
-    name: 'Plano Business',
-    price: 'R$ 159',
-    period: '/mês',
-    color: '#7c3aed',
-    description: 'Recursos avançados: Carrinho PDV, Chatbot 24/7, Fidelidade e Multi-idioma.',
-    items: [
-      { text: 'Tudo do Plano Pro Incluído', included: true },
-      { text: 'Carrinho de Pedidos & Checkout Integrado ao PDV', included: true },
-      { text: 'Chatbot Inteligente 24/7 no WhatsApp', included: true },
-      { text: 'Clube de Fidelidade com Consulta por WhatsApp', included: true },
-      { text: 'Suporte Multi-idioma (Português, Inglês, Espanhol)', included: true },
-      { text: 'Domínio Próprio Grátis no 1º Ano', included: true },
-      { text: '4 Atualizações Estratégicas por mês', included: true },
-      { text: 'Atendimento e Suporte Prioritário', included: true },
-    ],
-  },
-  personalizado: {
-    id: 'personalizado',
-    name: 'Plano Personalizado',
-    price: 'Sob Orçamento',
-    period: '',
-    color: '#059669',
-    description: 'Projetos e soluções exclusivas sob medida para redes e franquias.',
-    items: [
-      { text: 'Design e Arquitetura Exclusivos sob Medida', included: true },
-      { text: 'Integração com ERP / Sistema de Caixa Próprio', included: true },
-      { text: 'Múltiplas Unidades / Franquias no mesmo painel', included: true },
-      { text: 'Painel de Métricas & Relatórios Avançados', included: true },
-      { text: 'Gerente de Conta & Suporte VIP Dedicado', included: true },
-      { text: 'Escopo e Manutenção Customizados', included: true },
-    ],
-  },
-};
-
 export default function RestauranteDemoPage() {
   const [lang, setLang] = useState<'pt' | 'en' | 'es'>('pt');
   const t = translations[lang];
-
-  // Plan Selection State
-  const [selectedPlanKey, setSelectedPlanKey] = useState<keyof typeof PLAN_DATA>('pro');
-  const [showPlanCard, setShowPlanCard] = useState(true);
-  const currentPlan = PLAN_DATA[selectedPlanKey];
 
   // 2. Chatbot State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -304,7 +209,7 @@ export default function RestauranteDemoPage() {
           ? 'Olá! Seja bem-vindo ao Sabor & Arte. Eu sou sua assistente virtual. Como posso lhe ajudar hoje? Selecione uma das perguntas ou escreva no chat.'
           : lang === 'en'
             ? 'Hello! Welcome to Flavor & Art. I am your virtual assistant. How can I help you today? Select one of the quick questions below.'
-            : '¡Hola! Bienvenido a Sabor & Arte. Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy? Selecciona una de las preguntas rápidas.'
+            : '¡Hola! Bienvenido a Sabor & Arte. Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy? Selecciona una de las perguntas rápidas.'
       }
     ]);
   }, [lang]);
@@ -368,110 +273,33 @@ export default function RestauranteDemoPage() {
 
   return (
     <div className="min-h-screen bg-[#110D0A] text-[#F3EFE9] font-sans relative overflow-x-hidden pb-16">
-      {/* Sticky Control Bar & Plan Selector */}
-      <div className="bg-[#1C1612]/95 border-b border-[#2C241D] py-3 px-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 backdrop-blur-md">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Link to="/templates/restaurante-premium" className="text-xs font-semibold text-gray-400 hover:text-white flex items-center gap-1">
-            <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-          </Link>
-
-          <div className="h-4 w-px bg-gray-700 hidden sm:block" />
-
-          {/* Dropdown de Planos */}
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] font-bold text-gray-300 hidden sm:inline">Selecione o Plano:</label>
-            <select
-              value={selectedPlanKey}
-              onChange={(e) => setSelectedPlanKey(e.target.value as any)}
-              className="bg-[#2C241D] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-[#3C342D] focus:outline-none focus:border-[#5B4FE9] cursor-pointer"
+      {/* Return button overlay */}
+      <div className="bg-[#1C1612]/90 border-b border-[#2C241D] py-3 px-4 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
+        <Link to="/templates/restaurante-premium" className="text-xs font-semibold text-gray-400 hover:text-white flex items-center gap-1">
+          <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Modelo
+        </Link>
+        <span className="text-[10px] text-gray-500 font-bold bg-[#2C241D] px-2 py-0.5 rounded">
+          MODO DEMONSTRAÇÃO (TODOS OS RECURSOS INCLUÍDOS)
+        </span>
+        {/* Language selector toggle - OPTIONAL_FEATURE: Multi-idioma */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-[10px] text-gray-400 mr-2 bg-[#2C241D] px-2 py-1 rounded">
+            <Globe className="w-3 h-3 text-[#5B4FE9]" />
+            <span>{t.optionalBadge}</span>
+          </div>
+          {(['pt', 'en', 'es'] as const).map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={`text-xs font-bold px-2 py-0.5 rounded transition-colors ${
+                lang === l ? 'bg-[#5B4FE9] text-white' : 'text-gray-400 hover:bg-[#2C241D]'
+              }`}
             >
-              <option value="start">Plano Start — R$ 59/mês</option>
-              <option value="pro">Plano Pro — R$ 99/mês (Recomendado)</option>
-              <option value="business">Plano Business — R$ 159/mês</option>
-              <option value="personalizado">Plano Personalizado — Sob Orçamento</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Action Toggle & Language Switcher */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowPlanCard(!showPlanCard)}
-            className="flex items-center gap-1.5 bg-[#5B4FE9] hover:bg-[#4F46E5] text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all shadow-md"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Itens Inclusos ({currentPlan.name})</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showPlanCard ? 'rotate-180' : ''}`} />
-          </button>
-
-          <div className="flex items-center gap-1">
-            {(['pt', 'en', 'es'] as const).map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`text-[10px] font-bold px-2 py-1 rounded transition-colors ${
-                  lang === l ? 'bg-[#5B4FE9] text-white' : 'text-gray-400 hover:bg-[#2C241D]'
-                }`}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+              {l.toUpperCase()}
+            </button>
+          ))}
         </div>
       </div>
-
-      {/* Dynamic Card de Itens Inclusos no Plano */}
-      {showPlanCard && (
-        <div className="bg-[#1C1612] border-b border-[#2C241D] p-4 sm:p-6 shadow-2xl relative z-40 animate-fade-in-up">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-1.5 max-w-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: currentPlan.color }}>
-                  Recursos do {currentPlan.name}
-                </span>
-                {currentPlan.popular && (
-                  <span className="bg-[#5B4FE9] text-white text-[9px] font-black px-2 py-0.5 rounded-full">
-                    RECOMENDADO
-                  </span>
-                )}
-              </div>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-black text-white">{currentPlan.price}</h3>
-                {currentPlan.period && <span className="text-xs text-gray-400 font-medium">{currentPlan.period}</span>}
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                {currentPlan.description}
-              </p>
-            </div>
-
-            {/* List of included / excluded items */}
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs border-y md:border-y-0 md:border-x border-[#2C241D] py-4 md:py-0 md:px-6 w-full">
-              {currentPlan.items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  {item.included ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  ) : (
-                    <X className="w-4 h-4 text-red-400/50 flex-shrink-0" />
-                  )}
-                  <span className={item.included ? 'text-gray-200 font-medium' : 'text-gray-500 line-through'}>
-                    {item.text}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Direct CTA */}
-            <div className="flex-shrink-0 w-full md:w-auto">
-              <Link to="/planos">
-                <Button variant="gradient" size="sm" className="w-full md:w-auto flex items-center justify-center gap-2 py-2.5 px-5">
-                  Garantir {currentPlan.name}
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Hero Section */}
       <div className="relative h-[480px] flex items-center justify-center text-center px-4 bg-cover bg-center" style={{ backgroundImage: 'linear-gradient(rgba(17, 13, 10, 0.75), rgba(17, 13, 10, 0.95)), url("https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=800&auto=format&fit=crop")' }}>

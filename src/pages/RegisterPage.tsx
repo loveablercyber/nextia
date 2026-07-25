@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { templates, OPTIONAL_FEATURES } from '../data/templates';
+import { plans } from '../data/plans';
 
 export default function RegisterPage() {
   useEffect(() => {
@@ -12,7 +13,10 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
+  const planoParam = searchParams.get('plano') || 'pro';
+
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
+  const selectedPlanObj = plans.find(p => p.id === planoParam.toLowerCase()) || plans.find(p => p.id === 'pro') || plans[0];
 
   // Parse options
   const optionsParam = searchParams.get('options') || '';
@@ -27,13 +31,16 @@ export default function RegisterPage() {
 
   const selectedFeatures = OPTIONAL_FEATURES.filter(opt => selectedOptions.includes(opt.id));
   
-  const monthlyFee = selectedTemplate
-    ? selectedTemplate.price + selectedFeatures.reduce((sum, f) => sum + f.monthlyPrice, 0)
-    : 0;
-    
-  const activationFee = selectedTemplate
-    ? selectedTemplate.activationFee + selectedFeatures.reduce((sum, f) => sum + f.oneTimePrice, 0)
-    : 0;
+  const baseMonthlyPrice = selectedTemplate
+    ? (selectedPlanObj.id === 'pro' ? selectedTemplate.price : selectedPlanObj.price)
+    : selectedPlanObj.price;
+
+  const baseActivationFee = selectedTemplate
+    ? (selectedPlanObj.id === 'pro' ? selectedTemplate.activationFee : selectedPlanObj.activationFee)
+    : selectedPlanObj.activationFee;
+
+  const monthlyFee = baseMonthlyPrice + selectedFeatures.reduce((sum, f) => sum + f.monthlyPrice, 0);
+  const activationFee = baseActivationFee + selectedFeatures.reduce((sum, f) => sum + f.oneTimePrice, 0);
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -76,6 +83,7 @@ export default function RegisterPage() {
           company: form.company,
           password: form.password,
           template: selectedTemplate ? selectedTemplate.name : '',
+          plan: selectedPlanObj.name,
           segment: selectedTemplate ? selectedTemplate.category : '',
           monthlyFee,
           activationFee,
@@ -88,9 +96,6 @@ export default function RegisterPage() {
 
       setSuccess(true);
       setLoading(false);
-      setTimeout(() => {
-        navigate('/login');
-      }, 2500);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao criar sua conta.');
       setLoading(false);
@@ -131,8 +136,9 @@ export default function RegisterPage() {
             <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10 text-left w-full">
               <div className="text-xs text-gray-400 mb-1">Modelo selecionado</div>
               <div className="text-white font-bold">{selectedTemplate.name}</div>
-              <div className="text-gray-300 text-xs mt-1">Mensalidade: R$ {selectedTemplate.price}/mês</div>
-              <div className="text-gray-300 text-xs font-semibold">Ativação: R$ {selectedTemplate.activationFee}</div>
+              <div className="text-[#818cf8] text-xs font-semibold mt-1">Plano: {selectedPlanObj.name}</div>
+              <div className="text-gray-300 text-xs mt-1">Mensalidade: R$ {baseMonthlyPrice}/mês</div>
+              <div className="text-gray-300 text-xs font-semibold">Ativação: R$ {baseActivationFee}</div>
               
               {selectedFeatures.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-white/10 space-y-1">
@@ -179,37 +185,39 @@ export default function RegisterPage() {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-black text-gray-900 mb-2">Conta criada com sucesso!</h2>
-              <p className="text-gray-500 mb-4">
-                Redirecionando para o login...
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Conta criada com sucesso!</h2>
+              <p className="text-gray-500 text-sm mb-6">
+                Sua conta foi cadastrada. Você será redirecionado para a página de login em instantes.
               </p>
-              <div className="w-8 h-8 border-4 border-[#5B4FE9] border-t-transparent rounded-full animate-spin mx-auto" />
+              <Link to="/login">
+                <Button variant="gradient" size="lg">Ir para o Login</Button>
+              </Link>
             </div>
           ) : (
             <>
-              <h1 className="text-3xl font-black text-gray-900 mb-2">Criar conta</h1>
-              <p className="text-gray-500 mb-8">
-                Preencha seus dados para começar.
-              </p>
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Criar sua conta na Nextia</h1>
+                <p className="text-gray-500 text-sm">
+                  Preencha os dados abaixo para iniciar seu projeto digital.
+                </p>
+              </div>
 
               {error && (
-                <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-700 text-sm">{error}</p>
+                <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
+              {/* Order summary box if template is selected */}
               {selectedTemplate && (
-                <div className="mb-6 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 text-left">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
+                <div className="mb-6 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-xs text-gray-400 font-semibold">Modelo selecionado</div>
+                      <div className="text-xs text-[#5B4FE9] font-bold uppercase tracking-wider">Modelo selecionado</div>
                       <div className="text-gray-900 font-bold text-base">{selectedTemplate.name}</div>
-                      <div className="text-xs text-gray-500">
-                        Base: R$ {selectedTemplate.price}/mês + R$ {selectedTemplate.activationFee} ativação
+                      <div className="text-xs text-gray-500 font-medium mt-0.5">
+                        {selectedPlanObj.name} (Base: R$ {baseMonthlyPrice}/mês + R$ {baseActivationFee} ativação)
                       </div>
                     </div>
                   </div>

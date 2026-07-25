@@ -7,6 +7,7 @@ import {
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { templates, OPTIONAL_FEATURES } from '../data/templates';
+import { plans } from '../data/plans';
 import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 
 export default function TemplateDetailPage() {
@@ -14,6 +15,9 @@ export default function TemplateDetailPage() {
   const template = templates.find(t => t.slug === slug);
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(
+    template?.recommendedPlan ? template.recommendedPlan.toLowerCase() : 'pro'
+  );
 
   useEffect(() => {
     if (template) document.title = `${template.name} — Nextia`;
@@ -46,6 +50,10 @@ export default function TemplateDetailPage() {
     Business: '#7c3aed',
   };
 
+  const selectedPlanObj = plans.find(p => p.id === selectedPlanId) || plans.find(p => p.id === 'pro') || plans[0];
+  const basePrice = selectedPlanId === 'pro' && template ? template.price : selectedPlanObj.price;
+  const baseActivationFee = selectedPlanId === 'pro' && template ? template.activationFee : selectedPlanObj.activationFee;
+
   const selectedMonthlyPrice = selectedOptions.reduce((acc, optId) => {
     const opt = OPTIONAL_FEATURES.find(o => o.id === optId);
     return acc + (opt?.monthlyPrice || 0);
@@ -56,10 +64,12 @@ export default function TemplateDetailPage() {
     return acc + (opt?.oneTimePrice || 0);
   }, 0);
 
-  const totalMonthly = template.price + selectedMonthlyPrice;
-  const totalActivation = template.activationFee + selectedOneTimePrice;
+  const totalMonthly = basePrice + selectedMonthlyPrice;
+  const totalActivation = baseActivationFee + selectedOneTimePrice;
 
-  const registerUrl = `/cadastro?template=${template.slug}${selectedOptions.length > 0 ? `&options=${selectedOptions.join(',')}` : ''}`;
+  const currentFeatures = selectedPlanId === 'pro' && template ? template.features : selectedPlanObj.features;
+
+  const registerUrl = `/cadastro?template=${template.slug}&plano=${selectedPlanId}${selectedOptions.length > 0 ? `&options=${selectedOptions.join(',')}` : ''}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
@@ -136,7 +146,7 @@ export default function TemplateDetailPage() {
               </div>
 
               <p className="text-xs text-gray-400 mt-3">
-                Taxa de ativação: R$ {totalActivation} · Plano recomendado: {template.recommendedPlan}
+                Taxa de ativação: R$ {totalActivation} · Plano selecionado: {selectedPlanObj.name}
               </p>
             </div>
 
@@ -176,9 +186,12 @@ export default function TemplateDetailPage() {
           <div className="lg:col-span-2 space-y-8">
             {/* Features */}
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-5">Recursos incluídos</h2>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-bold text-gray-900">Recursos incluídos</h2>
+                <Badge variant="primary">{selectedPlanObj.name}</Badge>
+              </div>
               <div className="grid sm:grid-cols-2 gap-3">
-                {template.features.map((feature) => (
+                {currentFeatures.map((feature) => (
                   <div key={feature} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-3 h-3 text-green-600" />
@@ -280,13 +293,34 @@ export default function TemplateDetailPage() {
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-gray-100 p-6 sticky top-24">
               <div className="text-center mb-6">
-                <div className="text-xs text-gray-400 mb-1">Plano recomendado</div>
+                <div className="text-xs text-gray-400 mb-2 font-medium">Selecione o plano desejado</div>
+                
+                {/* Dropdown de Seleção de Plano */}
+                <select
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold text-sm rounded-xl px-3 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] cursor-pointer"
+                >
+                  {plans.filter(p => p.id !== 'custom').map((p) => {
+                    const price = p.id === 'pro' && template ? template.price : p.price;
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — R$ {price}/mês {p.id === template.recommendedPlan.toLowerCase() ? '(Recomendado)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+
                 <span
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold mb-3"
-                  style={{ backgroundColor: `${planColors[template.recommendedPlan]}15`, color: planColors[template.recommendedPlan] }}
+                  style={{
+                    backgroundColor: `${planColors[selectedPlanObj.name.replace('Nextia ', '')] || '#5B4FE9'}15`,
+                    color: planColors[selectedPlanObj.name.replace('Nextia ', '')] || '#5B4FE9'
+                  }}
                 >
-                  Nextia {template.recommendedPlan}
+                  {selectedPlanObj.name} {selectedPlanObj.id === template.recommendedPlan.toLowerCase() ? '• Recomendado' : ''}
                 </span>
+
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-4xl font-black text-gray-900">R$ {totalMonthly}</span>
                   <span className="text-gray-400">/mês</span>
