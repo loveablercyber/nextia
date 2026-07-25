@@ -8,6 +8,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'imobiliaria-premium') {
     return <ImobiliariaPremiumIllustration />;
   }
+  if (slug === 'restaurante-premium') {
+    return <RestaurantePremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -360,6 +363,68 @@ function ImobiliariaPremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#F59E0B" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#0B0F19" stroke="#D97706" strokeWidth="0.8" />
           <text x={74 + i*126} y="224" fill="#F59E0B" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Ver Detalhes</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function RestaurantePremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-rest-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#120A05" />
+          <stop offset="100%" stopColor="#241003" />
+        </linearGradient>
+        <linearGradient id="orange-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#E85D04" />
+          <stop offset="100%" stopColor="#F97316" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-rest-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#F97316" fontSize="12" fontWeight="800" fontFamily="Inter, sans-serif">🍽️ SABOR & ARTE · GASTRONOMIA</text>
+      <rect x="300" y="8" width="85" height="18" rx="9" fill="url(#orange-grad)" />
+      <text x="342" y="20" fill="white" fontSize="8" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">RESERVA ONLINE</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(0,0,0,0.7)" stroke="rgba(232,93,4,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Experiência Gastronômica Inesquecível</text>
+      <text x="200" y="75" fill="#FFC8A2" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Culinária autoral, ingredientes selecionados e carta de vinhos exclusiva</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="40" y="96" width="70" height="20" rx="10" fill="url(#orange-grad)" />
+        <text x="75" y="109" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Pratos Principais</text>
+        <rect x="120" y="96" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="150" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Entradas</text>
+        <rect x="190" y="96" width="65" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="222" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Sobremesas</text>
+        <rect x="265" y="96" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="295" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Vinhos</text>
+      </g>
+
+      {/* Dish cards */}
+      {[
+        { title: 'Ancho Wagyu Grelhado', price: 'R$ 148', specs: 'Maturado 45 dias · Trufas', badge: 'CHEF RECOMENDA' },
+        { title: 'Risoto de Lagosta', price: 'R$ 165', specs: 'Frutos do Mar · Açafrão', badge: 'DESTAQUE' },
+        { title: 'Petit Gâteau Belga', price: 'R$ 42', specs: 'Chocolate 70% · Sorvete', badge: 'MAIS PEDIDO' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#1C0E06" stroke="rgba(232,93,4,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#2E1609" />
+          <text x={74 + i*126} y="152" fill="#F97316" fontSize="20" textAnchor="middle">🥩</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#E85D04" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#FFC8A2" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#F97316" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#E85D04" />
+          <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Fazer Pedido</text>
         </g>
       ))}
     </svg>
