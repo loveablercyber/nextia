@@ -172,7 +172,7 @@ export default function TemplateDetailPage() {
                     </div>
                   </div>
                   <div className="aspect-[16/10] overflow-hidden">
-                    <TemplateIllustration category={template.categorySlug} />
+                    <TemplateIllustration category={template.categorySlug} slug={template.slug} coverImage={template.coverImage} />
                   </div>
                 </div>
               </div>

@@ -14,7 +14,7 @@ export default function TemplateCard({ template }: TemplateCardProps) {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover group flex flex-col">
       {/* Cover Image / Illustration */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#eef2ff] to-[#f5f3ff] aspect-[16/10]">
-        <TemplateIllustration category={template.categorySlug} />
+        <TemplateIllustration category={template.categorySlug} slug={template.slug} coverImage={template.coverImage} />
         {template.badge && (
           <div className="absolute top-3 left-3">
             <Badge variant="gradient">{template.badge}</Badge>

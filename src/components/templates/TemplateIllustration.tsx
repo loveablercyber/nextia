@@ -1,9 +1,14 @@
-// SVG illustrations for each template category
 interface IllustrationProps {
   category: string;
+  slug?: string;
+  coverImage?: string;
 }
 
-export function TemplateIllustration({ category }: IllustrationProps) {
+export function TemplateIllustration({ category, slug }: IllustrationProps) {
+  if (slug === 'imobiliaria-premium') {
+    return <ImobiliariaPremiumIllustration />;
+  }
+
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
     'salao-barbearia': <SalaoIllustration />,
@@ -301,6 +306,62 @@ function DefaultIllustration() {
       <rect width="400" height="250" fill="#eef2ff" />
       <text x="200" y="125" fill="#5B4FE9" fontSize="40" textAnchor="middle">🌐</text>
       <text x="200" y="155" fill="#5B4FE9" fontSize="14" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="600">Site Profissional</text>
+    </svg>
+  );
+}
+
+function ImobiliariaPremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-imob-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0B0F19" />
+          <stop offset="100%" stopColor="#111827" />
+        </linearGradient>
+        <linearGradient id="gold-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#D97706" />
+          <stop offset="100%" stopColor="#F59E0B" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-imob-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(31,41,55,0.8)" />
+      <text x="18" y="22" fill="#F59E0B" fontSize="12" fontWeight="800" fontFamily="Inter, sans-serif">🏰 IMOBILIÁRIA PREMIUM</text>
+      <rect x="310" y="8" width="75" height="18" rx="9" fill="url(#gold-grad)" />
+      <text x="347" y="20" fill="white" fontSize="8" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">ALTO PADRÃO</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(17,24,39,0.9)" stroke="rgba(217,119,6,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Encontre o Imóvel Ideal para sua Família</text>
+      <text x="200" y="75" fill="#D1D5DB" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Mansões suspensas, coberturas e casas em condomínios fechados</text>
+
+      {/* Search Bar Pill */}
+      <rect x="40" y="96" width="320" height="22" rx="11" fill="#0B0F19" stroke="rgba(245,158,11,0.5)" strokeWidth="1" />
+      <text x="55" y="111" fill="#9CA3AF" fontSize="8" fontFamily="Inter, sans-serif">🔍 Tipo, Cidade, Bairro, m² ou Código (RE-1042)...</text>
+      <rect x="300" y="99" width="55" height="16" rx="8" fill="url(#gold-grad)" />
+      <text x="327" y="110" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Buscar</text>
+
+      {/* Property cards */}
+      {[
+        { title: 'Mansão Jardins', price: 'R$ 8.5M', specs: '450m² · 4 Suítes', badge: 'EXCLUSIVO' },
+        { title: 'Villa Alphaville', price: 'R$ 12.9M', specs: '680m² · Heliponto', badge: 'ALTO PADRÃO' },
+        { title: 'Penthouse Barra', price: 'R$ 6.7M', specs: '380m² · Frente Mar', badge: 'TOUR 360°' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#111827" stroke="rgba(31,41,55,0.9)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#1F2937" />
+          <text x={74 + i*126} y="152" fill="#F59E0B" fontSize="20" textAnchor="middle">🏙️</text>
+          <rect x={20 + i*126} y="130" width="55" height="11" rx="5" fill="#D97706" />
+          <text x={47 + i*126} y="138" fill="white" fontSize="6" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="9" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#9CA3AF" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#F59E0B" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#0B0F19" stroke="#D97706" strokeWidth="0.8" />
+          <text x={74 + i*126} y="224" fill="#F59E0B" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Ver Detalhes</text>
+        </g>
+      ))}
     </svg>
   );
 }
