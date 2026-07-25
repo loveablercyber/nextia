@@ -266,6 +266,8 @@ const supportApiMethods = new Map([
   ['/api/support/reply-ticket', 'POST'],
   ['/api/admin/list-support-tickets', 'GET'],
   ['/api/admin/update-ticket-status', 'POST'],
+  ['/api/admin/backup/export', 'POST'],
+  ['/api/admin/backup/restore', 'POST'],
 ]);
 
 async function handleSupportApi(req, res, url) {
@@ -500,6 +502,170 @@ async function handleSupportApi(req, res, url) {
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
+      }
+    }
+
+    if (url.pathname === '/api/admin/backup/export') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const body = await readJson(req).catch(() => ({}));
+      const mode = body.mode === 'full' ? 'full' : 'database';
+
+      const profiles = (await client.query(`SELECT id, email, name, company, phone, role, avatar_initials, created_at FROM public.profiles`)).rows;
+      const authUsers = (await client.query(`SELECT id, updated_at FROM public.local_auth_users`)).rows;
+
+      let projects = [];
+      let milestones = [];
+      let files = [];
+      let changeRequests = [];
+      let payments = [];
+      let quotes = [];
+
+      try {
+        projects = (await client.query(`SELECT * FROM public.projects`)).rows;
+        milestones = (await client.query(`SELECT * FROM public.milestones`)).rows;
+        files = (await client.query(`SELECT * FROM public.files`)).rows;
+        changeRequests = (await client.query(`SELECT * FROM public.change_requests`)).rows;
+        payments = (await client.query(`SELECT * FROM public.payments`)).rows;
+        quotes = (await client.query(`SELECT * FROM public.quotes`)).rows;
+      } catch (err) {
+        console.log('[BACKUP] Tabelas opcionais PG:', err.message);
+      }
+
+      const tickets = (await client.query(`SELECT * FROM public.support_tickets`)).rows;
+      const ticketMessages = (await client.query(`SELECT * FROM public.ticket_messages`)).rows;
+
+      const exportPayload = {
+        meta: {
+          app: 'Nextia 2.0',
+          version: '2.0.0',
+          mode: mode,
+          timestamp: new Date().toISOString(),
+          exportedBy: sessionProfile.email,
+        },
+        counts: {
+          profiles: profiles.length,
+          projects: projects.length,
+          tickets: tickets.length,
+          ticketMessages: ticketMessages.length,
+          quotes: quotes.length,
+        },
+        tables: {
+          profiles,
+          local_auth_users: authUsers,
+          projects,
+          milestones,
+          files,
+          change_requests: changeRequests,
+          payments,
+          quotes,
+          support_tickets: tickets,
+          ticket_messages: ticketMessages,
+        },
+      };
+
+      return json(res, 200, exportPayload);
+    }
+
+    if (url.pathname === '/api/admin/backup/restore') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') {
+        return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      const body = await readJson(req);
+      const backup = body.backup || body;
+      if (!backup || !backup.tables) {
+        return json(res, 400, { error: 'Arquivo de backup inválido ou corrompido.' });
+      }
+
+      const tables = backup.tables;
+      let restoredProfiles = 0;
+      let restoredTickets = 0;
+
+      await client.query('BEGIN');
+      try {
+        if (Array.isArray(tables.profiles)) {
+          for (const prof of tables.profiles) {
+            await client.query(
+              `INSERT INTO public.profiles (id, email, name, company, phone, role, avatar_initials, created_at)
+               VALUES ($1, lower($2), $3, $4, $5, $6, $7, $8)
+               ON CONFLICT (id) DO UPDATE SET
+                 email = EXCLUDED.email,
+                 name = EXCLUDED.name,
+                 company = EXCLUDED.company,
+                 phone = EXCLUDED.phone,
+                 role = EXCLUDED.role,
+                 avatar_initials = EXCLUDED.avatar_initials`,
+              [
+                prof.id,
+                prof.email,
+                prof.name,
+                prof.company || '',
+                prof.phone || '',
+                prof.role || 'client',
+                prof.avatar_initials || 'NX',
+                prof.created_at || new Date().toISOString(),
+              ],
+            );
+            restoredProfiles++;
+          }
+        }
+
+        if (Array.isArray(tables.support_tickets)) {
+          for (const t of tables.support_tickets) {
+            await client.query(
+              `INSERT INTO public.support_tickets
+                 (id, name, email, phone, company, subject, message, status, created_at, resolved_at)
+               VALUES ($1, $2, lower($3), $4, $5, $6, $7, $8, $9, $10)
+               ON CONFLICT (id) DO UPDATE SET
+                 status = EXCLUDED.status,
+                 resolved_at = EXCLUDED.resolved_at`,
+              [
+                t.id,
+                t.name || t.user_name || 'Cliente',
+                t.email || t.user_email || '',
+                t.phone || null,
+                t.company || null,
+                t.subject || t.title || 'Suporte',
+                t.message || '',
+                t.status || 'aberto',
+                t.created_at || new Date().toISOString(),
+                t.resolved_at || null,
+              ],
+            );
+            restoredTickets++;
+          }
+        }
+
+        if (Array.isArray(tables.ticket_messages)) {
+          for (const msg of tables.ticket_messages) {
+            await client.query(
+              `INSERT INTO public.ticket_messages (id, ticket_id, sender_role, sender_name, message, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (id) DO NOTHING`,
+              [msg.id, msg.ticket_id, msg.sender_role, msg.sender_name || '', msg.message, msg.created_at || new Date().toISOString()],
+            );
+          }
+        }
+
+        await client.query('COMMIT');
+
+        return json(res, 200, {
+          ok: true,
+          message: 'Restauração realizada com sucesso!',
+          restoredCounts: {
+            profiles: restoredProfiles,
+            tickets: restoredTickets,
+            meta: backup.meta || { mode: 'database' },
+          },
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
       }
     }
 
