@@ -39,7 +39,7 @@ export default function Footer() {
               <span className="text-2xl font-black">Nextia</span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-xs">
-              Plataforma brasileira de criação e manutenção de sites profissionais por assinatura. Seu negócio na internet com suporte contínuo.
+              Parceira estratégica de presença digital e autoridade para empresas que buscam gerar credibilidade, confiança e oportunidades no mercado.
             </p>
             {/* Contact info */}
             <div className="space-y-2">

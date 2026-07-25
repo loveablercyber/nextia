@@ -19,13 +19,13 @@ export default function HowItWorksPage() {
       icon: MousePointer,
       color: '#5B4FE9',
       bg: '#eef2ff',
-      title: 'Escolha ou solicite seu site',
-      description: 'Navegue pelo catálogo de modelos prontos e escolha o que melhor representa seu negócio. Ou, se preferir algo exclusivo, solicite um orçamento personalizado.',
+      title: 'Diagnóstico & Estrutura de Autoridade',
+      description: 'Explore as estruturas estratégicas validadas por segmento ou solicite um projeto sob medida para posicionar sua empresa com máxima credibilidade.',
       actions: [
-        'Acesse o catálogo de modelos',
-        'Filtre por segmento do negócio',
-        'Escolha o modelo ideal',
-        'Selecione o plano adequado',
+        'Análise de modelos por segmento',
+        'Avaliação da arquitetura ideal',
+        'Escolha da estrutura de autoridade',
+        'Seleção do plano de gestão contínua',
       ],
       time: '5 minutos',
     },
@@ -34,13 +34,13 @@ export default function HowItWorksPage() {
       icon: FileText,
       color: '#7c3aed',
       bg: '#f5f3ff',
-      title: 'Preencha o briefing e envie materiais',
-      description: 'Após contratar, você terá acesso ao painel do cliente onde preenche um briefing detalhado e envia seus materiais: logo, fotos, textos e referências.',
+      title: 'Envio de Ativos e Diferenciais',
+      description: 'Pelo painel do cliente, envie as informações estratégicas da sua empresa: diferenciais de mercado, serviços, credenciais e materiais de marca.',
       actions: [
-        'Acesse o painel do cliente',
-        'Preencha o briefing completo',
-        'Faça upload de logo e fotos',
-        'Indique cores e preferências',
+        'Acesso ao painel do cliente',
+        'Preenchimento do briefing de posicionamento',
+        'Envio de marca, fotos e credenciais',
+        'Definição dos pontos focais de conversão',
       ],
       time: '20 minutos',
     },
@@ -49,13 +49,13 @@ export default function HowItWorksPage() {
       icon: Palette,
       color: '#2563eb',
       bg: '#eff6ff',
-      title: 'Nossa equipe cria seu site',
-      description: 'Com base no seu briefing e materiais, nossa equipe de design e desenvolvimento monta seu site profissional. Você acompanha o progresso em tempo real.',
+      title: 'Construção da Identidade Digital',
+      description: 'Nossa equipe projeta seu ambiente digital aplicando padrões corporativos de autoridade, hierarquia visual e otimização para captação de clientes.',
       actions: [
-        'Equipe analisa os materiais',
-        'Design adaptado ao seu negócio',
-        'Desenvolvimento e publicação interna',
-        'Revisão de qualidade',
+        'Análise estratégica de ativos enviados',
+        'Arquitetura focada em gerar confiança',
+        'Otimização para dispositivos móveis',
+        'Homologação de segurança e velocidade',
       ],
       time: '3 a 5 dias',
     },
@@ -64,13 +64,13 @@ export default function HowItWorksPage() {
       icon: Rocket,
       color: '#059669',
       bg: '#f0fdf4',
-      title: 'Revise, aprove e publique',
-      description: 'Você recebe o link de prévia do site pelo painel, revisa com calma e aprova ou solicita ajustes. Após aprovação, publicamos imediatamente.',
+      title: 'Lançamento & Gestão Contínua',
+      description: 'Você valida a prévia do ambiente pelo painel. Após aprovação, sua empresa passa a contar com uma presença ativa 24/7 e suporte especializado.',
       actions: [
-        'Receba o link de prévia',
-        'Revise todos os detalhes',
-        'Solicite ajustes se necessário',
-        'Aprove e publique!',
+        'Validação do ambiente de autoridade',
+        'Revisão final de pontos de contato',
+        'Publicação do domínio e SSL ativo',
+        'Manutenção e melhorias contínuas',
       ],
       time: '1 a 2 dias',
     },
@@ -78,36 +78,24 @@ export default function HowItWorksPage() {
 
   const faqs = [
     {
-      q: 'Quanto tempo leva para meu site ficar pronto?',
-      a: 'O prazo médio é de 4 a 7 dias úteis após o recebimento completo do briefing e materiais. Sites personalizados podem levar mais tempo dependendo da complexidade.',
+      q: 'Quanto tempo leva para minha empresa ter a presença digital ativa?',
+      a: 'O prazo médio é de 4 a 7 dias úteis após o recebimento completo dos materiais e diferenciais no painel. Projetos sob medida são avaliados de acordo com o escopo estratégico.',
     },
     {
-      q: 'Eu preciso ter logo e fotos para contratar?',
-      a: 'Não é obrigatório. Podemos criar o site com os materiais que você tiver e, se necessário, indicar profissionais parceiros para criação de identidade visual e fotos.',
+      q: 'Como a presença digital ajuda meu negócio a vender mais?',
+      a: 'Seu cliente pesquisa sua empresa antes de fechar um negócio. Um ambiente digital profissional transmite credibilidade imediata, elimina dúvidas e faz com que a primeira venda aconteça antes mesmo da conversa.',
     },
     {
-      q: 'O que é o briefing?',
-      a: 'O briefing é um formulário detalhado que preenchemos juntos (ou você preenche no painel) com todas as informações do seu negócio: serviços, horários, cores, textos, redes sociais etc.',
+      q: 'O que é o briefing de posicionamento?',
+      a: 'É um formulário estruturado em nosso painel onde você nos informa os principais diferenciais da sua empresa, serviços oferecidos e como deseja ser percebido pelo seu mercado.',
     },
     {
-      q: 'Posso solicitar alterações depois que o site estiver no ar?',
-      a: 'Sim! Todos os planos incluem um número de solicitações mensais. Você abre um ticket pelo painel e nossa equipe realiza as alterações dentro do prazo acordado.',
+      q: 'Como funcionam as solicitações e atualizações mensais?',
+      a: 'Todos os planos contam com atualizações periódicas incluídas. Você abre uma solicitação pelo painel do cliente e nossa equipe executa as melhorias para manter sua marca sempre relevante.',
     },
     {
-      q: 'O que acontece se eu não gostar do resultado?',
-      a: 'Trabalhamos até você ficar satisfeito. O fluxo de aprovação permite solicitar ajustes antes da publicação. Após publicar, as alterações são gerenciadas via solicitações mensais.',
-    },
-    {
-      q: 'Vocês cuidam do domínio e hospedagem?',
-      a: 'Sim! A hospedagem está incluída em todos os planos. Nos planos Pro e Business, o domínio é gratuito no primeiro ano. Também podemos transferir um domínio que você já tenha.',
-    },
-    {
-      q: 'Como funciona o suporte?',
-      a: 'Você pode abrir chamados pelo painel, enviar mensagem pelo WhatsApp ou e-mail. O tempo de resposta varia por plano: básico (48h úteis) e prioritário (até 24h úteis).',
-    },
-    {
-      q: 'Posso ter mais de um site?',
-      a: 'Sim! Cada site é um projeto separado com seu próprio plano e mensalidade. Clientes com múltiplos projetos têm acesso a tudo em um único painel.',
+      q: 'Vocês cuidam da segurança, hospedagem e domínio?',
+      a: 'Sim! Toda a infraestrutura corporativa (hospedagem de alta velocidade, certificado SSL e proteção) é gerenciada por nossa equipe, sem você se preocupar com aspectos técnicos.',
     },
   ];
 
@@ -116,12 +104,12 @@ export default function HowItWorksPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-[#0f0c29] to-[#1E1B4B] pt-28 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Badge variant="primary" size="md" className="mb-4">Como funciona</Badge>
+          <Badge variant="primary" size="md" className="mb-4">Processo Estruturado</Badge>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-4">
-            Do zero ao site no ar em 4 passos
+            Sua presença digital consolidada em 4 etapas
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Sem complicação técnica. Nossa equipe cuida de tudo por você.
+            Sem gargalos técnicos. Nossa equipe cuida de toda a arquitetura para você focar no crescimento da sua empresa.
           </p>
         </div>
       </div>

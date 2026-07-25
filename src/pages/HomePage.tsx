@@ -38,18 +38,18 @@ export default function HomePage() {
             <div className="animate-fade-in-up">
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 mb-6">
                 <Sparkles className="w-4 h-4 text-yellow-400" />
-                <span className="text-white/90 text-sm font-medium">+850 sites ativos no Brasil</span>
+                <span className="text-white/90 text-sm font-medium">+850 empresas gerando autoridade e oportunidades no Brasil</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
-                Seu site profissional,{' '}
+                Seu cliente decide se confia na sua empresa{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-300">
-                  pronto para vender mais.
+                  antes mesmo de entrar em contato.
                 </span>
               </h1>
 
               <p className="text-lg text-white/75 leading-relaxed mb-10 max-w-xl">
-                Escolha um modelo, envie suas informações e tenha uma presença digital profissional com suporte contínuo.
+                A primeira venda acontece antes da conversa. Transformamos sua presença digital na sua principal ferramenta de credibilidade, confiança e geração de oportunidades.
               </p>
 
               {/* Two main CTAs */}
@@ -60,14 +60,14 @@ export default function HomePage() {
                     <div className="w-8 h-8 rounded-lg bg-[#5B4FE9] flex items-center justify-center">
                       <Monitor className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-white font-bold text-sm">Sites Prontos</span>
+                    <span className="text-white font-bold text-sm">Presença Digital Imediata</span>
                   </div>
                   <p className="text-white/65 text-xs mb-4 leading-relaxed">
-                    Escolha um modelo profissional para seu negócio e ative sua presença digital.
+                    Estruturas estratégicas validadas para seu segmento, prontas para gerar confiança e captar clientes.
                   </p>
                   <Link to="/sites-prontos">
                     <button className="flex items-center gap-2 text-sm font-semibold text-[#818cf8] group-hover:text-white transition-colors">
-                      Ver sites prontos
+                      Conhecer estruturas validadas
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </button>
                   </Link>
@@ -79,14 +79,14 @@ export default function HomePage() {
                     <div className="w-8 h-8 rounded-lg bg-[#7c3aed] flex items-center justify-center">
                       <Sparkles className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-white font-bold text-sm">Projeto Personalizado</span>
+                    <span className="text-white font-bold text-sm">Arquitetura Exclusiva</span>
                   </div>
                   <p className="text-white/65 text-xs mb-4 leading-relaxed">
-                    Precisa de algo exclusivo? Monte seu orçamento em poucos minutos.
+                    Projetos sob medida para empresas em expansão que exigem um posicionamento único no mercado.
                   </p>
                   <Link to="/orcamento">
                     <button className="flex items-center gap-2 text-sm font-semibold text-[#c4b5fd] group-hover:text-white transition-colors">
-                      Criar orçamento
+                      Estruturar projeto exclusivo
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </button>
                   </Link>
@@ -96,10 +96,10 @@ export default function HomePage() {
               {/* Trust indicators */}
               <div className="flex flex-wrap items-center gap-5">
                 {[
-                  { icon: Zap, label: 'Ativação rápida' },
-                  { icon: Shield, label: 'Suporte contínuo' },
-                  { icon: Monitor, label: 'Sites responsivos' },
-                  { icon: CheckCircle, label: 'Sem taxas ocultas' },
+                  { icon: Zap, label: 'Agilidade e Autoridade' },
+                  { icon: Shield, label: 'Gestão e Suporte Contínuo' },
+                  { icon: Monitor, label: 'Adaptação Multitela Perfeita' },
+                  { icon: CheckCircle, label: 'Transparência Contratual' },
                 ].map(({ icon: Icon, label }) => (
                   <div key={label} className="flex items-center gap-1.5 text-white/70 text-xs">
                     <Icon className="w-3.5 h-3.5 text-green-400" />
@@ -216,13 +216,13 @@ export default function HomePage() {
       <section className="section-padding bg-[#FAFAFA]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <Badge variant="primary" size="md" className="mb-4">Sites prontos para o seu negócio</Badge>
+            <Badge variant="primary" size="md" className="mb-4">Posicionamento Estratégico por Segmento</Badge>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-              Modelos profissionais, modernos e{' '}
-              <span className="gradient-text">otimizados para atrair clientes</span>
+              Estruturas projetadas para transmitir{' '}
+              <span className="gradient-text">máxima credibilidade ao seu cliente</span>
             </h2>
             <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-              Escolha o template ideal para o seu segmento e tenha seu site no ar em até 5 dias úteis.
+              Modelos estratégicos projetados para gerar autoridade imediata e acelerar a tomada de decisão do seu público.
             </p>
           </div>
 
@@ -235,7 +235,7 @@ export default function HomePage() {
           <div className="text-center">
             <Link to="/sites-prontos">
               <Button variant="outline" size="lg">
-                Ver todos os modelos
+                Conhecer todas as estruturas validadas
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -247,13 +247,13 @@ export default function HomePage() {
       <section className="section-padding bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <Badge variant="secondary" size="md" className="mb-4">Como funciona</Badge>
+            <Badge variant="secondary" size="md" className="mb-4">Processo Estruturado</Badge>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-              Do zero ao site no ar em{' '}
-              <span className="gradient-text">4 passos simples</span>
+              Sua presença digital consolidada em{' '}
+              <span className="gradient-text">4 etapas sem complicação</span>
             </h2>
             <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-              Sem precisar entender de tecnologia. Cuidamos de tudo por você.
+              Sem gargalos técnicos. Nossa equipe cuida de toda a arquitetura para você focar no seu negócio.
             </p>
           </div>
 
@@ -264,32 +264,32 @@ export default function HomePage() {
                 icon: Monitor,
                 color: '#5B4FE9',
                 bg: '#eef2ff',
-                title: 'Escolha',
-                description: 'Selecione um modelo ou solicite um site personalizado para seu negócio.',
+                title: 'Diagnóstico & Estrutura',
+                description: 'Selecione a estrutura que melhor representa a autoridade da sua empresa.',
               },
               {
                 step: '02',
                 icon: Users,
                 color: '#7c3aed',
                 bg: '#f5f3ff',
-                title: 'Envie as informações',
-                description: 'Preencha o briefing e envie seus materiais: logo, fotos e textos pelo painel.',
+                title: 'Envio de Ativos',
+                description: 'Envie a história, diferenciais e serviços da sua empresa de forma simples pelo painel.',
               },
               {
                 step: '03',
                 icon: Sparkles,
                 color: '#2563eb',
                 bg: '#eff6ff',
-                title: 'Criamos seu site',
-                description: 'Nossa equipe monta seu site com qualidade e você acompanha tudo em tempo real.',
+                title: 'Construção da Presença',
+                description: 'Nossa equipe desenvolve seu ambiente de autoridade com padrões corporativos.',
               },
               {
                 step: '04',
                 icon: TrendingUp,
                 color: '#059669',
                 bg: '#f0fdf4',
-                title: 'Publicamos',
-                description: 'Seu site vai ao ar pronto para atrair mais clientes com suporte contínuo.',
+                title: 'Lançamento & Crescimento',
+                description: 'Sua empresa passa a transmitir confiança 24/7, gerando novas oportunidades.',
               },
             ].map((item, index) => (
               <div key={item.step} className="relative">
@@ -319,7 +319,7 @@ export default function HomePage() {
           <div className="text-center mt-10">
             <Link to="/como-funciona">
               <Button variant="ghost" size="lg">
-                Saiba mais detalhes
+                Entender o processo de entrega
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -331,22 +331,22 @@ export default function HomePage() {
       <section className="section-padding bg-gradient-to-b from-[#FAFAFA] to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <Badge variant="gradient" size="md" className="mb-4">Planos para todos os negócios</Badge>
+            <Badge variant="gradient" size="md" className="mb-4">Investimento Estratégico</Badge>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-              O plano ideal para você,{' '}
-              <span className="gradient-text">sem surpresas</span>
+              O investimento certo para consolidar{' '}
+              <span className="gradient-text">sua autoridade digital</span>
             </h2>
             <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-              Escolha o plano ideal e tenha um site profissional com suporte contínuo.
+              Planos recorrentes estruturados para manter sua empresa sempre atualizada, protegida e gerando oportunidades.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { name: 'Start', price: 59, color: '#64748b', features: ['Site profissional', 'Hospedagem + SSL', 'WhatsApp integrado', '1 solicitação/mês'] },
-              { name: 'Pro', price: 99, color: '#5B4FE9', features: ['Tudo do Start', 'Mais páginas + SEO', 'Redes sociais', '2 solicitações/mês'], highlight: true },
-              { name: 'Business', price: 159, color: '#7c3aed', features: ['Tudo do Pro', 'Agendamento online', 'Catálogo/Cardápio', '4 solicitações/mês'] },
-              { name: 'Personalizado', price: null, color: '#059669', features: ['Escopo sob medida', 'Design exclusivo', 'Funcionalidades únicas', 'Manutenção opcional'] },
+              { name: 'Start', price: 59, color: '#64748b', features: ['Presença digital ativa', 'Hospedagem + SSL Corporativo', 'Atendimento WhatsApp direto', '1 atualização estratégica/mês'] },
+              { name: 'Pro', price: 99, color: '#5B4FE9', features: ['Tudo do Start', 'Multi-páginas de serviços + SEO', 'Integração de canais', '2 atualizações estratégicas/mês'], highlight: true },
+              { name: 'Business', price: 159, color: '#7c3aed', features: ['Tudo do Pro', 'Agendamento & Conversão online', 'Catálogo de autoridade', '4 atualizações estratégicas/mês'] },
+              { name: 'Personalizado', price: null, color: '#059669', features: ['Arquitetura sob medida', 'Posicionamento exclusivo', 'Recursos avançados', 'Suporte dedicado'] },
             ].map((plan) => (
               <div
                 key={plan.name}
@@ -358,7 +358,7 @@ export default function HomePage() {
               >
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge variant="gradient">Mais popular</Badge>
+                    <Badge variant="gradient">Recomendado para Empresas</Badge>
                   </div>
                 )}
                 <div className="mb-4">
@@ -386,7 +386,7 @@ export default function HomePage() {
                     size="sm"
                     fullWidth
                   >
-                    {plan.price ? 'Assinar agora' : 'Solicitar orçamento'}
+                    {plan.price ? 'Garantir posicionamento' : 'Solicitar proposta'}
                   </Button>
                 </Link>
               </div>
@@ -408,16 +408,16 @@ export default function HomePage() {
       <section className="section-padding bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <Badge variant="primary" size="md" className="mb-4">Depoimentos</Badge>
+            <Badge variant="primary" size="md" className="mb-4">Resultados Reais</Badge>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-              Negócios que{' '}
-              <span className="gradient-text">transformaram sua presença digital</span>
+              Empresas que passaram a transmitir{' '}
+              <span className="gradient-text">mais confiança e vender mais</span>
             </h2>
             <div className="flex items-center justify-center gap-2">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
               ))}
-              <span className="text-gray-500 text-sm ml-1">4.9 de 5 • +850 avaliações</span>
+              <span className="text-gray-500 text-sm ml-1">4.9 de 5 • +850 empresas atendidas</span>
             </div>
           </div>
 
@@ -456,24 +456,24 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <Badge variant="primary" size="md" className="mb-4">Por que a Nextia?</Badge>
+              <Badge variant="primary" size="md" className="mb-4">Diferencial Estratégico</Badge>
               <h2 className="text-3xl sm:text-4xl font-black text-white mb-6">
-                Tudo que seu negócio precisa em{' '}
+                A infraestrutura que garante que{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#818cf8] to-[#c4b5fd]">
-                  uma plataforma
+                  seu concorrente não pareça melhor que você
                 </span>
               </h2>
               <div className="space-y-4">
                 {[
-                  { icon: Zap, title: 'Ativação em até 5 dias', desc: 'Sem esperar meses. Seu site no ar rapidamente.' },
-                  { icon: HeadphonesIcon, title: 'Suporte contínuo', desc: 'Equipe dedicada para ajudar sempre que precisar.' },
-                  { icon: Smartphone, title: '100% responsivo', desc: 'Funciona perfeitamente em celulares, tablets e desktops.' },
-                  { icon: BarChart3, title: 'Resultados mensuráveis', desc: 'Relatórios e analytics para acompanhar seu crescimento.' },
-                  { icon: Shield, title: 'Hospedagem + SSL grátis', desc: 'Segurança e disponibilidade incluídas em todos os planos.' },
-                  { icon: Award, title: 'Sem contratos longos', desc: 'Planos mensais com contrato mínimo acessível.' },
+                  { icon: Zap, title: 'Agilidade na Entrega de Valor', desc: 'Publicação rápida para sua empresa não perder oportunidades de mercado.' },
+                  { icon: HeadphonesIcon, title: 'Gestão e Suporte Contínuo', desc: 'Sua marca protegida e atualizada por especialistas sem você se preocupar.' },
+                  { icon: Smartphone, title: 'Experiência Multitela Impecável', desc: 'Transmita profissionalismo em smartphones, tablets e desktops.' },
+                  { icon: BarChart3, title: 'Geração de Oportunidades Mensurável', desc: 'Acompanhe o impacto real da sua presença digital no seu negócio.' },
+                  { icon: Shield, title: 'Segurança e Criptografia Corporativa', desc: 'Hospedagem de alto desempenho com certificado de segurança ativo.' },
+                  { icon: Award, title: 'Contratos Transparentes', desc: 'Relacionamento de longo prazo pautado em resultados e clareza.' },
                 ].map(({ icon: Icon, title, desc }) => (
                   <div key={title} className="flex items-start gap-4 group">
-                    <div className="w-10 h-10 rounded-xl bg-[#5B4FE9]/20 border border-[#5B4FE9]/30 flex items-center justify-center flex-shrink-0 group-hover:bg-[#5B4FE9]/30 transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-[#5B4FE9]/25 border border-[#5B4FE9]/30 flex items-center justify-center flex-shrink-0 group-hover:bg-[#5B4FE9]/30 transition-colors">
                       <Icon className="w-5 h-5 text-[#818cf8]" />
                     </div>
                     <div>
@@ -513,20 +513,20 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left — text */}
             <div>
-              <Badge variant="secondary" size="md" className="mb-4">Orçamento automático</Badge>
+              <Badge variant="secondary" size="md" className="mb-4">Projetos Sob Medida</Badge>
               <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-                Precisa de algo{' '}
-                <span className="gradient-text">exclusivo?</span>
+                Sua empresa exige um{' '}
+                <span className="gradient-text">posicionamento único no mercado?</span>
               </h2>
               <p className="text-gray-500 text-lg mb-6 leading-relaxed">
-                Monte seu orçamento personalizado em minutos. Responda algumas perguntas e receba uma estimativa detalhada sem compromisso.
+                Estruturamos projetos sob medida para marcas que necessitam de arquitetura exclusiva, integrações e alta percepção de valor.
               </p>
               <ul className="space-y-3 mb-8">
                 {[
-                  '6 etapas rápidas e intuitivas',
-                  'Cálculo automático de estimativa',
-                  'Proposta enviada por nossa equipe',
-                  'Resposta em até 2 horas úteis',
+                  'Mapeamento de necessidades estratégicas',
+                  'Estimativa clara sem termos confusos',
+                  'Proposta estruturada por especialistas',
+                  'Atendimento rápido em até 2 horas úteis',
                 ].map(item => (
                   <li key={item} className="flex items-center gap-2 text-gray-600 text-sm">
                     <CheckCircle className="w-4 h-4 text-[#5B4FE9] flex-shrink-0" />
@@ -537,7 +537,7 @@ export default function HomePage() {
               <Link to="/orcamento">
                 <Button variant="gradient" size="xl">
                   <Sparkles className="w-5 h-5" />
-                  Montar meu orçamento
+                  Solicitar proposta personalizada
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
@@ -589,7 +589,7 @@ export default function HomePage() {
               </div>
               {/* floating badge */}
               <div className="absolute -top-4 -right-4 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                Grátis ✓
+                Sem compromisso ✓
               </div>
             </div>
           </div>
@@ -606,18 +606,18 @@ export default function HomePage() {
             </div>
             <div className="relative">
               <Badge variant="primary" size="md" className="mb-4 bg-white/20 text-white border-white/30">
-                🚀 Comece hoje
+                🚀 Decisão Estratégica
               </Badge>
               <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-                Pronto para ter seu site profissional?
+                Pronto para transformar sua empresa na primeira opção do seu cliente?
               </h2>
               <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-                Junte-se a mais de 850 empresas que já têm uma presença digital profissional com a Nextia.
+                Seu cliente pesquisa sua empresa antes de comprar. Garanta a credibilidade que fecha vendas antes mesmo do primeiro contato.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/sites-prontos">
                   <Button variant="white" size="xl">
-                    Ver sites prontos
+                    Conhecer estruturas validadas
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
@@ -627,12 +627,12 @@ export default function HomePage() {
                     size="xl"
                     className="border-white/40 text-white hover:bg-white/10 hover:text-white"
                   >
-                    Criar orçamento
+                    Solicitar proposta personalizada
                   </Button>
                 </Link>
               </div>
               <p className="text-white/50 text-xs mt-6">
-                Contrato mínimo de 12 meses · Suporte contínuo · Sem taxas ocultas
+                Gestão contínua · Infraestrutura corporativa · Sem letras miúdas
               </p>
             </div>
           </div>
