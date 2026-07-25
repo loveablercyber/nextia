@@ -1168,10 +1168,6 @@ export default function TemplateDemoPage() {
 
   // 7. Real Estate Interactive State
   const [propCategoryFilter, setPropCategoryFilter] = useState('todos');
-  const [propTypeFilter, setPropTypeFilter] = useState('todos');
-  const [propCityFilter, setPropCityFilter] = useState('todas');
-  const [propPriceFilter, setPropPriceFilter] = useState('todos');
-  const [propSearchCode, setPropSearchCode] = useState('');
 
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
