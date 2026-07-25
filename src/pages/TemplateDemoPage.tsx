@@ -958,8 +958,19 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
   }
 };
 
+interface PlanDetails {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  popular?: boolean;
+  color: string;
+  description: string;
+  items: Array<{ text: string; included: boolean }>;
+}
+
 // Plans & Included Items Matrix
-const PLAN_DATA = {
+const PLAN_DATA: Record<string, PlanDetails> = {
   start: {
     id: 'start',
     name: 'Plano Start',

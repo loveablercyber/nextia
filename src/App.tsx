@@ -14,6 +14,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
+import RestauranteDemoPage from './pages/RestauranteDemoPage';
 
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
