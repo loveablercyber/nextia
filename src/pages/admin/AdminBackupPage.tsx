@@ -91,7 +91,8 @@ export default function AdminBackupPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao iniciar backup.');
+        const diagnostic = data.details ? ` ${String(data.details).split('\n')[0]}` : '';
+        throw new Error(`${data.error || 'Erro ao iniciar backup.'}${diagnostic}`);
       }
 
       addNotification(

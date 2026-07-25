@@ -33,6 +33,7 @@ ENV PORT=3000
 # Copy package files and install production dependencies only
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
+RUN apk add --no-cache postgresql-client
 
 # Copy compiled dist, server logic, and database schemas
 COPY --from=builder /app/dist ./dist

@@ -1,8 +1,11 @@
 import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync, cpSync, rmSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import { extname, join, normalize, basename } from 'node:path';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
 
@@ -10,6 +13,7 @@ const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
 const sessionSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nextia-local-dev-secret';
 let supportSchemaPromise;
+const execFileAsync = promisify(execFile);
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -58,6 +62,98 @@ function dbClient() {
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
   });
+}
+
+function minioConfig() {
+  const endpoint = process.env.MINIO_ENDPOINT;
+  const bucket = process.env.MINIO_BUCKET;
+  const accessKey = process.env.MINIO_ACCESS_KEY;
+  const secretKey = process.env.MINIO_SECRET_KEY;
+  const missing = [
+    ['MINIO_ENDPOINT', endpoint],
+    ['MINIO_BUCKET', bucket],
+    ['MINIO_ACCESS_KEY', accessKey],
+    ['MINIO_SECRET_KEY', secretKey],
+  ].filter(([, value]) => !value).map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new Error(`MinIO não configurado. Variáveis ausentes: ${missing.join(', ')}.`);
+  }
+
+  const normalizedEndpoint = /^https?:\/\//i.test(endpoint)
+    ? endpoint
+    : `${process.env.MINIO_USE_SSL === 'true' ? 'https' : 'http'}://${endpoint}`;
+
+  return {
+    endpoint: new URL(normalizedEndpoint),
+    bucket,
+    accessKey,
+    secretKey,
+    region: process.env.MINIO_REGION || 'us-east-1',
+  };
+}
+
+function minioSigningKey(secretKey, dateStamp, region) {
+  const dateKey = createHmac('sha256', `AWS4${secretKey}`).update(dateStamp).digest();
+  const regionKey = createHmac('sha256', dateKey).update(region).digest();
+  const serviceKey = createHmac('sha256', regionKey).update('s3').digest();
+  return createHmac('sha256', serviceKey).update('aws4_request').digest();
+}
+
+function minioUrl(config, objectKey = '') {
+  const url = new URL(config.endpoint);
+  const basePath = url.pathname.replace(/\/$/, '');
+  const segments = [config.bucket, ...objectKey.split('/').filter(Boolean)]
+    .map((segment) => encodeURIComponent(segment));
+  url.pathname = `${basePath}/${segments.join('/')}`.replace(/\/+/g, '/');
+  return url;
+}
+
+async function minioRequest(method, objectKey = '', body) {
+  const config = minioConfig();
+  const url = minioUrl(config, objectKey);
+  const payload = body ? (Buffer.isBuffer(body) ? body : Buffer.from(body)) : Buffer.alloc(0);
+  const payloadHash = createHash('sha256').update(payload).digest('hex');
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const canonicalHeaders = `host:${url.host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+  const canonicalRequest = `${method}\n${url.pathname}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${createHash('sha256').update(canonicalRequest).digest('hex')}`;
+  const signature = createHmac('sha256', minioSigningKey(config.secretKey, dateStamp, config.region))
+    .update(stringToSign)
+    .digest('hex');
+  const authorization = `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: authorization,
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': amzDate,
+      ...(body ? { 'Content-Type': 'application/gzip', 'Content-Length': String(payload.length) } : {}),
+    },
+    body: body ? payload : undefined,
+  });
+
+  if (!response.ok) {
+    const details = (await response.text()).slice(0, 1000);
+    throw new Error(`MinIO respondeu HTTP ${response.status}: ${details || response.statusText}`);
+  }
+
+  return response;
+}
+
+async function validateMinioUpload() {
+  const probeKey = `backups/.healthchecks/${randomUUID()}.txt`;
+  const probePayload = Buffer.from(`nextia-backup-preflight:${new Date().toISOString()}`);
+  try {
+    await minioRequest('PUT', probeKey, probePayload);
+  } finally {
+    await minioRequest('DELETE', probeKey).catch(() => undefined);
+  }
 }
 
 function mapProfile(row) {
@@ -525,12 +621,17 @@ async function handleSupportApi(req, res, url) {
         object_key TEXT NOT NULL,
         size NUMERIC DEFAULT 0,
         checksum TEXT,
+        error_message TEXT,
+        error_details TEXT,
         backup_type TEXT DEFAULT 'full',
         status TEXT DEFAULT 'PENDING',
         created_by TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS error_message TEXT;
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS error_details TEXT;
 
       CREATE TABLE IF NOT EXISTS public.backup_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -544,6 +645,7 @@ async function handleSupportApi(req, res, url) {
 
     // Helper: Registra log de auditoria corporativa
     const logAuditAction = async (backupId, action, userId, details) => {
+      console.info(`[BACKUP] ${action}`, { backupId, details });
       try {
         await client.query(
           `INSERT INTO public.backup_logs (backup_id, action, user_id, details) VALUES ($1, $2, $3, $4)`,
@@ -609,31 +711,39 @@ async function handleSupportApi(req, res, url) {
       return extractedFiles;
     };
 
-    // Helper: Geração de Dump SQL do PostgreSQL
-    const generatePostgresDump = async () => {
-      const tableNames = ['profiles', 'local_auth_users', 'projects', 'milestones', 'files', 'change_requests', 'payments', 'quotes', 'support_tickets', 'ticket_messages', 'backups', 'backup_logs'];
-      let dumpSql = `-- NEXTIA ENTERPRISE POSTGRESQL DUMP\n-- DATE: ${new Date().toISOString()}\n\n`;
+    const createBackupWorkspace = () => mkdtemp(join(tmpdir(), 'nextia-backup-'));
 
-      for (const tbl of tableNames) {
-        try {
-          const rows = (await client.query(`SELECT * FROM public.${tbl}`)).rows;
-          dumpSql += `-- TABLE: public.${tbl}\n`;
-          for (const row of rows) {
-            const keys = Object.keys(row);
-            const vals = Object.values(row).map(v => {
-              if (v === null) return 'NULL';
-              if (typeof v === 'number' || typeof v === 'boolean') return v;
-              if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`;
-              return `'${String(v).replace(/'/g, "''")}'`;
-            });
-            dumpSql += `INSERT INTO public.${tbl} (${keys.join(', ')}) VALUES (${vals.join(', ')}) ON CONFLICT DO NOTHING;\n`;
-          }
-          dumpSql += `\n`;
-        } catch (e) {
-          dumpSql += `-- TABLE public.${tbl} NOT FOUND OR EMPTY\n\n`;
-        }
+    const validateBackupPreflight = async () => {
+      const workspace = await createBackupWorkspace();
+      try {
+        await execFileAsync('pg_dump', ['--version']);
+        const writeProbe = join(workspace, '.write-check');
+        await writeFile(writeProbe, 'ok');
+        await access(writeProbe);
+
+        const archiveProbe = buildTarGzArchive([{ path: 'healthcheck.txt', data: 'nextia backup preflight' }]);
+        if (archiveProbe.length === 0) throw new Error('A geração de TAR.GZ produziu um arquivo vazio.');
+        const checksumProbe = createHash('sha256').update(archiveProbe).digest('hex');
+        if (!/^[a-f0-9]{64}$/.test(checksumProbe)) throw new Error('Não foi possível calcular SHA256 do arquivo de teste.');
+
+        await validateMinioUpload();
+      } finally {
+        await rm(workspace, { recursive: true, force: true });
       }
-      return dumpSql;
+    };
+
+    const generatePostgresDump = async (workspace) => {
+      const dumpPath = join(workspace, 'database.sql');
+      await execFileAsync('pg_dump', [
+        '--no-owner',
+        '--no-privileges',
+        '--format=plain',
+        '--file', dumpPath,
+        process.env.DATABASE_URL,
+      ]);
+      const dump = await readFile(dumpPath);
+      if (dump.length === 0) throw new Error('pg_dump gerou um arquivo SQL vazio.');
+      return dump;
     };
 
     // Auto-Descoberta de caminhos protegidos
@@ -677,11 +787,22 @@ async function handleSupportApi(req, res, url) {
       return fileList;
     };
 
-    // Endpoint 1: Criar Backup Assíncrono em Background
+    // Endpoint 1: Criar backup com execução durável na requisição.
     if (url.pathname === '/api/admin/backup/create' || url.pathname === '/api/admin/backup/export') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
+      }
+
+      try {
+        await validateBackupPreflight();
+      } catch (error) {
+        const details = error instanceof Error ? error.stack || error.message : String(error);
+        console.error('[BACKUP] PRECHECK_FAILED', details);
+        return json(res, 503, {
+          error: 'Pré-validação do backup falhou. Nenhum registro foi criado.',
+          details,
+        });
       }
 
       const timestampStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
@@ -695,79 +816,92 @@ async function handleSupportApi(req, res, url) {
         [filename, objectKey, 0, 'full', 'PENDING', sessionProfile.email]
       );
       const backupId = insertRes.rows[0].id;
-      await logAuditAction(backupId, 'BACKUP_STARTED', sessionProfile.email, 'Processo em background iniciado');
+      await logAuditAction(backupId, 'BACKUP_STARTED', sessionProfile.email, 'Início do backup após pré-validação completa.');
 
-      // Executa o backup em background sem bloquear HTTP
-      setTimeout(async () => {
+      let workspace;
+      let currentStage = 'PROCESSING';
+      try {
+        workspace = await createBackupWorkspace();
+        await client.query(`UPDATE public.backups SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`, [backupId]);
+        await logAuditAction(backupId, 'BACKUP_PROCESSING', sessionProfile.email, 'Processamento iniciado.');
+
+        currentStage = 'GENERATING_DATABASE';
+        await client.query(`UPDATE public.backups SET status = $1, updated_at = NOW() WHERE id = $2`, [currentStage, backupId]);
+        await logAuditAction(backupId, 'DATABASE_GENERATION_STARTED', sessionProfile.email, 'Gerando dump com pg_dump.');
+        const sqlDump = await generatePostgresDump(workspace);
+
+        currentStage = 'GENERATING_ARCHIVE';
+        await client.query(`UPDATE public.backups SET status = $1, updated_at = NOW() WHERE id = $2`, [currentStage, backupId]);
+        await logAuditAction(backupId, 'ARCHIVE_GENERATION_STARTED', sessionProfile.email, 'Gerando arquivo TAR.GZ.');
+        const metadataObj = {
+          backup_type: 'full', version: '2.0', created_at: new Date().toISOString(),
+          database: true, files: true, application_version: '2.0.0', created_by: sessionProfile.email,
+        };
+        const tarGzBuffer = buildTarGzArchive([
+          { path: 'database.sql', data: sqlDump },
+          { path: 'metadata.json', data: JSON.stringify(metadataObj, null, 2) },
+          ...discoverPersistentFiles(),
+        ]);
+        if (tarGzBuffer.length === 0) throw new Error('A geração de TAR.GZ produziu arquivo vazio.');
+        await client.query(`UPDATE public.backups SET size = $1, updated_at = NOW() WHERE id = $2`, [tarGzBuffer.length, backupId]);
+
+        currentStage = 'CALCULATING_CHECKSUM';
+        await client.query(`UPDATE public.backups SET status = $1, updated_at = NOW() WHERE id = $2`, [currentStage, backupId]);
+        await logAuditAction(backupId, 'CHECKSUM_STARTED', sessionProfile.email, 'Calculando SHA256 do TAR.GZ.');
+        const checksum = createHash('sha256').update(tarGzBuffer).digest('hex');
+        if (!/^[a-f0-9]{64}$/.test(checksum)) throw new Error('SHA256 inválido para o TAR.GZ gerado.');
+        await client.query(`UPDATE public.backups SET checksum = $1, updated_at = NOW() WHERE id = $2`, [checksum, backupId]);
+
+        currentStage = 'UPLOADING_TO_MINIO';
+        await client.query(`UPDATE public.backups SET status = $1, updated_at = NOW() WHERE id = $2`, [currentStage, backupId]);
+        await logAuditAction(backupId, 'MINIO_UPLOAD_STARTED', sessionProfile.email, `Enviando ${objectKey} ao MinIO.`);
+        await minioRequest('PUT', objectKey, tarGzBuffer);
+
+        await client.query(
+          `UPDATE public.backups
+           SET status = 'COMPLETED', error_message = NULL, error_details = NULL, updated_at = NOW()
+           WHERE id = $1`,
+          [backupId],
+        );
+        await logAuditAction(backupId, 'BACKUP_COMPLETED', sessionProfile.email, `Fim backup. Tamanho: ${tarGzBuffer.length} bytes; SHA256: ${checksum}`);
+
         try {
-          await client.query(`UPDATE public.backups SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`, [backupId]);
-
-          // Coleta arquivos e Dump SQL
-          const sqlDump = await generatePostgresDump();
-          const persistentFiles = discoverPersistentFiles();
-
-          const metadataObj = {
-            backup_type: 'full',
-            version: '1.0',
-            created_at: new Date().toISOString(),
-            database: true,
-            files: true,
-            volumes: true,
-            environment: true,
-            application_version: '2.0.0',
-            created_by: sessionProfile.email,
-          };
-
-          const fileEntries = [
-            { path: 'database.sql', data: sqlDump },
-            { path: 'metadata.json', data: JSON.stringify(metadataObj, null, 2) },
-            ...persistentFiles,
-          ];
-
-          const tarGzBuffer = buildTarGzArchive(fileEntries);
-          const checksum = createHash('sha256').update(tarGzBuffer).digest('hex');
-
-          // Salva no armazenamento local do servidor (storage/backups/)
-          const backupsDir = join(process.cwd(), 'storage', 'backups');
-          if (!existsSync(backupsDir)) mkdirSync(backupsDir, { recursive: true });
-          const savePath = join(backupsDir, filename);
-          writeFileSync(savePath, tarGzBuffer);
-
-          // Atualiza registro para COMPLETED
-          await client.query(
-            `UPDATE public.backups SET status = 'COMPLETED', size = $1, checksum = $2, updated_at = NOW() WHERE id = $3`,
-            [tarGzBuffer.length, checksum, backupId]
-          );
-          await logAuditAction(backupId, 'BACKUP_COMPLETED', sessionProfile.email, `Checksum SHA256: ${checksum}`);
-
-          // Politica de Retenção Automática (Máximo 30 backups ativos)
           const activeBackups = (await client.query(
-            `SELECT id, filename, object_key FROM public.backups WHERE status != 'DELETED' ORDER BY created_at ASC`
+            `SELECT id, object_key FROM public.backups WHERE status = 'COMPLETED' ORDER BY created_at ASC`,
           )).rows;
-
-          if (activeBackups.length > 30) {
-            const toDelete = activeBackups.slice(0, activeBackups.length - 30);
-            for (const oldB of toDelete) {
-              const oldPath = join(backupsDir, oldB.filename);
-              if (existsSync(oldPath)) unlinkSync(oldPath);
-              await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [oldB.id]);
-              await logAuditAction(oldB.id, 'BACKUP_DELETED', 'system', 'Exclusão por retenção automática (limite de 30 backups)');
-            }
+          for (const oldBackup of activeBackups.slice(0, Math.max(0, activeBackups.length - 30))) {
+            await minioRequest('DELETE', oldBackup.object_key);
+            await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [oldBackup.id]);
+            await logAuditAction(oldBackup.id, 'BACKUP_DELETED', 'system', 'Exclusão por retenção automática (limite de 30 backups).');
           }
-        } catch (err) {
-          console.error('[BACKGROUND BACKUP ERR]', err);
-          await client.query(`UPDATE public.backups SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [backupId]);
-          await logAuditAction(backupId, 'BACKUP_FAILED', sessionProfile.email, err.message);
+        } catch (retentionError) {
+          const details = retentionError instanceof Error ? retentionError.message : String(retentionError);
+          console.error('[BACKUP] RETENTION_FAILED', details);
+          await logAuditAction(backupId, 'RETENTION_FAILED', sessionProfile.email, details);
         }
-      }, 100);
 
-      return json(res, 200, {
-        ok: true,
-        message: 'Backup iniciado em segundo plano.',
-        backupId,
-        filename,
-        status: 'PENDING',
-      });
+        return json(res, 201, { ok: true, backupId, filename, status: 'COMPLETED' });
+      } catch (error) {
+        const details = error instanceof Error ? error.stack || error.message : String(error);
+        const stageLabels = {
+          GENERATING_DATABASE: 'Falha pg_dump',
+          GENERATING_ARCHIVE: 'Falha TAR.GZ',
+          CALCULATING_CHECKSUM: 'Falha SHA256',
+          UPLOADING_TO_MINIO: 'Falha Upload MinIO',
+        };
+        const message = stageLabels[currentStage] || 'Falha no processamento do backup';
+        console.error(`[BACKUP] ${message}`, details);
+        await client.query(
+          `UPDATE public.backups
+           SET status = 'FAILED', error_message = $1, error_details = $2, updated_at = NOW()
+           WHERE id = $3`,
+          [message, details, backupId],
+        );
+        await logAuditAction(backupId, 'BACKUP_FAILED', sessionProfile.email, `${message}: ${error instanceof Error ? error.message : String(error)}`);
+        return json(res, 500, { error: message, backupId });
+      } finally {
+        if (workspace) await rm(workspace, { recursive: true, force: true });
+      }
     }
 
     // Endpoint 2: Listar Backups e Logs de Auditoria
@@ -792,9 +926,11 @@ async function handleSupportApi(req, res, url) {
           object_key: b.object_key,
           size: sizeNum,
           sizeFormatted,
-          checksum: b.checksum || 'N/A',
+          checksum: b.checksum || null,
           backup_type: b.backup_type,
           status: b.status,
+          error_message: b.error_message,
+          error_details: b.error_details,
           created_by: b.created_by,
           created_at: b.created_at,
           updated_at: b.updated_at,
@@ -818,6 +954,9 @@ async function handleSupportApi(req, res, url) {
       const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
       if (bRes.rows.length === 0) return json(res, 404, { error: 'Backup não encontrado.' });
       const b = bRes.rows[0];
+      if (b.status !== 'COMPLETED' || !b.checksum || Number(b.size) <= 0) {
+        return json(res, 409, { error: 'Download disponível apenas para backup concluído e validado.' });
+      }
 
       // Token temporário assinado válido por 15 minutos (900 segundos)
       const expiresAt = Date.now() + 15 * 60 * 1000;
@@ -863,20 +1002,29 @@ async function handleSupportApi(req, res, url) {
       const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
       if (bRes.rows.length === 0) return json(res, 404, { error: 'Arquivo não encontrado.' });
       const b = bRes.rows[0];
-
-      const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
-      if (!existsSync(filePath)) {
-        return json(res, 404, { error: 'Arquivo físico do backup não encontrado no servidor.' });
+      if (b.status !== 'COMPLETED' || !b.checksum || Number(b.size) <= 0) {
+        return json(res, 409, { error: 'Download disponível apenas para backup concluído e validado.' });
       }
 
-      const st = statSync(filePath);
+      let fileBuffer;
+      try {
+        const response = await minioRequest('GET', b.object_key);
+        fileBuffer = Buffer.from(await response.arrayBuffer());
+      } catch (error) {
+        console.error('[BACKUP] MINIO_DOWNLOAD_FAILED', error);
+        return json(res, 502, { error: 'Não foi possível recuperar o arquivo no MinIO.' });
+      }
+      const computedChecksum = createHash('sha256').update(fileBuffer).digest('hex');
+      if (computedChecksum !== b.checksum) {
+        return json(res, 409, { error: 'Falha de integridade: SHA256 do arquivo MinIO não confere.' });
+      }
       res.writeHead(200, {
         'Content-Type': 'application/gzip',
         'Content-Disposition': `attachment; filename="${b.filename}"`,
-        'Content-Length': st.size,
+        'Content-Length': fileBuffer.length,
         'Cache-Control': 'no-store',
       });
-      return createReadStream(filePath).pipe(res);
+      return res.end(fileBuffer);
     }
 
     // Endpoint 5: Restauração com Validação Checksum SHA256 & Rollback Atômico
@@ -897,6 +1045,9 @@ async function handleSupportApi(req, res, url) {
       const bRes = await client.query(`SELECT * FROM public.backups WHERE id = $1`, [backupId]);
       if (bRes.rows.length === 0) return json(res, 404, { error: 'Registro de backup não encontrado.' });
       const b = bRes.rows[0];
+      if (b.status !== 'COMPLETED' || !b.checksum || Number(b.size) <= 0) {
+        return json(res, 409, { error: 'Restauração disponível apenas para backup concluído e validado.' });
+      }
 
       await client.query(`UPDATE public.backups SET status = 'RESTORING', updated_at = NOW() WHERE id = $1`, [backupId]);
       await logAuditAction(backupId, 'RESTORE_STARTED', sessionProfile.email, 'Restauração com Rollback atômico iniciada');
@@ -904,16 +1055,12 @@ async function handleSupportApi(req, res, url) {
       // Executa Restauração em Background
       setTimeout(async () => {
         try {
-          const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
-          if (!existsSync(filePath)) {
-            throw new Error(`Arquivo físico ${b.filename} não encontrado no storage.`);
-          }
-
-          const fileBuf = readFileSync(filePath);
+          const minioResponse = await minioRequest('GET', b.object_key);
+          const fileBuf = Buffer.from(await minioResponse.arrayBuffer());
           const computedChecksum = createHash('sha256').update(fileBuf).digest('hex');
 
           // Valida Checksum SHA256
-          if (b.checksum && b.checksum !== 'N/A' && b.checksum !== computedChecksum) {
+          if (b.checksum !== computedChecksum) {
             throw new Error(`Falha de integridade! Checksum SHA256 diverge (${computedChecksum} vs ${b.checksum}).`);
           }
 
@@ -981,10 +1128,7 @@ async function handleSupportApi(req, res, url) {
       if (bRes.rows.length === 0) return json(res, 404, { error: 'Backup não encontrado.' });
       const b = bRes.rows[0];
 
-      const filePath = join(process.cwd(), 'storage', 'backups', b.filename);
-      if (existsSync(filePath)) {
-        unlinkSync(filePath);
-      }
+      if (b.status === 'COMPLETED') await minioRequest('DELETE', b.object_key);
 
       await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [backupId]);
       await logAuditAction(backupId, 'BACKUP_DELETED', sessionProfile.email, 'Backup removido manualmente pelo admin');
