@@ -1265,6 +1265,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 12. Clínica e Estética Interactive State
+  const [clinicaCategoryFilter, setClinicaCategoryFilter] = useState('todos');
+
+  const clinicaArticles = [
+    {
+      title: "Harmonização Facial Natural: A Ciência por Trás da Proporção Áurea",
+      category: "Estética Facial",
+      date: "29 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Protocolo Lavieen BB Laser: Como Tratar Manchas e Poros Dilatados",
+      category: "Dermatologia & Laser",
+      date: "24 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1512290900676-26c2a4d4b5b3?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Bioestimuladores de Colágeno (Radiesse e Sculptra) contra a Flacidez",
+      category: "Rejuvenescimento",
+      date: "19 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1440,7 +1464,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'loja-catalogo' ? (
+      {activeSlug === 'clinica-estetica' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(7, 25, 29, 0.85), rgba(7, 25, 29, 0.95)), url("https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#14B8A6]/10 border border-[#14B8A6]/30 text-[#2DD4BF] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#2DD4BF]" />
+              MEDICINA ESTÉTICA AVANÇADA & DERMATOLOGIA BOUTIQUE
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Clínica Renova Estética & Dermatologia
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Harmonização facial com naturalidade, protocolos a laser de última geração (Ultraformer III & Lavieen) e rejuvenescimento sob supervisão médica especializada.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <button
+                onClick={() => setIsReserveModalOpen(true)}
+                className="bg-[#14B8A6] hover:bg-[#0D9488] text-white px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Agendar Avaliação Online
+              </button>
+              <a
+                href="#tratamentos-medicos"
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <Award className="w-4 h-4 text-[#2DD4BF]" />
+                Ver Tratamentos & Tecnologias
+              </a>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20agendar%20uma%20consulta%20na%20Clinica%20Renova."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                WhatsApp Direct
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'loja-catalogo' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1707,6 +1776,86 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       )}
+      {/* Seção 2: Sobre a Empresa (Clínica Renova Estética & Dermatologia) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#123B44]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">MEDICINA & REJUVENESCIMENTO</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Ciência, Tecnologia e Beleza em Harmonização com a Sua Essência
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Desde 2015, a Clínica Renova unifica a dermatologia clínica e estética de alta precisão com protocolos exclusivos de rejuvenescimento facial e corporal. Nossa equipe é composta por médicos especialistas com registro no CRM/RQE e biomédicos estetas dedicados a resultados naturais e duradouros.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#0A2228] p-4 rounded-2xl border border-[#123B44]">
+                  <span className="text-[#2DD4BF] font-bold block text-sm mb-1">Médicos com RQE</span>
+                  <p className="text-gray-400">Atendimento 100% realizado por médicos dermatologistas credenciados.</p>
+                </div>
+                <div className="bg-[#0A2228] p-4 rounded-2xl border border-[#123B44]">
+                  <span className="text-[#14B8A6] font-bold block text-sm mb-1">Tecnologia Aprovada Anvisa</span>
+                  <p className="text-gray-400">Equipamentos a laser importados de última geração (Fotona, Ultraformer III e Lavieen).</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#123B44] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=800&auto=format&fit=crop"
+                  alt="Clínica Renova Consultório"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#2DD4BF] font-bold uppercase tracking-wider">Diretoria Médica</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Dra. Luciana Mendes</h3>
+                  <p className="text-xs text-gray-300">Dermatologista · CRM 148.920 / RQE 52.810-SP</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Tratamentos Interativos (Clínica Renova Estética) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div id="tratamentos-medicos" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">MENU DE TRATAMENTOS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Procedimentos Médicos Estéticos</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#0A2228] border border-[#123B44] px-3 py-1.5 rounded-full">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4BF]" />
+              Protocolos com Anestésico e Conforto V.I.P
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todos os Procedimentos' },
+              { id: 'facial', label: 'Facial & Harmonização' },
+              { id: 'laser', label: 'Laser & Rejuvenescimento' },
+              { id: 'corporal', label: 'Corporal & Flacidez' },
+              { id: 'capilar', label: 'Terapia Capilar & Microagulhamento' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setClinicaCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  clinicaCategoryFilter === cat.id
+                    ? 'bg-[#14B8A6] text-white border-[#14B8A6] shadow-lg'
+                    : 'bg-[#0A2228] text-gray-300 border-[#123B44] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Seção 2: Sobre a Empresa (Boutique Elegance Moda & Catálogo) */}
       {activeSlug === 'loja-catalogo' && (
         <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#251C3A]">
@@ -2194,6 +2343,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais da Clínica (Clínica Renova Estética & Dermatologia) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#123B44]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">EXCELÊNCIA MÉDICA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Nossos Diferenciais Médicos</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Por que nossos pacientes confiam a sua beleza e rejuvenescimento à Clínica Renova.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '🩺', title: 'Médicos com RQE', desc: 'Corpo clínico especializado em dermatologia e cirurgia com registro médico ativo.' },
+              { icon: '🔬', title: 'Tecnologia Aprovada', desc: 'Equipamentos importados de última geração certificados pela Anvisa e FDA.' },
+              { icon: '✨', title: 'Resultados Naturais', desc: 'Protocolos exclusivos desenvolvidos para realçar sua beleza sem exageros.' },
+              { icon: '🏥', title: 'Estrutura Hospitalar', desc: 'Ambiente seguro, privativo e com normas rigorosas de biossegurança.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#0A2228] p-6 rounded-2xl border border-[#123B44] hover:border-[#14B8A6]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Casos & Infraestrutura (Clínica Renova) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#123B44]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">INFRAESTRUTURA BOUTIQUE</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Nossas Salas & Tecnologias</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">EQUIPAMENTOS DE ÚLTIMA GERAÇÃO</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1512290900676-26c2a4d4b5b3?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#123B44] group relative cursor-pointer">
+                <img src={img} alt="Infraestrutura Clínica Renova" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#2DD4BF]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas da Clínica (Clínica Renova) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#123B44]">
+          <div className="bg-[#0A2228] border border-[#123B44] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#2DD4BF] font-mono">+8.500</div>
+              <span className="text-xs text-gray-400 font-medium">Pacientes Atendidos</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">4.9 / 5.0</div>
+              <span className="text-xs text-gray-400 font-medium">Avaliação Média no Google</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#14B8A6] font-mono">12</div>
+              <span className="text-xs text-gray-400 font-medium">Médicos & Especialistas</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">11 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">Tradição em Medicina</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ Clínico (Clínica Renova) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#123B44]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">DÚVIDAS FREQUENTES</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas sobre Procedimentos</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Como funciona a primeira avaliação médica?", a: "Na primeira consulta é realizada uma anamnese detalhada, mapeamento facial por imagem digital e elaboração de um plano de tratamento personalizado." },
+              { q: "Os procedimentos estéticos exigem tempo de repouso?", a: "A maioria dos nossos procedimentos (Botox, Preenchimento, Lavieen) permite retorno imediato às atividades diárias com cuidados básicos." },
+              { q: "Quais as formas de pagamento e parcelamento?", a: "Oferecemos desconto de 5% para pagamentos no Pix e parcelamento em até 10x sem juros nos cartões de crédito." },
+              { q: "A clínica atende convênios médicos para dermatologia?", a: "Atendemos na modalidade particular com emissão de nota fiscal para reembolso médico junto ao seu plano de saúde." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#0A2228] p-5 rounded-2xl border border-[#123B44] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#2DD4BF]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog de Saúde & Beleza (Clínica Renova) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#123B44] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">SAÚDE & BELEZA</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog & Artigos Médicos</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#2DD4BF] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {clinicaArticles.map((art, i) => (
+              <div key={i} className="bg-[#0A2228] border border-[#123B44] rounded-2xl overflow-hidden group hover:border-[#14B8A6]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#2DD4BF] border border-[#2DD4BF]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#2DD4BF] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#2DD4BF] font-bold flex items-center gap-1 pt-2 border-t border-[#123B44]">
+                    Ler Artigo Médico →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Unidade Física (Clínica Renova) */}
+      {activeSlug === 'clinica-estetica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#123B44] text-left">
+          <div className="bg-[#0A2228] border border-[#123B44] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#2DD4BF] uppercase tracking-widest block">NOSSA UNIDADE</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Conheça Nossa Clínica</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Ambiente sofisticado, salas privativas de procedimento e estacionamento com manobrista no coração dos Jardins.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#2DD4BF]" />
+                  <span>Av. Cidade Jardim, 400 - Cj. 81 — Jardins, São Paulo - SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#2DD4BF]" />
+                  <span>(11) 3078-9900 · recepcao@clinicarenova.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#2DD4BF]" />
+                  <span>Seg a Sex: 08h - 20h | Sáb: 08h - 14h</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#07191D] border border-[#123B44] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#2DD4BF]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para traçar rota direta para a Clínica Renova</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#14B8A6] text-white px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais do E-commerce (Boutique Elegance Moda & Catálogo) */}
       {activeSlug === 'loja-catalogo' && (

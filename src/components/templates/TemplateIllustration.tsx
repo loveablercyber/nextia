@@ -20,6 +20,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'loja-catalogo' || category === 'loja-catalogo') {
     return <LojaPremiumIllustration />;
   }
+  if (slug === 'clinica-estetica' || category === 'clinica-estetica') {
+    return <ClinicaPremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -620,6 +623,68 @@ function LojaPremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#EC4899" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#10B981" />
           <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Comprar via Whats</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ClinicaPremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-clinica-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#07191D" />
+          <stop offset="100%" stopColor="#0E2E35" />
+        </linearGradient>
+        <linearGradient id="teal-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#14B8A6" />
+          <stop offset="100%" stopColor="#2DD4BF" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-clinica-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#2DD4BF" fontSize="11.5" fontWeight="800" fontFamily="Inter, sans-serif">✨ CLÍNICA RENOVA · DERMATOLOGIA & ESTÉTICA</text>
+      <rect x="285" y="8" width="100" height="18" rx="9" fill="url(#teal-grad)" />
+      <text x="335" y="20" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">CRM/RQE · ANVISA</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(14,46,53,0.8)" stroke="rgba(20,184,166,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Medicina Estética & Dermatologia Avançada</text>
+      <text x="200" y="75" fill="#99F6E4" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Harmonização facial natural, laser Ultraformer/Lavieen e toxina botulínica</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="25" y="96" width="95" height="20" rx="10" fill="url(#teal-grad)" />
+        <text x="72" y="109" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Facial & Harmonização</text>
+        <rect x="125" y="96" width="80" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="165" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Corporal & Laser</text>
+        <rect x="210" y="96" width="65" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="242" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Terapia Capilar</text>
+        <rect x="280" y="96" width="65" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="312" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Dermatologia</text>
+      </g>
+
+      {/* Treatment cards */}
+      {[
+        { title: 'Harmonização Facial', price: 'Duração 12m+', specs: 'Ácido Hialurônico / Botox', badge: 'MAIS SOLICITADO' },
+        { title: 'Laser Lavieen & BB Laser', price: 'Efeito Glow', specs: 'Renovação & Manchas', badge: 'TECNOLOGIA TOP' },
+        { title: 'Bioestimulador Colágeno', price: 'Radiesse', specs: 'Firmeza & Rejuvenescimento', badge: 'RECOMENDADO' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#0A2228" stroke="rgba(20,184,166,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#123B44" />
+          <text x={74 + i*126} y="152" fill="#2DD4BF" fontSize="20" textAnchor="middle">💉</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#14B8A6" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#99F6E4" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#2DD4BF" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#14B8A6" />
+          <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Agendar Avaliação</text>
         </g>
       ))}
     </svg>
