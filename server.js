@@ -372,6 +372,7 @@ const supportApiMethods = new Map([
   ['/api/admin/backup/rollback', 'POST'],
   ['/api/admin/backup/delete', 'POST'],
   ['/api/admin/backup/logs', 'GET'],
+  ['/api/admin/delete-item', 'POST'],
 ]);
 
 async function handleSupportApi(req, res, url) {
@@ -603,6 +604,38 @@ async function handleSupportApi(req, res, url) {
         );
         await client.query('COMMIT');
         return json(res, 200, { status: 'success', message: messageResult.rows[0] });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      }
+    if (url.pathname === '/api/admin/delete-item') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+
+      const body = await readJson(req);
+      const { type, id } = body;
+      if (!type || !id) return json(res, 400, { error: 'Faltam parâmetros obrigatórios: type e id.' });
+
+      await client.query('BEGIN');
+      try {
+        let deleteQuery = '';
+        if (type === 'client') {
+          deleteQuery = 'DELETE FROM public.profiles WHERE id = $1';
+        } else if (type === 'project') {
+          deleteQuery = 'DELETE FROM public.projects WHERE id = $1';
+        } else if (type === 'quote') {
+          deleteQuery = 'DELETE FROM public.quotes WHERE id = $1';
+        } else if (type === 'payment') {
+          deleteQuery = 'DELETE FROM public.payments WHERE id = $1';
+        } else {
+          await client.query('ROLLBACK');
+          return json(res, 400, { error: `Tipo de item inválido: ${type}` });
+        }
+
+        const dbRes = await client.query(deleteQuery, [id]);
+        await client.query('COMMIT');
+        return json(res, 200, { status: 'success', message: `${type} removido com sucesso`, rowsAffected: dbRes.rowCount });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
