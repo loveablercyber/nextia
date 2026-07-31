@@ -22,7 +22,7 @@ interface PartnerState {
 
 interface PartnerContextType {
   state: PartnerState;
-  requestWithdrawal: (amount: number) => Promise<void>;
+  requestWithdrawal: (amount: number, pixKey?: string) => Promise<void>;
   updateProfile: (updates: Partial<Partner>) => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -108,12 +108,24 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!res.ok) throw new Error('Falha ao carregar dados do parceiro');
       
       const data = await res.json();
+
+      // Fetch ranking separately
+      let rankingData: any[] = [];
+      try {
+        const rankRes = await fetch('/api/partner/ranking', { credentials: 'include', cache: 'no-store' });
+        if (rankRes.ok) {
+          const rd = await rankRes.json();
+          rankingData = rd.ranking || [];
+        }
+      } catch {}
+
       setState(prev => ({
         ...prev,
         profile: data.profile,
         referrals: data.referrals,
         commissions: data.commissions,
         withdrawals: data.withdrawals,
+        ranking: rankingData,
         loading: false
       }));
     } catch (err) {
@@ -145,7 +157,7 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [fetchPartnerData]);
 
-  const requestWithdrawal = useCallback(async (amount: number) => {
+  const requestWithdrawal = useCallback(async (amount: number, pixKey?: string) => {
     try {
       const res = await fetch('/api/partner/request-withdrawal', {
         method: 'POST',
@@ -153,7 +165,7 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ amount, pixKey })
       });
       
       if (!res.ok) {

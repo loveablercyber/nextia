@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
   Users, 
@@ -21,23 +22,28 @@ import { PARTNER_LEVELS } from '../../types/partner';
 export const PartnerLayout: React.FC = () => {
   const { state } = usePartner();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const partner = state.profile;
   const levelInfo = partner ? PARTNER_LEVELS[partner.level] : null;
 
   const navItems = [
-    { to: '/partner', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-    { to: '/partner/referrals', icon: <Users size={20} />, label: 'Indicações' },
-    { to: '/partner/commissions', icon: <DollarSign size={20} />, label: 'Comissões' },
-    { to: '/partner/finance', icon: <Wallet size={20} />, label: 'Financeiro' },
-    { to: '/partner/ranking', icon: <Trophy size={20} />, label: 'Ranking' },
-    { to: '/partner/materials', icon: <FolderOpen size={20} />, label: 'Materiais' },
-    { to: '/partner/achievements', icon: <Award size={20} />, label: 'Conquistas' },
-    { to: '/partner/profile', icon: <UserCircle size={20} />, label: 'Perfil' },
+    { to: '/parceiro', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+    { to: '/parceiro/indicacoes', icon: <Users size={20} />, label: 'Indicações' },
+    { to: '/parceiro/comissoes', icon: <DollarSign size={20} />, label: 'Comissões' },
+    { to: '/parceiro/financeiro', icon: <Wallet size={20} />, label: 'Financeiro' },
+    { to: '/parceiro/ranking', icon: <Trophy size={20} />, label: 'Ranking' },
+    { to: '/parceiro/materiais', icon: <FolderOpen size={20} />, label: 'Materiais' },
+    { to: '/parceiro/conquistas', icon: <Award size={20} />, label: 'Conquistas' },
+    { to: '/parceiro/perfil', icon: <UserCircle size={20} />, label: 'Perfil' },
   ];
 
-  const handleLogout = () => {
+  const currentPage = navItems.find(item => location.pathname === item.to)?.label || 'Dashboard';
+
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -80,7 +86,7 @@ export const PartnerLayout: React.FC = () => {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/partner'}
+              end={item.to === '/parceiro'}
               onClick={closeMobileMenu}
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
@@ -132,7 +138,7 @@ export const PartnerLayout: React.FC = () => {
             <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setMobileMenuOpen(true)}>
               <Menu size={24} />
             </button>
-            <h1 className="text-xl font-semibold hidden sm:block">Dashboard do Parceiro</h1>
+            <h1 className="text-xl font-semibold hidden sm:block">{currentPage}</h1>
           </div>
           
           <div className="flex items-center gap-6">

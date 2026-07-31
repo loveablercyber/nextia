@@ -103,37 +103,53 @@ export default function PartnerAchievementsPage() {
           <h3 className="text-xl font-bold text-white">Suas Conquistas</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {achievements.map((achievement) => (
-            <div 
-              key={achievement.id}
-              className={`p-6 rounded-2xl border transition-all ${
-                achievement.unlocked 
-                  ? 'bg-gradient-to-br from-[#111118] to-[#D4A853]/10 border-[#D4A853]/30 shadow-[0_4px_20px_rgba(212,168,83,0.1)]' 
-                  : 'bg-[#111118] border-white/5 grayscale opacity-50'
-              }`}
-            >
-              <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center text-2xl mb-4 relative">
-                {achievement.icon}
-                {!achievement.unlocked && (
-                  <div className="absolute -bottom-2 -right-2 bg-gray-800 rounded-full p-1 border-2 border-[#111118]">
-                    <Lock className="w-3 h-3 text-gray-400" />
+          {achievements.map((achievement) => {
+            let currentValue = 0;
+            if (achievement.type === 'referrals') currentValue = profile.totalReferrals;
+            else if (achievement.type === 'commission') currentValue = profile.totalCommission;
+            else if (achievement.type === 'ranking') currentValue = profile.rankingPosition > 0 ? (100 - profile.rankingPosition) : 0;
+            
+            const isUnlocked = achievement.unlocked || currentValue >= achievement.requirement;
+            const progress = Math.min(100, Math.max(0, (currentValue / achievement.requirement) * 100));
+
+            return (
+              <div 
+                key={achievement.id}
+                className={`p-6 rounded-2xl border transition-all ${
+                  isUnlocked 
+                    ? 'bg-gradient-to-br from-[#111118] to-[#D4A853]/10 border-[#D4A853]/30 shadow-[0_4px_20px_rgba(212,168,83,0.1)]' 
+                    : 'bg-[#111118] border-white/5 opacity-60'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center text-2xl mb-4 relative">
+                  {achievement.icon}
+                  {!isUnlocked && (
+                    <div className="absolute -bottom-2 -right-2 bg-gray-800 rounded-full p-1 border-2 border-[#111118]">
+                      <Lock className="w-3 h-3 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <h4 className="font-bold text-white mb-2">{achievement.title}</h4>
+                <p className="text-sm text-gray-400 mb-4">{achievement.description}</p>
+                
+                {isUnlocked ? (
+                  <p className="text-xs text-[#D4A853] font-medium mt-auto">
+                    {achievement.unlockedAt ? `Desbloqueado em ${new Date(achievement.unlockedAt).toLocaleDateString('pt-BR')}` : 'Desbloqueado!'}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 mt-auto">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{currentValue} / {achievement.requirement}</span>
+                      <span>{Math.floor(progress)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-black/50 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#D4A853]" style={{ width: `${progress}%` }} />
+                    </div>
                   </div>
                 )}
               </div>
-              <h4 className="font-bold text-white mb-2">{achievement.title}</h4>
-              <p className="text-sm text-gray-400 mb-4">{achievement.description}</p>
-              
-              {achievement.unlocked ? (
-                <p className="text-xs text-[#D4A853] font-medium mt-auto">
-                  Desbloqueado em {new Date(achievement.unlockedAt!).toLocaleDateString('pt-BR')}
-                </p>
-              ) : (
-                <div className="h-1.5 bg-black/50 rounded-full overflow-hidden mt-auto">
-                  <div className="h-full bg-gray-600 w-1/3" />
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>

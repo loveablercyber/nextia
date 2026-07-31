@@ -107,14 +107,22 @@ export default function PartnerMaterialsPage() {
                   <h3 className="text-white font-medium line-clamp-2" title={material.title}>{material.title}</h3>
                 </div>
                 
-                <a 
-                  href={material.downloadUrl}
-                  onClick={(e) => e.preventDefault()} // MOCK
+                <button 
+                  onClick={() => {
+                    const content = `=== NEXTIA PARCEIROS ===\nMaterial: ${material.title}\nCategoria: ${material.category}\n\nDivulgue a Nextia e ganhe 25% de comissão recorrente!\nAcesse: https://nextia.dev.br`;
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${material.title.toLowerCase().replace(/[^a-z0-9]/g, '_')}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
                   className="w-full bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm border border-white/5 hover:border-white/10 group/btn"
                 >
                   <Download size={16} className="text-gray-400 group-hover/btn:text-white transition-colors" />
                   Download
-                </a>
+                </button>
               </div>
             </div>
           );

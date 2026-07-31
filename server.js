@@ -1253,6 +1253,7 @@ async function ensurePartnerSchema(client) {
 
 const partnerApiMethods = new Map([
   ['/api/partner/me', 'GET'],
+  ['/api/partner/ranking', 'GET'],
   ['/api/partner/update-profile', 'POST'],
   ['/api/partner/request-withdrawal', 'POST'],
   ['/api/admin/partners', 'GET'],
@@ -1448,6 +1449,21 @@ async function handlePartnerApi(req, res, url) {
           VALUES ($1, $2, $3)
         `, [partnerProfile.id, amount, partnerProfile.pix_key || body.pixKey]);
         return json(res, 200, { status: 'success' });
+      }
+
+      if (url.pathname === '/api/partner/ranking') {
+        const rankRes = await client.query(`
+          SELECT pp.id, pr.name, pp.level, pp.status,
+                 (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id) as "totalReferrals",
+                 (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id AND r.status = 'ativo') as "activeReferrals",
+                 (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id) as "totalCommission"
+          FROM public.partner_profiles pp
+          JOIN public.profiles pr ON pr.id = pp.user_id
+          WHERE pp.status = 'ativo'
+          ORDER BY "totalCommission" DESC
+          LIMIT 50
+        `);
+        return json(res, 200, { ranking: rankRes.rows });
       }
     }
   } finally {
@@ -1819,6 +1835,18 @@ createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/')) {
       return json(res, 404, { error: 'API route not found' });
+    }
+    // G2: Referral link tracking — /ref/:code
+    if (url.pathname.startsWith('/ref/')) {
+      const code = url.pathname.replace('/ref/', '').trim();
+      if (code) {
+        // Set a cookie with the referral code (valid for 30 days)
+        res.writeHead(302, {
+          'Location': '/?ref=' + encodeURIComponent(code),
+          'Set-Cookie': `nextia_ref=${encodeURIComponent(code)}; Path=/; Max-Age=2592000; SameSite=Lax`,
+        });
+        return res.end();
+      }
     }
     return await serveStatic(req, res);
   } catch (err) {

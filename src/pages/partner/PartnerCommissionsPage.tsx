@@ -33,8 +33,12 @@ export default function PartnerCommissionsPage() {
     }
   };
 
+  const now = new Date();
+  const currentPeriod = now.toISOString().slice(0, 7);
+  const currentMonthName = now.toLocaleDateString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase());
+
   const currentMonthCommission = commissions
-    .filter(c => c.period === '2026-07')
+    .filter(c => c.period === currentPeriod)
     .reduce((sum, c) => sum + c.commissionValue, 0);
     
   const pendingCommission = commissions
@@ -51,7 +55,7 @@ export default function PartnerCommissionsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-[#111118] border border-white/10 rounded-2xl p-6">
-          <p className="text-gray-400 text-sm font-medium mb-1">Comissão do Mês (Julho)</p>
+          <p className="text-gray-400 text-sm font-medium mb-1">Comissão do Mês ({currentMonthName})</p>
           <h3 className="text-3xl font-bold text-emerald-400">{formatCurrency(currentMonthCommission)}</h3>
         </div>
         <div className="bg-[#111118] border border-white/10 rounded-2xl p-6">

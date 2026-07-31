@@ -119,11 +119,13 @@ function AdminContainer({ children, title }: { children: React.ReactNode; title?
 
 function PartnerContainer() {
   return (
-    <PartnerProvider>
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-[#0A0A0F]"><div className="text-[#D4A853]">Carregando...</div></div>}>
-        <PartnerLayout />
-      </Suspense>
-    </PartnerProvider>
+    <ProtectedRoute>
+      <PartnerProvider>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-[#0A0A0F]"><div className="text-[#D4A853]">Carregando...</div></div>}>
+          <PartnerLayout />
+        </Suspense>
+      </PartnerProvider>
+    </ProtectedRoute>
   );
 }
 

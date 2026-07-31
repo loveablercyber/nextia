@@ -11,10 +11,12 @@ import {
 } from 'lucide-react';
 import { usePartner } from '../../context/PartnerContext';
 import { PARTNER_GOALS } from '../../types/partner';
+import { useNavigate } from 'react-router-dom';
 
 export default function PartnerDashboardPage() {
+  const navigate = useNavigate();
   const { state } = usePartner();
-  const { profile } = state;
+  const { profile, commissions = [], withdrawals = [] } = state;
 
   if (!profile) return null;
 
@@ -35,6 +37,32 @@ export default function PartnerDashboardPage() {
   const currentGoalIndex = PARTNER_GOALS.findIndex(g => g.clients > profile.activeReferrals);
   const nextGoal = currentGoalIndex !== -1 ? PARTNER_GOALS[currentGoalIndex] : PARTNER_GOALS[PARTNER_GOALS.length - 1];
   const progressPercent = Math.min(100, Math.max(0, (profile.activeReferrals / nextGoal.clients) * 100));
+
+  const estimatedMonthlyCommission = commissions
+    .filter(c => c.status === 'confirmado' || c.status === 'pendente')
+    .reduce((sum, c) => sum + Number(c.commissionValue), 0);
+
+  const activityHistory = [
+    ...commissions.map(c => ({
+      id: `c-${c.id}`,
+      type: 'commission',
+      date: c.createdAt,
+      title: 'Nova Comissão',
+      description: c.clientName,
+      value: c.commissionValue,
+      isPositive: true,
+    })),
+    ...withdrawals.map(w => ({
+      id: `w-${w.id}`,
+      type: 'withdrawal',
+      date: w.requestedAt,
+      title: 'Saque',
+      description: 'Transferência PIX',
+      value: w.amount,
+      isPositive: false,
+    }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+   .slice(0, 4);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -78,7 +106,7 @@ export default function PartnerDashboardPage() {
           <div className="flex justify-between items-start mb-4 relative">
             <div>
               <p className="text-[#D4A853]/80 text-sm font-medium mb-1">Comissão Mensal (Est.)</p>
-              <h3 className="text-3xl font-bold text-[#D4A853]">{formatCurrency(1360)}</h3>
+              <h3 className="text-3xl font-bold text-[#D4A853]">{formatCurrency(estimatedMonthlyCommission)}</h3>
             </div>
             <div className="p-3 bg-[#D4A853]/10 rounded-xl text-[#D4A853] group-hover:scale-110 transition-transform">
               <TrendingUp size={24} />
@@ -157,11 +185,17 @@ export default function PartnerDashboardPage() {
                 <MessageCircle size={18} />
                 WhatsApp
               </a>
-              <button className="flex items-center gap-2 bg-[#E1306C]/20 hover:bg-[#E1306C]/30 text-[#E1306C] px-4 py-2 rounded-xl transition-colors font-medium border border-[#E1306C]/20">
+              <button 
+                onClick={() => window.open('https://www.instagram.com/', '_blank')}
+                className="flex items-center gap-2 bg-[#E1306C]/20 hover:bg-[#E1306C]/30 text-[#E1306C] px-4 py-2 rounded-xl transition-colors font-medium border border-[#E1306C]/20"
+              >
                 <Share2 size={18} />
                 Instagram
               </button>
-              <button className="flex items-center gap-2 bg-[#1877F2]/20 hover:bg-[#1877F2]/30 text-[#428cf4] px-4 py-2 rounded-xl transition-colors font-medium border border-[#1877F2]/20">
+              <button 
+                onClick={() => window.open('https://www.facebook.com/sharer/sharer.php?u=nextia.dev.br', '_blank')}
+                className="flex items-center gap-2 bg-[#1877F2]/20 hover:bg-[#1877F2]/30 text-[#428cf4] px-4 py-2 rounded-xl transition-colors font-medium border border-[#1877F2]/20"
+              >
                 <Share2 size={18} />
                 Facebook
               </button>
@@ -200,57 +234,35 @@ export default function PartnerDashboardPage() {
         <div className="bg-[#111118] border border-white/10 rounded-3xl p-8">
           <h3 className="text-xl font-bold text-white mb-6">Atividade Recente</h3>
           
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-white/10 before:to-transparent">
-            {/* Event 1 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#111118] bg-[#D4A853] text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" />
-              <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-4 md:ml-0 md:group-even:text-right md:group-odd:pl-4 md:group-even:pr-4 p-4 rounded-xl bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors">
-                <div className="flex items-center justify-between md:group-even:justify-end md:group-odd:justify-start gap-2 mb-1">
-                  <span className="font-bold text-white">Nova Comissão</span>
-                  <span className="text-xs text-gray-500">Hoje, 10:05</span>
+          {activityHistory.length > 0 ? (
+            <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-white/10 before:to-transparent">
+              {activityHistory.map((activity) => (
+                <div key={activity.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className={`flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#111118] text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 ${activity.type === 'commission' ? 'bg-[#D4A853]' : 'bg-blue-400'}`} />
+                  <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-4 md:ml-0 md:group-even:text-right md:group-odd:pl-4 md:group-even:pr-4 p-4 rounded-xl bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors">
+                    <div className="flex items-center justify-between md:group-even:justify-end md:group-odd:justify-start gap-2 mb-1">
+                      <span className="font-bold text-white">{activity.title}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(activity.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400">
+                      {activity.description} - <span className={activity.type === 'commission' ? 'text-[#D4A853]' : 'text-white'}>
+                        {formatCurrency(activity.value)}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400">Restaurante Sabor - <span className="text-[#D4A853]">{formatCurrency(74.75)}</span></p>
-              </div>
+              ))}
             </div>
-
-            {/* Event 2 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#111118] bg-emerald-400 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" />
-              <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-4 md:ml-0 md:group-even:text-right md:group-odd:pl-4 md:group-even:pr-4 p-4 rounded-xl bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors">
-                <div className="flex items-center justify-between md:group-even:justify-end md:group-odd:justify-start gap-2 mb-1">
-                  <span className="font-bold text-white">Novo Cliente</span>
-                  <span className="text-xs text-gray-500">Ontem, 16:45</span>
-                </div>
-                <p className="text-sm text-gray-400">Mariana Oliveira (Estúdio Beauty)</p>
-              </div>
-            </div>
-
-            {/* Event 3 */}
-            <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#111118] bg-blue-400 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" />
-              <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-4 md:ml-0 md:group-even:text-right md:group-odd:pl-4 md:group-even:pr-4 p-4 rounded-xl bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors">
-                <div className="flex items-center justify-between md:group-even:justify-end md:group-odd:justify-start gap-2 mb-1">
-                  <span className="font-bold text-white">Saque Aprovado</span>
-                  <span className="text-xs text-gray-500">15 Jul</span>
-                </div>
-                <p className="text-sm text-gray-400">Transferência PIX - <span className="text-white">{formatCurrency(1500)}</span></p>
-              </div>
-            </div>
-            
-             {/* Event 4 */}
-             <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full border-4 border-[#111118] bg-[#D4A853] text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" />
-              <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] ml-4 md:ml-0 md:group-even:text-right md:group-odd:pl-4 md:group-even:pr-4 p-4 rounded-xl bg-white/5 border border-white/5 group-hover:border-white/10 transition-colors">
-                <div className="flex items-center justify-between md:group-even:justify-end md:group-odd:justify-start gap-2 mb-1">
-                  <span className="font-bold text-white">Nova Comissão</span>
-                  <span className="text-xs text-gray-500">20 Jun</span>
-                </div>
-                <p className="text-sm text-gray-400">Oficina do Carlão - <span className="text-[#D4A853]">{formatCurrency(24.75)}</span></p>
-              </div>
-            </div>
-          </div>
+          ) : (
+            <p className="text-gray-400 text-center py-8">Nenhuma atividade recente</p>
+          )}
           
-          <button className="w-full mt-6 py-3 text-sm font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+          <button 
+            onClick={() => navigate('/parceiro/comissoes')}
+            className="w-full mt-6 py-3 text-sm font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+          >
             Ver todo o histórico
           </button>
         </div>

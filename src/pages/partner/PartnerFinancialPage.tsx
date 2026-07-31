@@ -40,7 +40,7 @@ export default function PartnerFinancialPage() {
     e.preventDefault();
     const amount = parseFloat(withdrawAmount.replace(/\D/g, '')) / 100;
     if (amount >= 50 && amount <= profile.availableBalance) {
-      requestWithdrawal(amount);
+      requestWithdrawal(amount, pixKey);
       setIsModalOpen(false);
       setWithdrawAmount('');
     } else {
@@ -57,6 +57,26 @@ export default function PartnerFinancialPage() {
     const numberValue = parseInt(value) / 100;
     setWithdrawAmount(numberValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
   };
+
+  const getProjectedCommission = () => {
+    if (state.commissions && state.commissions.length > 0) {
+      const sortedPeriods = [...new Set(state.commissions.map(c => c.period))].sort().reverse();
+      const latestPeriod = sortedPeriods[0];
+      if (latestPeriod) {
+        return state.commissions
+          .filter(c => c.period === latestPeriod)
+          .reduce((acc, curr) => acc + curr.commissionValue, 0);
+      }
+    }
+    
+    const createdDate = new Date(profile.createdAt);
+    const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
+    const monthsActive = Math.max(1, (Date.now() - createdDate.getTime()) / msPerMonth);
+    return profile.totalCommission / monthsActive;
+  };
+
+  const projectedCommission = getProjectedCommission();
+  const projectedRevenue = projectedCommission / 0.25;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -149,11 +169,11 @@ export default function PartnerFinancialPage() {
             </div>
             <div className="flex justify-between items-center p-4 rounded-xl bg-white/5 border border-white/5">
               <span className="text-gray-300">Faturamento Gerado</span>
-              <span className="font-bold text-white">{formatCurrency(profile.activeReferrals * 199)} {/* Avg */}</span>
+              <span className="font-bold text-white">{formatCurrency(projectedRevenue)}</span>
             </div>
             <div className="flex justify-between items-center p-4 rounded-xl bg-[#D4A853]/10 border border-[#D4A853]/20">
               <span className="text-[#D4A853] font-medium">Sua Comissão (25%)</span>
-              <span className="font-bold text-[#D4A853] text-lg">{formatCurrency(profile.activeReferrals * 199 * 0.25)}</span>
+              <span className="font-bold text-[#D4A853] text-lg">{formatCurrency(projectedCommission)}</span>
             </div>
           </div>
           

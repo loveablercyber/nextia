@@ -16,6 +16,12 @@ export default function PartnerProfilePage() {
     pixKey: profile?.pixKey || '',
   });
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
   if (!profile) return null;
 
   const levelInfo = PARTNER_LEVELS[profile.level];
@@ -35,6 +41,45 @@ export default function PartnerProfilePage() {
     e.preventDefault();
     updateProfile(formData);
     alert('Perfil atualizado com sucesso!');
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('As senhas não coincidem.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    try {
+      const token = document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] || localStorage.getItem('nextia_token');
+      
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao alterar a senha');
+      }
+
+      setPasswordSuccess('Senha alterada com sucesso!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError('Ocorreu um erro ao alterar a senha.');
+    }
   };
 
   return (
@@ -168,6 +213,17 @@ export default function PartnerProfilePage() {
           <div className="bg-[#111118] border border-white/5 rounded-2xl p-6 md:p-8">
             <h3 className="text-lg font-bold text-white mb-6">Alterar Senha</h3>
             
+            {passwordError && (
+              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-sm">
+                {passwordError}
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 text-green-500 rounded-xl text-sm">
+                {passwordSuccess}
+              </div>
+            )}
+            
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2">Senha Atual</label>
@@ -175,6 +231,8 @@ export default function PartnerProfilePage() {
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5" />
                   <input 
                     type="password" 
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20"
                   />
                 </div>
@@ -185,6 +243,8 @@ export default function PartnerProfilePage() {
                   <label className="block text-sm font-medium text-gray-400 mb-2">Nova Senha</label>
                   <input 
                     type="password" 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20"
                   />
                 </div>
@@ -192,6 +252,8 @@ export default function PartnerProfilePage() {
                   <label className="block text-sm font-medium text-gray-400 mb-2">Confirmar Nova Senha</label>
                   <input 
                     type="password" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20"
                   />
                 </div>
@@ -199,7 +261,10 @@ export default function PartnerProfilePage() {
             </div>
             
             <div className="flex justify-end">
-              <button className="bg-white/10 text-white font-medium px-6 py-3 rounded-xl hover:bg-white/20 transition-colors">
+              <button 
+                onClick={handleChangePassword}
+                className="bg-white/10 text-white font-medium px-6 py-3 rounded-xl hover:bg-white/20 transition-colors"
+              >
                 Atualizar Senha
               </button>
             </div>

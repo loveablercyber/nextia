@@ -35,7 +35,7 @@ export default function PartnerRegisterPage() {
     setLoading(true);
     
     try {
-      // 1. Create User Account
+      // 1. Create User Account (backend also creates partner_profiles in same transaction)
       const resAuth = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,48 +45,14 @@ export default function PartnerRegisterPage() {
           password: form.password,
           phone: form.whatsapp,
           company: 'Parceiro',
-          role: 'partner'
+          role: 'partner',
+          cpfCnpj: form.cpfCnpj
         })
       });
       
       const authData = await resAuth.json();
       if (!resAuth.ok) throw new Error(authData.error || 'Erro ao criar conta. Email já pode estar em uso.');
 
-      // 2. Login the user automatically to get the cookie
-      const resLogin = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password
-        })
-      });
-      
-      const loginData = await resLogin.json();
-      if (!resLogin.ok) throw new Error(loginData.error || 'Erro ao fazer login automático.');
-
-      // Also set token in localStorage just in case auth context needs it
-      if (loginData.user) {
-        localStorage.setItem('nextia_user', JSON.stringify(loginData.user));
-        // Note: The HTTPOnly cookie nextia_session_token is set automatically by the response
-      }
-
-      // 3. Initialize Partner Profile (this triggers the ensurePartnerSchema and INSERT logic)
-      // Since fetch runs with credentials include by default in same origin, it passes the cookie
-      const resPartner = await fetch('/api/partner/me', { credentials: 'include' });
-      if (!resPartner.ok) throw new Error('Erro ao criar perfil de parceiro.');
-      
-      // 4. Update CPF/CNPJ
-      await fetch('/api/partner/update-profile', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cpfCnpj: form.cpfCnpj,
-          pixKey: ''
-        })
-      });
-      
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message);
@@ -106,7 +72,7 @@ export default function PartnerRegisterPage() {
           <p className="text-gray-400 mb-8">
             Sua conta está em análise. Você receberá um email quando for aprovado e já poderá começar a indicar clientes.
           </p>
-          <Link to="/parceiros" className="block w-full bg-[#D4A853] text-[#0A0A0F] hover:bg-[#A37E35] font-bold py-4 rounded-xl transition-colors">
+          <Link to="/login" className="block w-full bg-[#D4A853] text-[#0A0A0F] hover:bg-[#A37E35] font-bold py-4 rounded-xl transition-colors text-center">
             Ir para o Painel
           </Link>
         </div>

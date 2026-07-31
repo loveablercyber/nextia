@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Users, DollarSign, Activity, TrendingUp, Search, Filter, 
-  MoreVertical, CheckCircle2, XCircle, Eye, AlertCircle
+  CheckCircle2, XCircle, Eye, AlertCircle, X
 } from 'lucide-react';
 import type { Partner } from '../../types/partner';
 import { PARTNER_LEVELS } from '../../types/partner';
@@ -11,6 +11,8 @@ export default function AdminPartnersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const fetchPartners = async () => {
     try {
@@ -227,11 +229,14 @@ export default function AdminPartnersPage() {
                               <CheckCircle2 className="w-5 h-5" />
                             </button>
                           )}
-                          <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalhes">
+                          <button 
+                            onClick={() => {
+                              setSelectedPartner(partner);
+                              setShowDetails(true);
+                            }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                            title="Ver Detalhes">
                             <Eye className="w-5 h-5" />
-                          </button>
-                          <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors" title="Mais Opções">
-                            <MoreVertical className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -250,6 +255,132 @@ export default function AdminPartnersPage() {
           )}
         </div>
       </div>
+
+      {showDetails && selectedPartner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#111118] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Detalhes do Parceiro</h2>
+              <button 
+                onClick={() => setShowDetails(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-gray-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Nome</p>
+                  <p className="text-white font-medium">{selectedPartner.name || 'Sem nome'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Email</p>
+                  <p className="text-white font-medium">{selectedPartner.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">WhatsApp</p>
+                  <p className="text-white font-medium">{selectedPartner.whatsapp || 'Não informado'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">CPF/CNPJ</p>
+                  <p className="text-white font-medium">{selectedPartner.cpfCnpj || 'Não informado'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Chave PIX</p>
+                  <p className="text-white font-medium">{selectedPartner.pixKey || 'Não informada'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Código de Indicação</p>
+                  <p className="text-white font-medium">{selectedPartner.referralCode || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Nível</p>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: (PARTNER_LEVELS[selectedPartner.level] || PARTNER_LEVELS.bronze).color }} className="font-medium flex items-center gap-1">
+                      {(PARTNER_LEVELS[selectedPartner.level] || PARTNER_LEVELS.bronze).icon} {(PARTNER_LEVELS[selectedPartner.level] || PARTNER_LEVELS.bronze).label}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Status</p>
+                  <p className="capitalize text-white font-medium">{selectedPartner.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Data de Cadastro</p>
+                  <p className="text-white font-medium">{new Date(selectedPartner.createdAt).toLocaleDateString('pt-BR')}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-6">
+                <h3 className="text-lg font-medium text-white mb-4">Desempenho</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p className="text-sm text-gray-500 mb-1">Total Indicações</p>
+                    <p className="text-2xl font-bold text-white">{selectedPartner.totalReferrals || 0}</p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p className="text-sm text-gray-500 mb-1">Indicações Ativas</p>
+                    <p className="text-2xl font-bold text-white">{selectedPartner.activeReferrals || 0}</p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                    <p className="text-sm text-gray-500 mb-1">Comissão Total</p>
+                    <p className="text-2xl font-bold text-[#D4A853]">
+                      R$ {Number(selectedPartner.totalCommission || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-white/5">
+              {selectedPartner.status === 'pendente' && (
+                <button
+                  onClick={() => {
+                    handleUpdateStatus(selectedPartner.id, 'ativo');
+                    setShowDetails(false);
+                  }}
+                  className="px-4 py-2 bg-green-600/20 text-green-500 hover:bg-green-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  Aprovar
+                </button>
+              )}
+              {selectedPartner.status === 'ativo' && (
+                <button
+                  onClick={() => {
+                    handleUpdateStatus(selectedPartner.id, 'suspenso');
+                    setShowDetails(false);
+                  }}
+                  className="px-4 py-2 bg-red-600/20 text-red-500 hover:bg-red-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
+                >
+                  <XCircle className="w-5 h-5" />
+                  Suspender
+                </button>
+              )}
+              {selectedPartner.status === 'suspenso' && (
+                <button
+                  onClick={() => {
+                    handleUpdateStatus(selectedPartner.id, 'ativo');
+                    setShowDetails(false);
+                  }}
+                  className="px-4 py-2 bg-green-600/20 text-green-500 hover:bg-green-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  Reativar
+                </button>
+              )}
+              <button
+                onClick={() => setShowDetails(false)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-medium"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

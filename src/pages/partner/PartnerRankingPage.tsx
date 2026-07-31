@@ -14,8 +14,14 @@ export default function PartnerRankingPage() {
     return new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short', style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Sort ranking (assuming already sorted, but just in case)
-  const sortedRanking = [...ranking].sort((a, b) => b.totalCommission - a.totalCommission);
+  // Sort/filter ranking based on active tab
+  const sortedRanking = [...ranking]
+    .filter(p => {
+      if (activeTab === 'mensal') return (p.activeReferrals || 0) > 0;
+      if (activeTab === 'anual') return (p.totalCommission || 0) > 0;
+      return true;
+    })
+    .sort((a, b) => b.totalCommission - a.totalCommission);
   const top3 = sortedRanking.slice(0, 3);
   const restOfRanking = sortedRanking.slice(3);
 

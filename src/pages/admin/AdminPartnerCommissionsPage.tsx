@@ -7,6 +7,7 @@ import type { Commission, WithdrawalRequest } from '../../types/partner';
 export default function AdminPartnerCommissionsPage() {
   const [activeTab, setActiveTab] = useState<'commissions' | 'withdrawals'>('commissions');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -179,10 +180,20 @@ export default function AdminPartnerCommissionsPage() {
               className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto justify-center">
-            <Filter className="w-4 h-4" />
-            Filtros
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Filter className="w-4 h-4 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20"
+            >
+              <option value="all">Todos os Status</option>
+              <option value="pendente">Pendente</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="pago">Pago</option>
+              <option value="rejeitado">Rejeitado</option>
+            </select>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -201,7 +212,7 @@ export default function AdminPartnerCommissionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {commissions.filter(c => c.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || (c as any).partnerName?.toLowerCase().includes(searchTerm.toLowerCase())).map((comm) => (
+                {filteredCommissions.map((comm) => (
                   <tr key={comm.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <span className="font-medium text-gray-900">{(comm as any).partnerName || comm.partnerId}</span>
@@ -242,7 +253,7 @@ export default function AdminPartnerCommissionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {withdrawals.filter(w => (w as any).partnerName?.toLowerCase().includes(searchTerm.toLowerCase())).map((wd) => (
+                {filteredWithdrawals.map((wd) => (
                   <tr key={wd.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <span className="font-medium text-gray-900">{(wd as any).partnerName || wd.partnerId}</span>
