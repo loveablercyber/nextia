@@ -97,21 +97,13 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     error: null,
   });
 
-  const getAuthToken = () => {
-    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
-      || localStorage.getItem('nextia_token');
-  };
-
   const fetchPartnerData = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      const token = getAuthToken();
-      if (!token) throw new Error('Não autenticado');
 
       const res = await fetch('/api/partner/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include',
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error('Falha ao carregar dados do parceiro');
       
@@ -136,12 +128,11 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateProfile = useCallback(async (updates: Partial<Partner>) => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/partner/update-profile', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(updates)
       });
@@ -156,12 +147,11 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const requestWithdrawal = useCallback(async (amount: number) => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/partner/request-withdrawal', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ amount })
       });

@@ -12,21 +12,15 @@ export default function AdminPartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const getAuthToken = () => {
-    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
-      || localStorage.getItem('nextia_token');
-  };
-
   const fetchPartners = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
       const res = await fetch('/api/admin/partners', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
+        cache: 'no-store',
       });
       if (res.ok) {
         const data = await res.json();
-        setPartners(data.partners);
+        setPartners(data.partners || []);
       }
     } catch (err) {
       console.error(err);
@@ -41,12 +35,11 @@ export default function AdminPartnersPage() {
 
   const handleUpdateStatus = async (id: string, status: 'ativo' | 'pendente' | 'suspenso') => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/admin/update-partner', {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ id, status })
       });
@@ -59,8 +52,8 @@ export default function AdminPartnersPage() {
   };
 
   const filteredPartners = partners.filter(partner => {
-    const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          partner.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (partner.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (partner.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || partner.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -182,10 +175,10 @@ export default function AdminPartnersPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
-                            {partner.name.charAt(0)}
+                            {(partner.name || '?').charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-gray-900">{partner.name}</p>
+                            <p className="font-bold text-gray-900">{partner.name || 'Sem nome'}</p>
                             <p className="text-sm text-gray-500">{partner.email}</p>
                           </div>
                         </div>

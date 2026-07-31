@@ -1278,6 +1278,20 @@ async function handlePartnerApi(req, res, url) {
       if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso restrito.' });
       
       if (url.pathname === '/api/admin/partners') {
+        // Backfill partner profiles for accounts registered as partners (company = Parceiro)
+        // that never got a partner_profiles row (e.g. failed post-register init).
+        await client.query(`
+          INSERT INTO public.partner_profiles (user_id, referral_code, status)
+          SELECT p.id,
+                 lower(regexp_replace(coalesce(nullif(trim(p.name), ''), 'partner'), '[^a-zA-Z0-9]+', '-', 'g'))
+                   || '-' || substr(replace(p.id::text, '-', ''), 1, 6),
+                 'pendente'
+          FROM public.profiles p
+          WHERE lower(coalesce(p.company, '')) = 'parceiro'
+            AND NOT EXISTS (SELECT 1 FROM public.partner_profiles pp WHERE pp.user_id = p.id)
+          ON CONFLICT (user_id) DO NOTHING
+        `);
+
         const result = await client.query(`
           SELECT pp.id, pp.user_id as "userId", pr.name, pr.email, pr.phone as whatsapp, 
                  pp.cpf_cnpj as "cpfCnpj", pp.pix_key as "pixKey", pp.referral_code as "referralCode", 
@@ -1343,7 +1357,9 @@ async function handlePartnerApi(req, res, url) {
       // Ensure partner profile exists for this user
       let profileRes = await client.query(`SELECT * FROM public.partner_profiles WHERE user_id = $1`, [sessionProfile.id]);
       if (profileRes.rows.length === 0) {
-        const code = sessionProfile.name ? sessionProfile.name.toLowerCase().replace(/\\s+/g, '-') + '-' + Math.random().toString(36).substring(2,6) : 'partner-' + Math.random().toString(36).substring(2,8);
+        const code = sessionProfile.name
+          ? sessionProfile.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 24) + '-' + Math.random().toString(36).substring(2, 6)
+          : 'partner-' + Math.random().toString(36).substring(2, 8);
         profileRes = await client.query(`
           INSERT INTO public.partner_profiles (user_id, referral_code, status) 
           VALUES ($1, $2, 'pendente') RETURNING *`, 
@@ -1592,6 +1608,7 @@ async function handleAuth(req, res, pathname) {
       .slice(0, 2)
       .join('')
       .toUpperCase() || 'NX';
+    const isPartner = String(body.role || '').toLowerCase() === 'partner';
     const client = dbClient();
     await client.connect();
     try {
@@ -1605,6 +1622,21 @@ async function handleAuth(req, res, pathname) {
         `INSERT INTO public.local_auth_users (id, password_hash) VALUES ($1, $2)`,
         [id, hashPassword(body.password)],
       );
+      if (isPartner) {
+        await ensurePartnerSchema(client);
+        const nameSlug = String(body.name || 'partner')
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '')
+          .slice(0, 24) || 'partner';
+        const referralCode = `${nameSlug}-${Math.random().toString(36).substring(2, 6)}`;
+        await client.query(
+          `INSERT INTO public.partner_profiles (user_id, referral_code, cpf_cnpj, status)
+           VALUES ($1, $2, $3, 'pendente')
+           ON CONFLICT (user_id) DO NOTHING`,
+          [id, referralCode, body.cpfCnpj || body.cpf_cnpj || ''],
+        );
+      }
       await client.query('COMMIT');
       return json(res, 200, { ok: true });
     } catch (err) {
@@ -1774,7 +1806,12 @@ createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/auth/')) {
       return await handleAuth(req, res, url.pathname);
     }
-    if (url.pathname.startsWith('/api/partner/') || (url.pathname.startsWith('/api/admin/partner') && url.pathname !== '/api/admin/list-support-tickets' && url.pathname !== '/api/admin/delete-item')) {
+    if (
+      url.pathname.startsWith('/api/partner/') ||
+      url.pathname.startsWith('/api/admin/partner') ||
+      url.pathname === '/api/admin/update-partner' ||
+      url.pathname === '/api/admin/update-withdrawal'
+    ) {
       return await handlePartnerApi(req, res, url);
     }
     if (url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/')) {

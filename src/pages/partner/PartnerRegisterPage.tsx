@@ -73,12 +73,13 @@ export default function PartnerRegisterPage() {
 
       // 3. Initialize Partner Profile (this triggers the ensurePartnerSchema and INSERT logic)
       // Since fetch runs with credentials include by default in same origin, it passes the cookie
-      const resPartner = await fetch('/api/partner/me');
+      const resPartner = await fetch('/api/partner/me', { credentials: 'include' });
       if (!resPartner.ok) throw new Error('Erro ao criar perfil de parceiro.');
       
       // 4. Update CPF/CNPJ
       await fetch('/api/partner/update-profile', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cpfCnpj: form.cpfCnpj,

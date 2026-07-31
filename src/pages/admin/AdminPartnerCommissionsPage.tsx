@@ -12,21 +12,15 @@ export default function AdminPartnerCommissionsPage() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const getAuthToken = () => {
-    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
-      || localStorage.getItem('nextia_token');
-  };
-
   const fetchCommissions = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
       const res = await fetch('/api/admin/partner-commissions', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
+        cache: 'no-store',
       });
       if (res.ok) {
         const data = await res.json();
-        setCommissions(data.commissions);
+        setCommissions(data.commissions || []);
       }
     } catch (err) {
       console.error(err);
@@ -35,14 +29,13 @@ export default function AdminPartnerCommissionsPage() {
 
   const fetchWithdrawals = async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
       const res = await fetch('/api/admin/partner-withdrawals', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
+        cache: 'no-store',
       });
       if (res.ok) {
         const data = await res.json();
-        setWithdrawals(data.withdrawals);
+        setWithdrawals(data.withdrawals || []);
       }
     } catch (err) {
       console.error(err);
@@ -55,12 +48,11 @@ export default function AdminPartnerCommissionsPage() {
 
   const handleUpdateWithdrawal = async (id: string, status: 'pago' | 'rejeitado') => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/admin/update-withdrawal', {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ id, status })
       });
