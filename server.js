@@ -164,7 +164,7 @@ function mapProfile(row) {
     company: row.company || '',
     phone: row.phone || '',
     avatarInitials: row.avatar_initials || 'NX',
-    role: row.role === 'admin' ? 'admin' : 'client',
+    role: row.role === 'admin' ? 'admin' : (row.is_partner ? 'partner' : 'client'),
     createdAt: row.created_at || new Date().toISOString(),
   };
 }
@@ -215,7 +215,8 @@ async function getUserById(userId) {
   await client.connect();
   try {
     const result = await client.query(
-      `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at
+      `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at,
+              EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
        FROM public.profiles p
        WHERE p.id = $1`,
       [userId],
@@ -1548,7 +1549,8 @@ async function handleAuth(req, res, pathname) {
     await client.connect();
     try {
       const result = await client.query(
-        `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, a.password_hash
+        `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, a.password_hash,
+                EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
          FROM public.local_auth_users a
          JOIN public.profiles p ON p.id = a.id
          WHERE lower(p.email) = lower($1)`,
@@ -1596,8 +1598,8 @@ async function handleAuth(req, res, pathname) {
       await client.query('BEGIN');
       await client.query(
         `INSERT INTO public.profiles (id, email, name, company, phone, role, avatar_initials)
-         VALUES ($1, lower($2), $3, $4, $5, $6, $7)`,
-        [id, body.email, body.name, body.company || '', body.phone || '', body.role === 'partner' ? 'partner' : 'client', initials],
+         VALUES ($1, lower($2), $3, $4, $5, 'client', $6)`,
+        [id, body.email, body.name, body.company || '', body.phone || '', initials],
       );
       await client.query(
         `INSERT INTO public.local_auth_users (id, password_hash) VALUES ($1, $2)`,
