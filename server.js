@@ -1258,6 +1258,7 @@ const partnerApiMethods = new Map([
   ['/api/admin/partner-commissions', 'GET'],
   ['/api/admin/partner-withdrawals', 'GET'],
   ['/api/admin/update-withdrawal', 'POST'],
+  ['/api/admin/update-partner', 'POST'],
 ]);
 
 async function handlePartnerApi(req, res, url) {
@@ -1326,6 +1327,15 @@ async function handlePartnerApi(req, res, url) {
         await client.query(`UPDATE public.partner_withdrawals SET status = $1, processed_at = NOW() WHERE id = $2`, [status, id]);
         return json(res, 200, { status: 'success' });
       }
+
+      if (url.pathname === '/api/admin/update-partner') {
+        const body = await readJson(req);
+        const { id, status } = body;
+        if (!['ativo', 'pendente', 'suspenso'].includes(status)) return json(res, 400, { error: 'Status inválido' });
+        
+        await client.query(`UPDATE public.partner_profiles SET status = $1, updated_at = NOW() WHERE id = $2`, [status, id]);
+        return json(res, 200, { status: 'success' });
+      }
     }
 
     if (url.pathname.startsWith('/api/partner/')) {
@@ -1334,8 +1344,8 @@ async function handlePartnerApi(req, res, url) {
       if (profileRes.rows.length === 0) {
         const code = sessionProfile.name ? sessionProfile.name.toLowerCase().replace(/\\s+/g, '-') + '-' + Math.random().toString(36).substring(2,6) : 'partner-' + Math.random().toString(36).substring(2,8);
         profileRes = await client.query(`
-          INSERT INTO public.partner_profiles (user_id, referral_code) 
-          VALUES ($1, $2) RETURNING *`, 
+          INSERT INTO public.partner_profiles (user_id, referral_code, status) 
+          VALUES ($1, $2, 'pendente') RETURNING *`, 
           [sessionProfile.id, code]
         );
       }

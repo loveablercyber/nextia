@@ -17,26 +17,46 @@ export default function AdminPartnersPage() {
       || localStorage.getItem('nextia_token');
   };
 
-  useEffect(() => {
-    const fetchPartners = async () => {
-      try {
-        const token = getAuthToken();
-        if (!token) return;
-        const res = await fetch('/api/admin/partners', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPartners(data.partners);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchPartners = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch('/api/admin/partners', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPartners(data.partners);
       }
-    };
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPartners();
   }, []);
+
+  const handleUpdateStatus = async (id: string, status: 'ativo' | 'pendente' | 'suspenso') => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/update-partner', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) {
+        fetchPartners(); // Refresh list
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const filteredPartners = partners.filter(partner => {
     const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -191,7 +211,26 @@ export default function AdminPartnersPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                           {partner.status === 'pendente' && (
-                            <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Aprovar">
+                            <button 
+                              onClick={() => handleUpdateStatus(partner.id, 'ativo')}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                              title="Aprovar">
+                              <CheckCircle2 className="w-5 h-5" />
+                            </button>
+                          )}
+                          {partner.status === 'ativo' && (
+                            <button 
+                              onClick={() => handleUpdateStatus(partner.id, 'suspenso')}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                              title="Suspender">
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          )}
+                          {partner.status === 'suspenso' && (
+                            <button 
+                              onClick={() => handleUpdateStatus(partner.id, 'ativo')}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                              title="Reativar">
                               <CheckCircle2 className="w-5 h-5" />
                             </button>
                           )}
