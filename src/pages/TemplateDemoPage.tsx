@@ -1289,6 +1289,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 13. Escritório Contábil Interactive State
+  const [contaCategoryFilter, setContaCategoryFilter] = useState('todos');
+
+  const contaArticles = [
+    {
+      title: "Reforma Tributária 2026: O Impacto do IVA Dual nas Empresas de Serviços",
+      category: "Planejamento Tributário",
+      date: "30 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Distribuição de Lucros Isenta: Como Reduzir a Carga Fiscal dos Sócios Legitimamente",
+      category: "Estratégia Fiscal",
+      date: "26 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "BPO Financeiro PME: Por Que Terceirizar o Contas a Pagar e Receber",
+      category: "Gestão Financeira",
+      date: "20 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1464,7 +1488,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'clinica-estetica' ? (
+      {activeSlug === 'contabilidade' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(9, 13, 22, 0.85), rgba(9, 13, 22, 0.95)), url("https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30 text-[#FDE047] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#FDE047]" />
+              CONTABILIDADE CONSULTIVA, BPO FINANCEIRO & PLANEJAMENTO TRIBUTÁRIO
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Apex Contabilidade & Gestão Tributária
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Reduza impostos legalmente, organize o financeiro da sua empresa com BPO de alta precisão e faça a migração contábil gratuita sem burocracia.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <button
+                onClick={() => setIsReserveModalOpen(true)}
+                className="bg-[#EAB308] hover:bg-[#CA8A04] text-[#090D16] px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Solicitar Proposta Comercial
+              </button>
+              <a
+                href="#solucoes-contabeis"
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <Award className="w-4 h-4 text-[#FDE047]" />
+                Ver Soluções & Planos
+              </a>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20solicitar%20uma%20proposta%20comercial%20da%20Apex%20Contabilidade."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                Atendimento Comercial WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'clinica-estetica' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1776,6 +1845,86 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       )}
+      {/* Seção 2: Sobre a Empresa (Apex Contabilidade & Gestão Tributária) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#1E293B]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">CREDIBILIDADE & VISÃO TRIBUTÁRIA</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Contabilidade Estratégica para Alavancar a Lucratividade da Sua Empresa
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Fundada em 2008, a Apex Contabilidade combina tecnologia de ponta com atendimento humano consultivo para simplificar a gestão fiscal, tributária e trabalhista de pequenas e médias empresas. Nossa equipe é composta por contadores registrados no CRC, auditores e especialistas em planejamento tributário.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#0F172A] p-4 rounded-2xl border border-[#1E293B]">
+                  <span className="text-[#EAB308] font-bold block text-sm mb-1">Contadores com CRC</span>
+                  <p className="text-gray-400">Responsáveis técnicos credenciados e atualizados perante o Conselho de Contabilidade.</p>
+                </div>
+                <div className="bg-[#0F172A] p-4 rounded-2xl border border-[#1E293B]">
+                  <span className="text-[#10B981] font-bold block text-sm mb-1">Migração Gratuita 100%</span>
+                  <p className="text-gray-400">Transferimos sua empresa da contabilidade antiga sem custos ou interrupção fiscal.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#1E293B] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=800&auto=format&fit=crop"
+                  alt="Apex Contabilidade Escritório"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#EAB308] font-bold uppercase tracking-wider">Diretoria Executiva</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Dr. Fernando Rezende</h3>
+                  <p className="text-xs text-gray-300">Contador Sênior & Tributarista · CRC 1SP248920/O</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Serviços Interativos (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div id="solucoes-contabeis" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">SOLUÇÕES EMPRESARIAIS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Serviços Contábeis & Financeiros</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#0F172A] border border-[#1E293B] px-3 py-1.5 rounded-full">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
+              Emissão de DRE & Balancete Mensal
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todas as Soluções' },
+              { id: 'gestao', label: 'Gestão Contábil & Fiscal' },
+              { id: 'bpo', label: 'BPO Financeiro PME' },
+              { id: 'tributario', label: 'Planejamento Tributário' },
+              { id: 'abertura', label: 'Abertura & Migração CNPJ' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setContaCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  contaCategoryFilter === cat.id
+                    ? 'bg-[#EAB308] text-[#090D16] border-[#EAB308] shadow-lg'
+                    : 'bg-[#0F172A] text-gray-300 border-[#1E293B] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Seção 2: Sobre a Empresa (Clínica Renova Estética & Dermatologia) */}
       {activeSlug === 'clinica-estetica' && (
         <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#123B44]">
@@ -2343,6 +2492,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais do Escritório (Apex Contabilidade & Gestão Tributária) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#1E293B]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">AUTORIDADE & TRANSPARÊNCIA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Diferenciais do Nosso Escritório</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Vantagens competitivas que asseguram eficiência fiscal e tranquilidade aos empresários.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '💼', title: 'Equipe Credenciada CRC', desc: 'Contadores e auditores especialistas registrados no CRC com atendimento humano.' },
+              { icon: '📊', title: 'Relatórios DRE Mensais', desc: 'Acompanhamento do resultado financeiro e margens de lucro com visão gerencial.' },
+              { icon: '🚀', title: 'Migração 100% Gratuita', desc: 'Tranzitaremos todo o histórico fiscal da sua empresa da contabilidade antiga sem custos.' },
+              { icon: '🔒', title: 'Portal do Cliente 24/7', desc: 'Acesso seguro a guias de impostos, certidões negativas e documentos criptografados.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#0F172A] p-6 rounded-2xl border border-[#1E293B] hover:border-[#EAB308]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Infraestrutura (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1E293B]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">SEDE CORPORATIVA</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Nossa Infraestrutura & Equipe</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">SALAS DE REUNIÃO E AUDITÓRIO</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#1E293B] group relative cursor-pointer">
+                <img src={img} alt="Infraestrutura Apex Contabilidade" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#EAB308]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas do Escritório (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1E293B]">
+          <div className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#EAB308] font-mono">+650</div>
+              <span className="text-xs text-gray-400 font-medium">Empresas Atendidas</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#10B981] font-mono">R$ 14.5M</div>
+              <span className="text-xs text-gray-400 font-medium">Economia Tributária Gerada</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">99.8%</div>
+              <span className="text-xs text-gray-400 font-medium">Retenção de Clientes</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">18 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">Tradição em Contabilidade</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ Contábil & Fiscal (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#1E293B]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">DÚVIDAS FREQUENTES</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas sobre Contabilidade</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Como funciona a migração de contabilidade para a Apex?", a: "Nossa equipe cuida de 100% da transição! Entramos em contato com a contabilidade atual, solicitamos os livros fiscais e fazemos a transferência sem custos ou multas." },
+              { q: "Qual o prazo para abertura de um novo CNPJ?", a: "Com nosso processo digital, a abertura do CNPJ leva em média de 3 a 5 dias úteis, incluindo emissão da Inscrição Municipal e alvará." },
+              { q: "O que está incluído no serviço de BPO Financeiro?", a: "Gestão completa de contas a pagar e receber, emissão de notas fiscais, conciliação bancária diária e relatórios de fluxo de caixa." },
+              { q: "Como saber se minha empresa está enquadrada no melhor regime tributário?", a: "Realizamos uma auditoria gratuita para comparar Simples Nacional, Lucro Presumido e Lucro Real, garantindo a menor tributação legal." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#0F172A] p-5 rounded-2xl border border-[#1E293B] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#EAB308]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog de Contabilidade & Tributos (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#1E293B] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">ESTRATÉGIA & FISCAL</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog & Artigos Contábeis</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#EAB308] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {contaArticles.map((art, i) => (
+              <div key={i} className="bg-[#0F172A] border border-[#1E293B] rounded-2xl overflow-hidden group hover:border-[#EAB308]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#EAB308] border border-[#EAB308]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#EAB308] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#EAB308] font-bold flex items-center gap-1 pt-2 border-t border-[#1E293B]">
+                    Ler Artigo Contábil →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Sede Corporativa (Apex Contabilidade) */}
+      {activeSlug === 'contabilidade' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1E293B] text-left">
+          <div className="bg-[#0F172A] border border-[#1E293B] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#EAB308] uppercase tracking-widest block">SEDE CORPORATIVA</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Nossas Instalações</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Escritório corporativo moderno preparado para receber reuniões presenciais e conselhos fiscais.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#EAB308]" />
+                  <span>Av. Engenheiro Luís Carlos Berrini, 1500 - 12º Andar — São Paulo, SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#EAB308]" />
+                  <span>(11) 3040-5500 · contato@apexcontabilidade.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#EAB308]" />
+                  <span>Seg a Sex: 08h30 - 18h | Suporte Fiscal via WhatsApp</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#090D16] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#EAB308]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para abrir localização no aplicativo de navegação</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#EAB308] text-[#090D16] px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais da Clínica (Clínica Renova Estética & Dermatologia) */}
       {activeSlug === 'clinica-estetica' && (

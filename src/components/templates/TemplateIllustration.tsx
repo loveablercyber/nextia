@@ -23,6 +23,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'clinica-estetica' || category === 'clinica-estetica') {
     return <ClinicaPremiumIllustration />;
   }
+  if (slug === 'contabilidade' || category === 'contabilidade') {
+    return <ContabilidadePremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -685,6 +688,68 @@ function ClinicaPremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#2DD4BF" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#14B8A6" />
           <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Agendar Avaliação</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ContabilidadePremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-conta-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#090D16" />
+          <stop offset="100%" stopColor="#111827" />
+        </linearGradient>
+        <linearGradient id="gold-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#EAB308" />
+          <stop offset="100%" stopColor="#CA8A04" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-conta-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#EAB308" fontSize="11.5" fontWeight="800" fontFamily="Inter, sans-serif">💼 APEX CONTABILIDADE · GESTÃO TRIBUTÁRIA & BPO</text>
+      <rect x="275" y="8" width="110" height="18" rx="9" fill="url(#gold-grad)" />
+      <text x="330" y="20" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">CRC REGISTRADO · ISO 9001</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(17,24,39,0.8)" stroke="rgba(234,179,8,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Contabilidade Consultiva & Planejamento Tributário</text>
+      <text x="200" y="75" fill="#FDE047" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Redução legal de impostos, BPO financeiro e migração gratuita sem burocracia</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="25" y="96" width="85" height="20" rx="10" fill="url(#gold-grad)" />
+        <text x="67" y="109" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Gestão Contábil</text>
+        <rect x="115" y="96" width="75" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="152" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">BPO Financeiro</text>
+        <rect x="195" y="96" width="85" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="237" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Plano Tributário</text>
+        <rect x="285" y="96" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="315" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Migração</text>
+      </g>
+
+      {/* Service cards */}
+      {[
+        { title: 'Gestão Contábil', price: 'Economia Legal', specs: 'DRE Mensal & Suporte CRC', badge: 'MAIS PROCURADO' },
+        { title: 'BPO Financeiro PME', price: 'Gestão 100%', specs: 'Contas a Pagar & Conciliação', badge: 'EFICIÊNCIA MAXIMUM' },
+        { title: 'Abertura & Migração', price: 'Taxa Zero', specs: 'Migração Gratuita & Rápida', badge: 'FACILITADO' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#0F172A" stroke="rgba(234,179,8,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#1E293B" />
+          <text x={74 + i*126} y="152" fill="#EAB308" fontSize="20" textAnchor="middle">📊</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#CA8A04" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#FDE047" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#EAB308" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#10B981" />
+          <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Solicitar Proposta</text>
         </g>
       ))}
     </svg>
