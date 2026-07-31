@@ -44,18 +44,39 @@ export default function PartnerRegisterPage() {
           email: form.email,
           password: form.password,
           phone: form.whatsapp,
-          company: 'Parceiro'
+          company: 'Parceiro',
+          role: 'partner'
         })
       });
       
       const authData = await resAuth.json();
       if (!resAuth.ok) throw new Error(authData.error || 'Erro ao criar conta. Email já pode estar em uso.');
 
-      // 2. Initialize Partner Profile (this triggers the ensurePartnerSchema and INSERT logic)
+      // 2. Login the user automatically to get the cookie
+      const resLogin = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password
+        })
+      });
+      
+      const loginData = await resLogin.json();
+      if (!resLogin.ok) throw new Error(loginData.error || 'Erro ao fazer login automático.');
+
+      // Also set token in localStorage just in case auth context needs it
+      if (loginData.user) {
+        localStorage.setItem('nextia_user', JSON.stringify(loginData.user));
+        // Note: The HTTPOnly cookie nextia_session_token is set automatically by the response
+      }
+
+      // 3. Initialize Partner Profile (this triggers the ensurePartnerSchema and INSERT logic)
+      // Since fetch runs with credentials include by default in same origin, it passes the cookie
       const resPartner = await fetch('/api/partner/me');
       if (!resPartner.ok) throw new Error('Erro ao criar perfil de parceiro.');
       
-      // 3. Update CPF/CNPJ
+      // 4. Update CPF/CNPJ
       await fetch('/api/partner/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

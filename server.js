@@ -1596,8 +1596,8 @@ async function handleAuth(req, res, pathname) {
       await client.query('BEGIN');
       await client.query(
         `INSERT INTO public.profiles (id, email, name, company, phone, role, avatar_initials)
-         VALUES ($1, lower($2), $3, $4, $5, 'client', $6)`,
-        [id, body.email, body.name, body.company || '', body.phone || '', initials],
+         VALUES ($1, lower($2), $3, $4, $5, $6, $7)`,
+        [id, body.email, body.name, body.company || '', body.phone || '', body.role === 'partner' ? 'partner' : 'client', initials],
       );
       await client.query(
         `INSERT INTO public.local_auth_users (id, password_hash) VALUES ($1, $2)`,
