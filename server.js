@@ -1514,6 +1514,9 @@ async function serveStatic(req, res) {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    if (url.pathname === '/health' || url.pathname === '/healthz' || url.pathname === '/api/health') {
+      return json(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
+    }
     if (url.pathname.startsWith('/api/auth/')) {
       return await handleAuth(req, res, url.pathname);
     }
