@@ -9,7 +9,7 @@ import Button from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
 
 export default function AdminQuotesPage() {
-  const { quotes, profiles, updateQuoteStatus, createProject, loading, refreshData } = useAdmin();
+  const { quotes, profiles, updateQuoteStatus, deleteQuote, createProject, loading, refreshData } = useAdmin();
   const [filterStatus, setFilterStatus] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState<string>('');
   
@@ -115,6 +115,13 @@ export default function AdminQuotesPage() {
     }
 
     try {
+      const success = await deleteQuote(quoteId);
+      if (success) {
+        alert('Orçamento removido com sucesso!');
+        await refreshData();
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
       const response = await fetch('/api/admin/delete-item', {

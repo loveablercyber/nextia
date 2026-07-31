@@ -13,6 +13,7 @@ interface AdminContextValue {
   updateRequestStatus: (projectId: string, requestId: string, status: ChangeRequest['status']) => Promise<void>;
   createInvoice: (projectId: string, desc: string, amount: number, type: 'ativacao' | 'mensalidade') => Promise<void>;
   updateQuoteStatus: (quoteId: string, status: 'novo' | 'em-analise' | 'respondido' | 'contratado') => Promise<void>;
+  deleteQuote: (quoteId: string) => Promise<boolean>;
   createProject: (projectData: {
     userId: string;
     name: string;
@@ -443,7 +444,27 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── createProject ──
+  // ── deleteQuote ──
+  const deleteQuote = async (quoteId: string): Promise<boolean> => {
+    if (isSupabaseEnabled) {
+      const { error } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', quoteId);
+
+      if (error) {
+        console.error('Error deleting quote from Supabase:', error);
+        return false;
+      }
+      setQuotes(prev => prev.filter(q => q.id !== quoteId));
+      return true;
+    } else {
+      const updated = quotes.filter(q => String(q.id) !== String(quoteId));
+      setQuotes(updated);
+      localStorage.setItem('nextia_quotes', JSON.stringify(updated));
+      return true;
+    }
+  };
   const createProject = async (projectData: {
     userId: string;
     name: string;
