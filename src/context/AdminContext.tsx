@@ -635,6 +635,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       updateRequestStatus,
       createInvoice,
       updateQuoteStatus,
+      deleteQuote,
       createProject,
       refreshData: fetchAllData
     }}>
