@@ -26,6 +26,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'contabilidade' || category === 'contabilidade') {
     return <ContabilidadePremiumIllustration />;
   }
+  if (slug === 'oficina-mecanica' || category === 'oficina-mecanica') {
+    return <OficinaPremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -750,6 +753,68 @@ function ContabilidadePremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#EAB308" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#10B981" />
           <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Solicitar Proposta</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function OficinaPremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-oficina-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0D0F14" />
+          <stop offset="100%" stopColor="#161A22" />
+        </linearGradient>
+        <linearGradient id="amber-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#F59E0B" />
+          <stop offset="100%" stopColor="#D97706" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-oficina-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#F59E0B" fontSize="11.5" fontWeight="800" fontFamily="Inter, sans-serif">🔧 AUTO PERFORMANCE · CENTRO AUTOMOTIVO 3D</text>
+      <rect x="270" y="8" width="115" height="18" rx="9" fill="url(#amber-grad)" />
+      <text x="327" y="20" fill="#0D0F14" fontSize="7.5" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">BOSCH SERVICE · ASE</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(22,26,34,0.8)" stroke="rgba(245,158,11,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Mecânica de Precisão & Diagnóstico 3D</text>
+      <text x="200" y="75" fill="#FDE68A" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Revisão preventiva, injeção eletrônica, freios, câmbio automático e peças originais</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="20" y="96" width="95" height="20" rx="10" fill="url(#amber-grad)" />
+        <text x="67" y="109" fill="#0D0F14" fontSize="8" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">Revisão Preventiva</text>
+        <rect x="120" y="96" width="85" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="162" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Injeção Eletrônica</text>
+        <rect x="210" y="96" width="85" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="252" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Freios & Suspensão</text>
+        <rect x="300" y="96" width="75" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="337" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Câmbio Auto</text>
+      </g>
+
+      {/* Service cards */}
+      {[
+        { title: 'Diagnóstico Scanner 3D', price: 'Rastreio 100%', specs: 'Leitura de Injeção & ABS', badge: 'TECNOLOGIA' },
+        { title: 'Revisão Preventiva', price: 'Garantia 1 Ano', specs: 'Troca de Óleo & 50 Itens', badge: 'MAIS PROCURADO' },
+        { title: 'Troca de Óleo Câmbio', price: 'Flushing 100%', specs: 'Óleo Sintético Original', badge: 'ESPECIALIZADO' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#121620" stroke="rgba(245,158,11,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#1C2230" />
+          <text x={74 + i*126} y="152" fill="#F59E0B" fontSize="20" textAnchor="middle">🚘</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#D97706" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#FDE68A" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#F59E0B" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#F59E0B" />
+          <text x={74 + i*126} y="224" fill="#0D0F14" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">Agendar Revisão</text>
         </g>
       ))}
     </svg>

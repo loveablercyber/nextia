@@ -1313,6 +1313,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 14. Oficina Mecânica Interactive State
+  const [oficinaCategoryFilter, setOficinaCategoryFilter] = useState('todos');
+
+  const oficinaArticles = [
+    {
+      title: "Manutenção Preventiva de Câmbio Automático: Evite Prejuízos de Milhares de Reais",
+      category: "Câmbio & Transmissão",
+      date: "27 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "5 Sinais Principais de Desgaste no Sistema de Suspensão e Amortecedores",
+      category: "Suspensão & Freios",
+      date: "23 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Diagnóstico Eletrônico por Scanner 3D: Como Identificar Falhas Invisíveis no Motor",
+      category: "Injeção & Tecnologia",
+      date: "17 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1488,7 +1512,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'contabilidade' ? (
+      {activeSlug === 'oficina-mecanica' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(13, 15, 20, 0.85), rgba(13, 15, 20, 0.95)), url("https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#FDE68A] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#FDE68A]" />
+              MECÂNICA DE PRECISÃO & DIAGNÓSTICO COMPUTADORIZADO 3D
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Auto Performance — Centro Automotivo & Mecânica Especializada
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Mantenha seu veículo novo com diagnósticos computadorizados de precisão, peças 100% originais com garantia e relatório fotográfico de inspeção via WhatsApp.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <button
+                onClick={() => setIsReserveModalOpen(true)}
+                className="bg-[#F59E0B] hover:bg-[#D97706] text-[#0D0F14] px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Agendar Revisão Online
+              </button>
+              <a
+                href="#servicos-automotivos"
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <Award className="w-4 h-4 text-[#FDE68A]" />
+                Ver Serviços & Diagnósticos
+              </a>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20solicitar%20um%20orcamento%20para%20meu%20veiculo%20na%20Auto%20Performance."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                WhatsApp Direct (Orçamento Rápido)
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'contabilidade' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1845,6 +1914,87 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       )}
+      {/* Seção 2: Sobre a Empresa (Auto Performance — Centro Automotivo) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#1C2230]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">TECNOLOGIA & PRECISÃO AUTOMOTIVA</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Engenharia e Cuidado de Alta Performance para o Seu Veículo
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Fundada em 2010, a Auto Performance é referência em diagnóstico computadorizado e manutenção mecânica de veículos nacionais e importados. Equipados com scanners de última geração homologados Bosch e ferramentas de precisão 3D, garantimos transparência total, relatórios fotográficos de inspeção via WhatsApp e peças 100% originais.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#121620] p-4 rounded-2xl border border-[#1C2230]">
+                  <span className="text-[#F59E0B] font-bold block text-sm mb-1">Mecânicos Certificados</span>
+                  <p className="text-gray-400">Técnicos treinados pelas maiores montadoras e com certificação Bosch Service / ASE.</p>
+                </div>
+                <div className="bg-[#121620] p-4 rounded-2xl border border-[#1C2230]">
+                  <span className="text-[#EF4444] font-bold block text-sm mb-1">Garantia 1 Ano por Escrito</span>
+                  <p className="text-gray-400">Peças genuínas com nota fiscal e garantia total em todos os serviços executados.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#1C2230] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=800&auto=format&fit=crop"
+                  alt="Auto Performance Oficina Mecânica"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#F59E0B] font-bold uppercase tracking-wider">Mestre de Oficina</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Eng. Roberto Siqueira</h3>
+                  <p className="text-xs text-gray-300">Chefe de Mecânica & Especialista em Injeção 3D · Bosch Certified</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Serviços Interativos (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div id="servicos-automotivos" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">CATÁLOGO DE SERVIÇOS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Manutenção & Diagnóstico Automotivo</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#121620] border border-[#1C2230] px-3 py-1.5 rounded-full">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#F59E0B]" />
+              Relatório Fotográfico via WhatsApp
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todos os Serviços' },
+              { id: 'diagnostico', label: 'Diagnóstico Scanner 3D' },
+              { id: 'revisao', label: 'Revisão Preventiva & Óleo' },
+              { id: 'injecao', label: 'Injeção Eletrônica & Motor' },
+              { id: 'freios', label: 'Freios, Suspensão & Pneus' },
+              { id: 'cambio', label: 'Câmbio Automático & Ar' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setOficinaCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  oficinaCategoryFilter === cat.id
+                    ? 'bg-[#F59E0B] text-[#0D0F14] border-[#F59E0B] shadow-lg'
+                    : 'bg-[#121620] text-gray-300 border-[#1C2230] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Seção 2: Sobre a Empresa (Apex Contabilidade & Gestão Tributária) */}
       {activeSlug === 'contabilidade' && (
         <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#1E293B]">
@@ -2492,6 +2642,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais da Oficina (Auto Performance — Centro Automotivo) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#1C2230]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">EXCELÊNCIA AUTOMOTIVA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Por Que Escolher a Auto Performance</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Transparência, tecnologia de precisão e garantia em cada detalhe do seu veículo.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '💻', title: 'Diagnóstico Scanner 3D', desc: 'Leitura completa da injeção, ABS e câmbio via scanner original de fábrica.' },
+              { icon: '👨‍🔧', title: 'Certificação Bosch / ASE', desc: 'Mecânicos capacitados e atualizados com as normas internacionais de reparação.' },
+              { icon: '🛡️', title: 'Peças Genuínas 1 Ano', desc: 'Componentes 100% originais com garantia por escrito e nota fiscal de serviço.' },
+              { icon: '🚙', title: 'Leva & Traz + Carro Cortesia', desc: 'Buscamos seu carro no trabalho ou residência com toda a comodidade e segurança.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#121620] p-6 rounded-2xl border border-[#1C2230] hover:border-[#F59E0B]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Estrutura & Veículos (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1C2230]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">NOSSO ESTRUTURA</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Oficina Boutique & Elevadores 3D</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">EQUIPAMENTOS DE ALTA PRECISÃO</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1486006920555-c77dce18193b?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#1C2230] group relative cursor-pointer">
+                <img src={img} alt="Estrutura Auto Performance Oficina" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#F59E0B]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas da Oficina (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1C2230]">
+          <div className="bg-[#121620] border border-[#1C2230] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#F59E0B] font-mono">+12.000</div>
+              <span className="text-xs text-gray-400 font-medium">Veículos Revisados</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#EF4444] font-mono">99.6%</div>
+              <span className="text-xs text-gray-400 font-medium">Aprovação nos Diagnósticos</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">16 Técnicos</div>
+              <span className="text-xs text-gray-400 font-medium">Especialistas Certificados</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">16 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">Tradição & Confiabilidade</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ Automotivo (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#1C2230]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">DÚVIDAS FREQUENTES</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas sobre Manutenção Automotiva</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Qual a frequência ideal para realizar a revisão preventiva do veículo?", a: "Recomendamos realizar a revisão a cada 10.000 km rodados ou a cada 6 meses (o que ocorrer primeiro), trocando óleo do motor e filtros." },
+              { q: "Como funciona o relatório fotográfico de inspeção via WhatsApp?", a: "Ao subir seu carro no elevador, nossos técnicos gravam vídeos e fotos mostrando o estado real das peças antes da substituição." },
+              { q: "Qual a garantia oferecida para os serviços executados?", a: "Todos os nossos serviços contam com 1 ano de garantia por escrito (ou 15.000 km) cobrindo mão de obra e peças genuínas." },
+              { q: "A oficina oferece socorro ou guincho 24h em caso de emergência?", a: "Sim! Possuímos parceria com guinchos credenciados 24h para resgate imediato do seu veículo." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#121620] p-5 rounded-2xl border border-[#1C2230] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#F59E0B]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog Automotivo & Dicas (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#1C2230] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">DICAS & TECNOLOGIA</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog Automotivo</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#F59E0B] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {oficinaArticles.map((art, i) => (
+              <div key={i} className="bg-[#121620] border border-[#1C2230] rounded-2xl overflow-hidden group hover:border-[#F59E0B]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#F59E0B] border border-[#F59E0B]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#F59E0B] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#F59E0B] font-bold flex items-center gap-1 pt-2 border-t border-[#1C2230]">
+                    Ler Artigo Automotivo →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Sede Automotiva (Auto Performance) */}
+      {activeSlug === 'oficina-mecanica' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1C2230] text-left">
+          <div className="bg-[#121620] border border-[#1C2230] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#F59E0B] uppercase tracking-widest block">LOCALIZAÇÃO & ATENDIMENTO</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Nosso Centro Automotivo</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Estrutura ampla e climatizada para receber você e seu veículo com total conforto, café especial e Wi-Fi de alta velocidade.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#F59E0B]" />
+                  <span>Av. das Nações Unidas, 4500 — São Paulo, SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#F59E0B]" />
+                  <span>(11) 3890-4400 · contato@autoperformance.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#F59E0B]" />
+                  <span>Seg a Sex: 08h00 - 18h | Sáb: 08h00 - 13h (Socorro 24h)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#0D0F14] border border-[#1C2230] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#F59E0B]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para abrir rota até a oficina no aplicativo GPS</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#F59E0B] text-[#0D0F14] px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais do Escritório (Apex Contabilidade & Gestão Tributária) */}
       {activeSlug === 'contabilidade' && (
