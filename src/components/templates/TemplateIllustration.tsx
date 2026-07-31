@@ -17,6 +17,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'servicos-profissionais' || category === 'prestador-servicos') {
     return <ServicosPremiumIllustration />;
   }
+  if (slug === 'loja-catalogo' || category === 'loja-catalogo') {
+    return <LojaPremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -555,6 +558,68 @@ function ServicosPremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#06B6D4" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#2563EB" />
           <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Cotar Serviço</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function LojaPremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-loja-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0F0D15" />
+          <stop offset="100%" stopColor="#181524" />
+        </linearGradient>
+        <linearGradient id="pink-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#EC4899" />
+          <stop offset="100%" stopColor="#D946EF" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-loja-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#EC4899" fontSize="11.5" fontWeight="800" fontFamily="Inter, sans-serif">👗 BOUTIQUE ELEGANCE · MODA & CATÁLOGO</text>
+      <rect x="280" y="8" width="105" height="18" rx="9" fill="url(#pink-grad)" />
+      <text x="332" y="20" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">FRETE GRÁTIS R$ 299+</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(24,21,36,0.8)" stroke="rgba(236,72,153,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Nova Coleção Outono / Inverno 2026</text>
+      <text x="200" y="75" fill="#F472B6" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Moda feminina, alfaiataria de luxo, calçados e bolsas exclusivas</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="30" y="96" width="75" height="20" rx="10" fill="url(#pink-grad)" />
+        <text x="67" y="109" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Lançamentos</text>
+        <rect x="113" y="96" width="80" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="153" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Moda Feminina</text>
+        <rect x="200" y="96" width="80" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="240" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Calçados & Bolsas</text>
+        <rect x="287" y="96" width="55" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="314" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Joias</text>
+      </g>
+
+      {/* Product cards */}
+      {[
+        { title: 'Vestido Seda Premium', price: 'R$ 289', specs: 'Em até 6x de R$ 48', badge: 'LANÇAMENTO' },
+        { title: 'Blazer Alfaiataria', price: 'R$ 349', specs: '5% OFF no Pix', badge: 'MAIS VENDIDO' },
+        { title: 'Bolsa Couro Legítimo', price: 'R$ 450', specs: 'Edição Limitada', badge: 'EXCLUSIVO' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#151121" stroke="rgba(236,72,153,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#251C3A" />
+          <text x={74 + i*126} y="152" fill="#EC4899" fontSize="20" textAnchor="middle">👗</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#EC4899" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#F472B6" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#EC4899" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#10B981" />
+          <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Comprar via Whats</text>
         </g>
       ))}
     </svg>

@@ -1241,6 +1241,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 11. Loja e Catálogo Interactive State
+  const [lojaCategoryFilter, setLojaCategoryFilter] = useState('todos');
+
+  const lojaArticles = [
+    {
+      title: "Tendências Outono/Inverno 2026: A Ascensão da Alfaiataria Feminina",
+      category: "Moda & Estilo",
+      date: "28 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Como Cuidar de Peças em Seda e Linho Puro para Maior Durabilidade",
+      category: "Cuidados Especiais",
+      date: "22 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Guia de Acessórios: Transformando Looks Básicos em Visual de Luxo",
+      category: "Dicas de Estilo",
+      date: "18 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1416,7 +1440,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'servicos-profissionais' ? (
+      {activeSlug === 'loja-catalogo' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(15, 13, 21, 0.85), rgba(15, 13, 21, 0.95)), url("https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EC4899]/10 border border-[#EC4899]/30 text-[#EC4899] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#EC4899]" />
+              COLEÇÃO EXCLUSIVA 2026 · BOUTIQUE & E-COMMERCE
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Boutique Elegance Moda & Catálogo
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Descubra peças de alta costura, alfaiataria premium, vestidos em seda pura e calçados exclusivos com entrega expressa para todo o Brasil.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <a
+                href="#catalogo-produtos"
+                className="bg-[#EC4899] hover:bg-[#DB2777] text-white px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Explorar Catálogo Completo
+              </a>
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <ShoppingBag className="w-4 h-4 text-[#10B981]" />
+                Ver Meu Pedido ({cart.length})
+              </button>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20comprar%20produtos%20da%20Boutique%20Elegance."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                Vendas via WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'servicos-profissionais' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1638,6 +1707,86 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       )}
+      {/* Seção 2: Sobre a Empresa (Boutique Elegance Moda & Catálogo) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#251C3A]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">ALTA COSTURA & SOFISTICAÇÃO</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Moda Exclusiva Desenvolvida para Mulheres e Homens Exigentes
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Fundada em 2017, a Boutique Elegance destaca-se pelo design autoral, acabamento impecável em tecidos nobres e curadoria de moda internacional. Nossa missão é entregar estilo refinado, conforto e exclusividade em cada peça do nosso catálogo digital.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#151121] p-4 rounded-2xl border border-[#251C3A]">
+                  <span className="text-[#EC4899] font-bold block text-sm mb-1">Tecidos Sustentáveis</span>
+                  <p className="text-gray-400">Seda pura, linho europeu e algodão egípcio certificado de origem responsável.</p>
+                </div>
+                <div className="bg-[#151121] p-4 rounded-2xl border border-[#251C3A]">
+                  <span className="text-[#10B981] font-bold block text-sm mb-1">Envio Expresso 24h</span>
+                  <p className="text-gray-400">Despacho em até 1 dia útil com embalagem presenteável e código de rastreamento.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#251C3A] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop"
+                  alt="Boutique Elegance Showroom"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#EC4899] font-bold uppercase tracking-wider">Diretoria Criativa</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Camila Siqueira</h3>
+                  <p className="text-xs text-gray-300">Stylist & Estilista Principal</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Catálogo Interativo (Boutique Elegance Moda & Catálogo) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div id="catalogo-produtos" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">CATÁLOGO EXCLUSIVO</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Coleções & Lançamentos 2026</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#151121] border border-[#251C3A] px-3 py-1.5 rounded-full">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
+              Cupom PRIMEIRA10 (10% OFF)
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todas as Peças' },
+              { id: 'feminina', label: 'Moda Feminina' },
+              { id: 'masculina', label: 'Moda Masculina' },
+              { id: 'calcados', label: 'Calçados & Bolsas' },
+              { id: 'acessorios', label: 'Acessórios & Joias' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setLojaCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  lojaCategoryFilter === cat.id
+                    ? 'bg-[#EC4899] text-white border-[#EC4899] shadow-lg'
+                    : 'bg-[#151121] text-gray-300 border-[#251C3A] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Seção 2: Sobre a Empresa (Prime Engenharia & Serviços Técnicos) */}
       {activeSlug === 'servicos-profissionais' && (
         <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#1F2937]">
@@ -2045,6 +2194,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais do E-commerce (Boutique Elegance Moda & Catálogo) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#251C3A]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">EXCELÊNCIA & SEGURANÇA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Diferenciais do Nosso E-Commerce</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Por que comprar com a Boutique Elegance é uma experiência rápida, segura e satisfatória.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '🚚', title: 'Frete Grátis R$ 299+', desc: 'Entrega expressa grátis para todo o Brasil em compras acima de R$ 299.' },
+              { icon: '🔄', title: 'Troca Fácil 30 Dias', desc: 'Primeira troca 100% gratuita no prazo de até 30 dias após o recebimento.' },
+              { icon: '💎', title: 'Curadoria Exclusiva', desc: 'Peças selecionadas com acabamento de alta costura e tecidos nobres.' },
+              { icon: '🔒', title: 'Pagamento 100% Seguro', desc: 'Desconto de 5% no Pix ou parcelamento em até 10x sem juros no cartão.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#151121] p-6 rounded-2xl border border-[#251C3A] hover:border-[#EC4899]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Lookbook & Modas (Boutique Elegance) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#251C3A]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">LOOKBOOK 2026</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Ensaios & Inspirações de Moda</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">COLEÇÃO OUTONO / INVERNO</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#251C3A] group relative cursor-pointer">
+                <img src={img} alt="Lookbook Elegance" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#EC4899]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas da Loja (Boutique Elegance) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#251C3A]">
+          <div className="bg-[#151121] border border-[#251C3A] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#EC4899] font-mono">+15.000</div>
+              <span className="text-xs text-gray-400 font-medium">Pedidos Entregues no Brasil</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">99.2%</div>
+              <span className="text-xs text-gray-400 font-medium">Satisfação dos Clientes</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#10B981] font-mono">+500</div>
+              <span className="text-xs text-gray-400 font-medium">Produtos Exclusivos</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">9 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">Tradição em Moda</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ E-commerce (Boutique Elegance) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#251C3A]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">DÚVIDAS FREQUENTES</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas do E-Commerce</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Qual o prazo de envio e entrega do pedido?", a: "Seu pedido é embalado e despachado em até 24h úteis. O prazo de entrega varia de 2 a 5 dias úteis via Sedex Express com rastreamento." },
+              { q: "Como funciona a troca ou devolução de peças?", a: "A primeira troca é 100% grátis! Basta solicitar pelo WhatsApp em até 30 dias após receber o pedido." },
+              { q: "Quais são as formas de pagamento aceitas?", a: "Aceitamos Pix (com 5% de desconto automático), cartões de crédito em até 10x sem juros e boleto bancário." },
+              { q: "As peças possuem tabela de medidas detalhada?", a: "Sim! Na página de cada produto você encontra o guia de tamanhos (P, M, G, GG) com medidas de busto, cintura e quadril." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#151121] p-5 rounded-2xl border border-[#251C3A] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#EC4899]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog de Moda & Tendências (Boutique Elegance) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#251C3A] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">MODA & TENDÊNCIAS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog & Editorial de Estilo</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#EC4899] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {lojaArticles.map((art, i) => (
+              <div key={i} className="bg-[#151121] border border-[#251C3A] rounded-2xl overflow-hidden group hover:border-[#EC4899]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#EC4899] border border-[#EC4899]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#EC4899] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#EC4899] font-bold flex items-center gap-1 pt-2 border-t border-[#251C3A]">
+                    Ler Editorial Completo →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Showroom Físico (Boutique Elegance) */}
+      {activeSlug === 'loja-catalogo' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#251C3A] text-left">
+          <div className="bg-[#151121] border border-[#251C3A] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#EC4899] uppercase tracking-widest block">SHOWROOM FÍSICO</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Venha nos Visitar</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Experimente o atendimento exclusivo com nossa equipe de consultoras de estilo em nosso espaço conceitual.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#EC4899]" />
+                  <span>Rua Oscar Freire, 1020 - Jardins — São Paulo, SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#EC4899]" />
+                  <span>(11) 98765-4321 · contato@boutiqueelegance.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#EC4899]" />
+                  <span>Seg a Sáb: 10h - 20h | Dom: 14h - 19h</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#0F0D15] border border-[#251C3A] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#EC4899]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para abrir localização da Boutique no aplicativo</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#EC4899] text-white px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais Corporativos (Prime Engenharia & Serviços Técnicos) */}
       {activeSlug === 'servicos-profissionais' && (
