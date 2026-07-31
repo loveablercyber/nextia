@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import TemplatesPage from './pages/TemplatesPage';
@@ -48,6 +48,23 @@ import TicketDetailPage from './pages/TicketDetailPage';
 import ClientSupportPage from './pages/dashboard/ClientSupportPage';
 import AdminSupportPage from './pages/admin/AdminSupportPage';
 
+// Partner Pages
+import PartnerLandingPage from './pages/partner/PartnerLandingPage';
+import PartnerRegisterPage from './pages/partner/PartnerRegisterPage';
+import { PartnerLayout } from './components/partner/PartnerLayout';
+import { PartnerProvider } from './context/PartnerContext';
+
+const PartnerDashboardPage = lazy(() => import('./pages/partner/PartnerDashboardPage'));
+const PartnerReferralsPage = lazy(() => import('./pages/partner/PartnerReferralsPage'));
+const PartnerCommissionsPage = lazy(() => import('./pages/partner/PartnerCommissionsPage'));
+const PartnerFinancialPage = lazy(() => import('./pages/partner/PartnerFinancialPage'));
+const PartnerRankingPage = lazy(() => import('./pages/partner/PartnerRankingPage'));
+const PartnerMaterialsPage = lazy(() => import('./pages/partner/PartnerMaterialsPage'));
+const PartnerAchievementsPage = lazy(() => import('./pages/partner/PartnerAchievementsPage'));
+const PartnerProfilePage = lazy(() => import('./pages/partner/PartnerProfilePage'));
+const AdminPartnersPage = lazy(() => import('./pages/admin/AdminPartnersPage'));
+const AdminPartnerCommissionsPage = lazy(() => import('./pages/admin/AdminPartnerCommissionsPage'));
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -72,7 +89,7 @@ function NotFound() {
 }
 
 // Pages that DON'T use the Layout (Header/Footer)
-const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-senha'];
+const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/parceiros', '/parceiros/cadastro'];
 
 function DashboardContainer({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
@@ -91,16 +108,28 @@ function AdminContainer({ children, title }: { children: React.ReactNode; title?
     <ProtectedRoute requireRole="admin">
       <AdminProvider>
         <AdminLayout title={title}>
-          {children}
+          <Suspense fallback={<div className="p-8 text-center text-gray-500">Carregando...</div>}>
+            {children}
+          </Suspense>
         </AdminLayout>
       </AdminProvider>
     </ProtectedRoute>
   );
 }
 
+function PartnerContainer() {
+  return (
+    <PartnerProvider>
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-[#0A0A0F]"><div className="text-[#D4A853]">Carregando...</div></div>}>
+        <PartnerLayout />
+      </Suspense>
+    </PartnerProvider>
+  );
+}
+
 function AppRoutes() {
   const { pathname } = useLocation();
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo');
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/parceiro');
 
   const content = (
     <Routes>
@@ -115,6 +144,8 @@ function AppRoutes() {
       <Route path="/orcamento" element={<QuotePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
+      <Route path="/parceiros" element={<PartnerLandingPage />} />
+      <Route path="/parceiros/cadastro" element={<PartnerRegisterPage />} />
       <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
       <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route path="/suporte/ticket/:id" element={<TicketDetailPage />} />
@@ -201,6 +232,18 @@ function AppRoutes() {
         }
       />
 
+      {/* Partner Subroutes */}
+      <Route element={<PartnerContainer />}>
+        <Route path="/parceiro" element={<PartnerDashboardPage />} />
+        <Route path="/parceiro/indicacoes" element={<PartnerReferralsPage />} />
+        <Route path="/parceiro/comissoes" element={<PartnerCommissionsPage />} />
+        <Route path="/parceiro/financeiro" element={<PartnerFinancialPage />} />
+        <Route path="/parceiro/ranking" element={<PartnerRankingPage />} />
+        <Route path="/parceiro/materiais" element={<PartnerMaterialsPage />} />
+        <Route path="/parceiro/conquistas" element={<PartnerAchievementsPage />} />
+        <Route path="/parceiro/perfil" element={<PartnerProfilePage />} />
+      </Route>
+
       {/* Admin Subroutes */}
       <Route
         path="/admin"
@@ -263,6 +306,22 @@ function AppRoutes() {
         element={
           <AdminContainer title="Backup & Restauração">
             <AdminBackupPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/parceiros"
+        element={
+          <AdminContainer title="Gestão de Parceiros">
+            <AdminPartnersPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/parceiros/comissoes"
+        element={
+          <AdminContainer title="Comissões de Parceiros">
+            <AdminPartnerCommissionsPage />
           </AdminContainer>
         }
       />

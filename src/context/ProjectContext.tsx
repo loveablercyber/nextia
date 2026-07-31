@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Project, ProjectFile, ChangeRequest, Payment, ProjectBriefing } from '../types/project';
-import { MOCK_PROJECTS } from '../types/project';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import { supabase } from '../lib/supabase';
@@ -133,10 +132,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           try {
             projectsList = JSON.parse(stored);
           } catch {
-            projectsList = MOCK_PROJECTS;
+            projectsList = [];
           }
         } else {
-          projectsList = MOCK_PROJECTS;
+          projectsList = [];
           localStorage.setItem(STORAGE_KEY, JSON.stringify(projectsList));
         }
 
@@ -252,7 +251,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       try {
         projectsList = JSON.parse(stored);
       } catch {
-        projectsList = MOCK_PROJECTS;
+        projectsList = [];
       }
     }
     const newList = projectsList.map(p => p.id === updatedProject.id ? updatedProject : p);

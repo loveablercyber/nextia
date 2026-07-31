@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   LogOut, Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +22,8 @@ const navItems = [
   { to: '/admin/chamados', icon: MessageSquare, label: 'Solicitações' },
   { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/admin/cobrancas', icon: CreditCard, label: 'Financeiro / Faturas' },
+  { to: '/admin/parceiros', icon: Users, label: 'Parceiros' },
+  { to: '/admin/parceiros/comissoes', icon: DollarSign, label: 'Comissões Parceiros' },
   { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },
 ];
 

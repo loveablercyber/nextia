@@ -44,9 +44,10 @@ export function useQuoteStore() {
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
     try {
+      const quoteResult = calculateQuote(formData);
+      
       if (isSupabaseEnabled) {
         // ── Supabase: Save quote to database ──
-        const quoteResult = calculateQuote(formData);
         const { error } = await supabase.from('quotes').insert([{
           project_type: formData.projectType,
           segment: formData.segment,
@@ -72,10 +73,23 @@ export function useQuoteStore() {
         await new Promise(resolve => setTimeout(resolve, 1800));
         const savedQuotes = JSON.parse(localStorage.getItem('nextia_quotes') ?? '[]');
         savedQuotes.push({
-          ...formData,
-          id: Date.now(),
-          createdAt: new Date().toISOString(),
+          id: `q-${Date.now()}`,
+          project_type: formData.projectType,
+          segment: formData.segment,
+          pages: formData.pagesCount,
+          features: formData.selectedFeatures,
+          has_identity: formData.needsIdentity,
+          urgency: formData.urgency,
+          budget_range: formData.budgetRange,
+          contact_name: formData.name,
+          contact_email: formData.email,
+          contact_phone: formData.whatsapp,
+          contact_company: formData.company,
+          estimated_min: quoteResult.activationMin,
+          estimated_max: quoteResult.activationMax,
+          recommended_plan: quoteResult.recommendedPlan,
           status: 'novo',
+          created_at: new Date().toISOString(),
         });
         localStorage.setItem('nextia_quotes', JSON.stringify(savedQuotes));
       }

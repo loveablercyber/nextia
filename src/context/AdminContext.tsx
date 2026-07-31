@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Project, ChangeRequest, Payment, ProjectMilestone } from '../types/project';
-import { MOCK_PROJECTS } from '../types/project';
 import { supabase } from '../lib/supabase';
 import { useNotification } from './NotificationContext';
 
@@ -32,71 +31,7 @@ const AdminContext = createContext<AdminContextValue | null>(null);
 const STORAGE_KEY = 'nextia_projects_state';
 const isSupabaseEnabled = false;
 
-// Mock Data for Local Fallback
-const MOCK_QUOTES = [
-  {
-    id: 'q-1',
-    user_id: 'usr-001',
-    project_type: 'Institucional',
-    segment: 'Restaurante',
-    pages: 5,
-    features: ['Contato', 'Galeria', 'Reservas'],
-    has_identity: true,
-    urgency: 'normal',
-    budget_range: 'R$ 1.000 - R$ 3.000',
-    contact_name: 'João Silva',
-    contact_email: 'joao@restaurante.com.br',
-    contact_phone: '(11) 99999-1111',
-    contact_company: 'Sabor & Arte',
-    estimated_min: 497,
-    estimated_max: 697,
-    recommended_plan: 'Pro',
-    status: 'novo',
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'q-2',
-    user_id: null,
-    project_type: 'Landing Page',
-    segment: 'Estética',
-    pages: 1,
-    features: ['Contato', 'WhatsApp'],
-    has_identity: false,
-    urgency: 'urgente',
-    budget_range: 'Até R$ 1.000',
-    contact_name: 'Ana Costa',
-    contact_email: 'ana@estetica.com.br',
-    contact_phone: '(11) 98888-2222',
-    contact_company: 'Ana Estética',
-    estimated_min: 297,
-    estimated_max: 397,
-    recommended_plan: 'Start',
-    status: 'em-analise',
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-  }
-];
-
-const MOCK_PROFILES = [
-  {
-    id: 'usr-001',
-    name: 'João Silva',
-    company: 'Restaurante Sabor & Arte',
-    phone: '(11) 99999-1111',
-    role: 'client',
-    avatar_initials: 'JS',
-    created_at: '2026-01-15T10:00:00Z'
-  },
-  {
-    id: 'usr-002',
-    name: 'Admin Nextia',
-    company: 'Nextia',
-    phone: '(11) 99999-0000',
-    role: 'admin',
-    avatar_initials: 'AN',
-    created_at: '2025-01-01T00:00:00Z'
-  }
-];
-
+// Removed Mock Data
 // Adapter: Maps database schema (snake_case) to UI models (camelCase)
 function mapProjectDbToUi(dbProj: any): Project {
   return {
@@ -217,24 +152,24 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         try {
           setProjects(JSON.parse(storedProj));
         } catch {
-          setProjects(MOCK_PROJECTS);
+          setProjects([]);
         }
       } else {
-        setProjects(MOCK_PROJECTS);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_PROJECTS));
+        setProjects([]);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
       }
 
       // Mock Load Quotes
-      const storedQuotes = localStorage.getItem('nextia_quotes_state');
+      const storedQuotes = localStorage.getItem('nextia_quotes');
       if (storedQuotes) {
         try {
           setQuotes(JSON.parse(storedQuotes));
         } catch {
-          setQuotes(MOCK_QUOTES);
+          setQuotes([]);
         }
       } else {
-        setQuotes(MOCK_QUOTES);
-        localStorage.setItem('nextia_quotes_state', JSON.stringify(MOCK_QUOTES));
+        setQuotes([]);
+        localStorage.setItem('nextia_quotes', JSON.stringify([]));
       }
 
       // Mock Load Profiles
@@ -243,11 +178,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         try {
           setProfiles(JSON.parse(storedProfiles));
         } catch {
-          setProfiles(MOCK_PROFILES);
+          setProfiles([]);
         }
       } else {
-        setProfiles(MOCK_PROFILES);
-        localStorage.setItem('nextia_profiles_state', JSON.stringify(MOCK_PROFILES));
+        setProfiles([]);
+        localStorage.setItem('nextia_profiles_state', JSON.stringify([]));
       }
     }
     setLoading(false);
@@ -504,7 +439,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     } else {
       const updated = quotes.map(q => q.id === quoteId ? { ...q, status } : q);
       setQuotes(updated);
-      localStorage.setItem('nextia_quotes_state', JSON.stringify(updated));
+      localStorage.setItem('nextia_quotes', JSON.stringify(updated));
     }
   };
 

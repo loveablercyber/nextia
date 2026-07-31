@@ -29,6 +29,33 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
   const segmentLabel = segments.find(s => s.id === formData.segment)?.label ?? '';
   const urgencyLabel = urgencyOptions.find(u => u.id === formData.urgency)?.label ?? '';
 
+  const formatMoney = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  
+  const waMessage = `🎯 *ORÇAMENTO NEXTIA*
+
+👤 Nome: ${formData.name}
+🏢 Empresa: ${formData.company || 'Não informada'}
+📱 WhatsApp: ${formData.whatsapp}
+📧 Email: ${formData.email}
+
+📋 *DETALHES DO PROJETO*
+Tipo: ${projectLabel}
+Segmento: ${segmentLabel || 'Não informado'}
+Páginas: ${formData.pagesCount}
+Urgência: ${urgencyLabel || 'Não informada'}
+Orçamento: ${formData.budgetRange || 'Não informado'}
+
+✅ *FUNCIONALIDADES*
+${result.selectedFeatureLabels.length > 0 ? result.selectedFeatureLabels.map(f => `• ${f}`).join('\n') : '• Padrão do plano'}
+
+💰 *VALORES ESTIMADOS*
+Ativação: ${formatMoney(result.activationMin)} - ${formatMoney(result.activationMax)}
+Mensalidade: ${formatMoney(result.monthlyMin)} - ${formatMoney(result.monthlyMax)}
+Plano Recomendado: ${result.recommendedPlan}
+Prazo: ${result.daysMin} - ${result.daysMax} dias úteis`;
+
+  const waUrl = `https://wa.me/5514996405496?text=${encodeURIComponent(waMessage)}`;
+
   if (submitted) {
     return (
       <div className="text-center py-12 max-w-lg mx-auto">
@@ -49,7 +76,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href={`https://wa.me/5514996405496?text=Olá! Acabei de solicitar um orçamento na Nextia. Meu nome é ${encodeURIComponent(formData.name)}.`}
+            href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -104,7 +131,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
             Solicitar proposta
           </Button>
           <a
-            href="https://wa.me/5514996405496"
+            href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1"
@@ -245,7 +272,7 @@ export default function QuoteSummary({ formData, result, onSubmit, onReset, subm
           Solicitar proposta detalhada
         </Button>
         <a
-          href={`https://wa.me/5514996405496?text=Olá! Gerei um orçamento na Nextia para um ${projectLabel}. Gostaria de saber mais!`}
+          href={waUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1"
