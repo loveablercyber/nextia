@@ -9,6 +9,7 @@ const navLinks = [
   { label: 'Sites Prontos', href: '/sites-prontos' },
   { label: 'Planos', href: '/planos' },
   { label: 'Como Funciona', href: '/como-funciona' },
+  { label: 'Seja um Parceiro', href: '/parceiros' },
   { label: 'Projeto Personalizado', href: '/projeto-personalizado' },
   { label: 'Contato', href: '/contato' },
 ];

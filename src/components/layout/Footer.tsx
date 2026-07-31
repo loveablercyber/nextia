@@ -6,6 +6,7 @@ const footerLinks = {
     { label: 'Sites Prontos', href: '/sites-prontos' },
     { label: 'Planos e Preços', href: '/planos' },
     { label: 'Como Funciona', href: '/como-funciona' },
+    { label: 'Programa de Parceiros', href: '/parceiros' },
     { label: 'Projeto Personalizado', href: '/projeto-personalizado' },
   ],
   segmentos: [
