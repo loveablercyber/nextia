@@ -1188,6 +1188,246 @@ async function handleSupportApi(req, res, url) {
   }
 }
 
+let partnerSchemaPromise;
+async function ensurePartnerSchema(client) {
+  if (!partnerSchemaPromise) {
+    partnerSchemaPromise = (async () => {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS public.partner_profiles (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+          cpf_cnpj TEXT,
+          pix_key TEXT,
+          referral_code TEXT UNIQUE,
+          status TEXT DEFAULT 'ativo',
+          level TEXT DEFAULT 'bronze',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(user_id)
+        );
+        CREATE TABLE IF NOT EXISTS public.partner_referrals (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          partner_id UUID NOT NULL REFERENCES public.partner_profiles(id) ON DELETE CASCADE,
+          client_name TEXT NOT NULL,
+          client_company TEXT,
+          plan TEXT,
+          monthly_fee NUMERIC DEFAULT 0,
+          status TEXT DEFAULT 'pendente',
+          commission_rate NUMERIC DEFAULT 0.25,
+          commission_generated NUMERIC DEFAULT 0,
+          start_date TIMESTAMPTZ,
+          last_payment_date TIMESTAMPTZ
+        );
+        CREATE TABLE IF NOT EXISTS public.partner_commissions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          partner_id UUID NOT NULL REFERENCES public.partner_profiles(id) ON DELETE CASCADE,
+          referral_id UUID REFERENCES public.partner_referrals(id) ON DELETE SET NULL,
+          client_name TEXT,
+          plan TEXT,
+          monthly_fee NUMERIC DEFAULT 0,
+          commission_value NUMERIC DEFAULT 0,
+          status TEXT DEFAULT 'pendente',
+          period TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS public.partner_withdrawals (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          partner_id UUID NOT NULL REFERENCES public.partner_profiles(id) ON DELETE CASCADE,
+          amount NUMERIC NOT NULL,
+          pix_key TEXT NOT NULL,
+          status TEXT DEFAULT 'pendente',
+          requested_at TIMESTAMPTZ DEFAULT NOW(),
+          processed_at TIMESTAMPTZ
+        );
+      `);
+    })();
+  }
+  try {
+    await partnerSchemaPromise;
+  } catch (error) {
+    partnerSchemaPromise = undefined;
+    throw error;
+  }
+}
+
+const partnerApiMethods = new Map([
+  ['/api/partner/me', 'GET'],
+  ['/api/partner/update-profile', 'POST'],
+  ['/api/partner/request-withdrawal', 'POST'],
+  ['/api/admin/partners', 'GET'],
+  ['/api/admin/partner-commissions', 'GET'],
+  ['/api/admin/partner-withdrawals', 'GET'],
+  ['/api/admin/update-withdrawal', 'POST'],
+]);
+
+async function handlePartnerApi(req, res, url) {
+  const expectedMethod = partnerApiMethods.get(url.pathname);
+  if (!expectedMethod) return json(res, 404, { error: 'API route not found' });
+  if (req.method !== expectedMethod) return json(res, 405, { error: 'Method not allowed' });
+
+  const client = dbClient();
+  await client.connect();
+  try {
+    await ensurePartnerSchema(client);
+    const sessionProfile = await getSessionProfile(req, client);
+    if (!sessionProfile) return json(res, 401, { error: 'Não autorizado.' });
+
+    if (url.pathname.startsWith('/api/admin/')) {
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso restrito.' });
+      
+      if (url.pathname === '/api/admin/partners') {
+        const result = await client.query(`
+          SELECT pp.id, pp.user_id as "userId", pr.name, pr.email, pr.phone as whatsapp, 
+                 pp.cpf_cnpj as "cpfCnpj", pp.pix_key as "pixKey", pp.referral_code as "referralCode", 
+                 pp.level, pp.status, pp.created_at as "createdAt",
+                 (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id) as "totalReferrals",
+                 (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id AND r.status = 'ativo') as "activeReferrals",
+                 (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id) as "totalCommission",
+                 (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id AND c.status = 'pendente') as "pendingBalance",
+                 (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id AND c.status = 'confirmado') - 
+                 (SELECT COALESCE(SUM(w.amount), 0) FROM public.partner_withdrawals w WHERE w.partner_id = pp.id AND w.status IN ('pendente', 'pago')) as "availableBalance"
+          FROM public.partner_profiles pp
+          JOIN public.profiles pr ON pr.id = pp.user_id
+          ORDER BY "totalCommission" DESC
+        `);
+        return json(res, 200, { partners: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/partner-commissions') {
+        const result = await client.query(`
+          SELECT c.id, c.partner_id as "partnerId", pr.name as "partnerName", c.referral_id as "referralId", 
+                 c.client_name as "clientName", c.plan, c.monthly_fee as "monthlyFee", 
+                 c.commission_value as "commissionValue", c.status, c.period, c.created_at as "createdAt"
+          FROM public.partner_commissions c
+          JOIN public.partner_profiles pp ON pp.id = c.partner_id
+          JOIN public.profiles pr ON pr.id = pp.user_id
+          ORDER BY c.created_at DESC
+        `);
+        return json(res, 200, { commissions: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/partner-withdrawals') {
+        const result = await client.query(`
+          SELECT w.id, w.partner_id as "partnerId", pr.name as "partnerName", w.amount, w.pix_key as "pixKey", 
+                 w.status, w.requested_at as "requestedAt", w.processed_at as "processedAt"
+          FROM public.partner_withdrawals w
+          JOIN public.partner_profiles pp ON pp.id = w.partner_id
+          JOIN public.profiles pr ON pr.id = pp.user_id
+          ORDER BY w.requested_at DESC
+        `);
+        return json(res, 200, { withdrawals: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/update-withdrawal') {
+        const body = await readJson(req);
+        const { id, status } = body;
+        if (!['pago', 'rejeitado'].includes(status)) return json(res, 400, { error: 'Status inválido' });
+        
+        await client.query(`UPDATE public.partner_withdrawals SET status = $1, processed_at = NOW() WHERE id = $2`, [status, id]);
+        return json(res, 200, { status: 'success' });
+      }
+    }
+
+    if (url.pathname.startsWith('/api/partner/')) {
+      // Ensure partner profile exists for this user
+      let profileRes = await client.query(`SELECT * FROM public.partner_profiles WHERE user_id = $1`, [sessionProfile.id]);
+      if (profileRes.rows.length === 0) {
+        const code = sessionProfile.name ? sessionProfile.name.toLowerCase().replace(/\\s+/g, '-') + '-' + Math.random().toString(36).substring(2,6) : 'partner-' + Math.random().toString(36).substring(2,8);
+        profileRes = await client.query(`
+          INSERT INTO public.partner_profiles (user_id, referral_code) 
+          VALUES ($1, $2) RETURNING *`, 
+          [sessionProfile.id, code]
+        );
+      }
+      const partnerProfile = profileRes.rows[0];
+
+      if (url.pathname === '/api/partner/me') {
+        const profile = {
+          id: partnerProfile.id,
+          userId: sessionProfile.id,
+          name: sessionProfile.name,
+          email: sessionProfile.email,
+          whatsapp: partnerProfile.whatsapp || '',
+          cpfCnpj: partnerProfile.cpf_cnpj || '',
+          pixKey: partnerProfile.pix_key || '',
+          referralCode: partnerProfile.referral_code,
+          level: partnerProfile.level,
+          status: partnerProfile.status,
+          createdAt: partnerProfile.created_at
+        };
+
+        const referralsRes = await client.query(`
+          SELECT id, partner_id as "partnerId", client_name as "clientName", client_company as "clientCompany", 
+                 plan, monthly_fee as "monthlyFee", status, commission_rate as "commissionRate", 
+                 commission_generated as "commissionGenerated", start_date as "startDate", last_payment_date as "lastPaymentDate"
+          FROM public.partner_referrals WHERE partner_id = $1 ORDER BY start_date DESC
+        `, [partnerProfile.id]);
+
+        const commissionsRes = await client.query(`
+          SELECT id, partner_id as "partnerId", referral_id as "referralId", client_name as "clientName", 
+                 plan, monthly_fee as "monthlyFee", commission_value as "commissionValue", status, period, created_at as "createdAt"
+          FROM public.partner_commissions WHERE partner_id = $1 ORDER BY created_at DESC
+        `, [partnerProfile.id]);
+
+        const withdrawalsRes = await client.query(`
+          SELECT id, partner_id as "partnerId", amount, pix_key as "pixKey", status, requested_at as "requestedAt", processed_at as "processedAt"
+          FROM public.partner_withdrawals WHERE partner_id = $1 ORDER BY requested_at DESC
+        `, [partnerProfile.id]);
+
+        // Calculate balances
+        profile.totalReferrals = referralsRes.rows.length;
+        profile.activeReferrals = referralsRes.rows.filter(r => r.status === 'ativo').length;
+        profile.totalCommission = commissionsRes.rows.reduce((sum, c) => sum + Number(c.commissionValue), 0);
+        
+        const confirmedCommissions = commissionsRes.rows.filter(c => c.status === 'confirmado').reduce((sum, c) => sum + Number(c.commissionValue), 0);
+        const withdrawnAmount = withdrawalsRes.rows.filter(w => w.status === 'pendente' || w.status === 'pago').reduce((sum, w) => sum + Number(w.amount), 0);
+        
+        profile.availableBalance = Math.max(0, confirmedCommissions - withdrawnAmount);
+        profile.pendingBalance = commissionsRes.rows.filter(c => c.status === 'pendente').reduce((sum, c) => sum + Number(c.commissionValue), 0);
+        profile.rankingPosition = 0; // Can be calculated by joining all if needed
+
+        return json(res, 200, { 
+          profile, 
+          referrals: referralsRes.rows, 
+          commissions: commissionsRes.rows, 
+          withdrawals: withdrawalsRes.rows 
+        });
+      }
+
+      if (url.pathname === '/api/partner/update-profile') {
+        const body = await readJson(req);
+        await client.query(`
+          UPDATE public.partner_profiles 
+          SET pix_key = $1, cpf_cnpj = $2, updated_at = NOW() 
+          WHERE id = $3
+        `, [body.pixKey, body.cpfCnpj, partnerProfile.id]);
+        return json(res, 200, { status: 'success' });
+      }
+
+      if (url.pathname === '/api/partner/request-withdrawal') {
+        const body = await readJson(req);
+        const amount = Number(body.amount);
+        if (isNaN(amount) || amount <= 0) return json(res, 400, { error: 'Valor inválido' });
+        
+        // Ensure sufficient balance
+        const commissionsRes = await client.query(`SELECT COALESCE(SUM(commission_value), 0) as total FROM public.partner_commissions WHERE partner_id = $1 AND status = 'confirmado'`, [partnerProfile.id]);
+        const withdrawalsRes = await client.query(`SELECT COALESCE(SUM(amount), 0) as total FROM public.partner_withdrawals WHERE partner_id = $1 AND status IN ('pendente', 'pago')`, [partnerProfile.id]);
+        const available = Number(commissionsRes.rows[0].total) - Number(withdrawalsRes.rows[0].total);
+
+        if (amount > available) return json(res, 400, { error: 'Saldo insuficiente' });
+
+        await client.query(`
+          INSERT INTO public.partner_withdrawals (partner_id, amount, pix_key) 
+          VALUES ($1, $2, $3)
+        `, [partnerProfile.id, amount, partnerProfile.pix_key || body.pixKey]);
+        return json(res, 200, { status: 'success' });
+      }
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 async function handleAuth(req, res, pathname) {
   if (pathname === '/api/auth/me' && req.method === 'GET') {
     const token = parseCookies(req).nextia_session_token || req.headers.authorization?.replace('Bearer ', '');
@@ -1521,6 +1761,9 @@ createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/auth/')) {
       return await handleAuth(req, res, url.pathname);
+    }
+    if (url.pathname.startsWith('/api/partner/') || (url.pathname.startsWith('/api/admin/partner') && url.pathname !== '/api/admin/list-support-tickets' && url.pathname !== '/api/admin/delete-item')) {
+      return await handlePartnerApi(req, res, url);
     }
     if (url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/')) {
       return await handleSupportApi(req, res, url);

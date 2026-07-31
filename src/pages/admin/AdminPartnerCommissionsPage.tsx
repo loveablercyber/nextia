@@ -1,45 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   DollarSign, CreditCard, Clock, CheckCircle2, XCircle, Search, Filter
 } from 'lucide-react';
 import type { Commission, WithdrawalRequest } from '../../types/partner';
 
-const MOCK_COMMISSIONS: Commission[] = [
-  {
-    id: 'com-001', partnerId: 'rk-001', referralId: 'ref-001', clientName: 'Ana Costa',
-    plan: 'Premium', monthlyFee: 299, commissionValue: 74.75, status: 'confirmado',
-    period: '2026-07', createdAt: '2026-07-15T10:05:00Z',
-  },
-  {
-    id: 'com-002', partnerId: 'partner-001', referralId: 'ref-002', clientName: 'Carlos Silva',
-    plan: 'Basic', monthlyFee: 99, commissionValue: 24.75, status: 'pago',
-    period: '2026-06', createdAt: '2026-06-20T09:05:00Z',
-  },
-  {
-    id: 'com-003', partnerId: 'rk-002', referralId: 'ref-003', clientName: 'Mariana Oliveira',
-    plan: 'Pro', monthlyFee: 199, commissionValue: 49.75, status: 'pendente',
-    period: '2026-07', createdAt: '2026-07-28T10:05:00Z',
-  },
-];
-
-const MOCK_WITHDRAWALS: WithdrawalRequest[] = [
-  {
-    id: 'wd-001', partnerId: 'rk-001', amount: 1500, pixKey: 'thiago@pix',
-    status: 'pendente', requestedAt: '2026-07-28T14:30:00Z', processedAt: null
-  },
-  {
-    id: 'wd-002', partnerId: 'partner-001', amount: 450, pixKey: 'lucas@example.com',
-    status: 'pago', requestedAt: '2026-07-10T09:15:00Z', processedAt: '2026-07-11T10:00:00Z'
-  },
-  {
-    id: 'wd-003', partnerId: 'rk-003', amount: 800, pixKey: 'marcos@pix',
-    status: 'rejeitado', requestedAt: '2026-07-20T11:20:00Z', processedAt: '2026-07-21T09:00:00Z'
-  }
-];
-
 export default function AdminPartnerCommissionsPage() {
   const [activeTab, setActiveTab] = useState<'commissions' | 'withdrawals'>('commissions');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const getAuthToken = () => {
+    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
+      || localStorage.getItem('nextia_token');
+  };
+
+  const fetchCommissions = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch('/api/admin/partner-commissions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCommissions(data.commissions);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchWithdrawals = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch('/api/admin/partner-withdrawals', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWithdrawals(data.withdrawals);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    Promise.all([fetchCommissions(), fetchWithdrawals()]).finally(() => setLoading(false));
+  }, []);
+
+  const handleUpdateWithdrawal = async (id: string, status: 'pago' | 'rejeitado') => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/update-withdrawal', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) {
+        fetchWithdrawals(); // Refresh withdrawals
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -57,6 +88,12 @@ export default function AdminPartnerCommissionsPage() {
     }
   };
 
+  const totalCommissions = commissions.reduce((sum, c) => sum + Number(c.commissionValue), 0);
+  const paidCommissions = withdrawals.filter(w => w.status === 'pago').reduce((sum, w) => sum + Number(w.amount), 0);
+  const pendingCommissions = commissions.filter(c => c.status === 'pendente').reduce((sum, c) => sum + Number(c.commissionValue), 0);
+  const pendingWithdrawals = withdrawals.filter(w => w.status === 'pendente').reduce((sum, w) => sum + Number(w.amount), 0);
+  const pendingWithdrawalCount = withdrawals.filter(w => w.status === 'pendente').length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -73,7 +110,7 @@ export default function AdminPartnerCommissionsPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Total Comissões Geradas</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 145.200</h3>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {totalCommissions.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
         
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -83,7 +120,7 @@ export default function AdminPartnerCommissionsPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Comissões Pagas</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 112.500</h3>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {paidCommissions.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -93,7 +130,7 @@ export default function AdminPartnerCommissionsPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Comissões Pendentes</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 32.700</h3>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {pendingCommissions.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -103,7 +140,7 @@ export default function AdminPartnerCommissionsPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Saques Solicitados</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 4.500</h3>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {pendingWithdrawals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
       </div>
 
@@ -132,7 +169,9 @@ export default function AdminPartnerCommissionsPage() {
             >
               <CreditCard className="w-4 h-4" />
               Solicitações de Saque
-              <span className="bg-red-100 text-red-600 py-0.5 px-2 rounded-full text-xs">2</span>
+              {pendingWithdrawalCount > 0 && (
+                <span className="bg-red-100 text-red-600 py-0.5 px-2 rounded-full text-xs">{pendingWithdrawalCount}</span>
+              )}
             </button>
           </nav>
         </div>
@@ -155,11 +194,13 @@ export default function AdminPartnerCommissionsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          {activeTab === 'commissions' ? (
+          {loading ? (
+            <div className="p-8 text-center text-gray-500">Carregando dados...</div>
+          ) : activeTab === 'commissions' ? (
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-                  <th className="px-6 py-4 font-medium">Parceiro (ID)</th>
+                  <th className="px-6 py-4 font-medium">Parceiro</th>
                   <th className="px-6 py-4 font-medium">Cliente / Plano</th>
                   <th className="px-6 py-4 font-medium">Valor Mensal</th>
                   <th className="px-6 py-4 font-medium">Comissão</th>
@@ -168,34 +209,39 @@ export default function AdminPartnerCommissionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {MOCK_COMMISSIONS.map((comm) => (
+                {commissions.filter(c => c.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || (c as any).partnerName?.toLowerCase().includes(searchTerm.toLowerCase())).map((comm) => (
                   <tr key={comm.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{comm.partnerId}</span>
+                      <span className="font-medium text-gray-900">{(comm as any).partnerName || comm.partnerId}</span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-gray-900">{comm.clientName}</p>
                       <p className="text-sm text-gray-500">{comm.plan}</p>
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      R$ {comm.monthlyFee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {Number(comm.monthlyFee).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-green-600">
-                        R$ {comm.commissionValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {Number(comm.commissionValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-500">{comm.period}</td>
                     <td className="px-6 py-4">{getStatusBadge(comm.status)}</td>
                   </tr>
                 ))}
+                {commissions.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Nenhuma comissão encontrada.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-                  <th className="px-6 py-4 font-medium">Parceiro (ID)</th>
+                  <th className="px-6 py-4 font-medium">Parceiro</th>
                   <th className="px-6 py-4 font-medium">Valor</th>
                   <th className="px-6 py-4 font-medium">Chave PIX</th>
                   <th className="px-6 py-4 font-medium">Data Solicitação</th>
@@ -204,14 +250,14 @@ export default function AdminPartnerCommissionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {MOCK_WITHDRAWALS.map((wd) => (
+                {withdrawals.filter(w => (w as any).partnerName?.toLowerCase().includes(searchTerm.toLowerCase())).map((wd) => (
                   <tr key={wd.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{wd.partnerId}</span>
+                      <span className="font-medium text-gray-900">{(wd as any).partnerName || wd.partnerId}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-gray-900">
-                        R$ {wd.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {Number(wd.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-600 font-mono text-sm">{wd.pixKey}</td>
@@ -222,10 +268,16 @@ export default function AdminPartnerCommissionsPage() {
                     <td className="px-6 py-4 text-right">
                       {wd.status === 'pendente' ? (
                         <div className="flex justify-end gap-2">
-                          <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Aprovar Pagamento">
+                          <button 
+                            onClick={() => handleUpdateWithdrawal(wd.id, 'pago')}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                            title="Aprovar Pagamento">
                             <CheckCircle2 className="w-5 h-5" />
                           </button>
-                          <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Rejeitar">
+                          <button 
+                            onClick={() => handleUpdateWithdrawal(wd.id, 'rejeitado')}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                            title="Rejeitar">
                             <XCircle className="w-5 h-5" />
                           </button>
                         </div>
@@ -235,6 +287,11 @@ export default function AdminPartnerCommissionsPage() {
                     </td>
                   </tr>
                 ))}
+                {withdrawals.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Nenhuma solicitação de saque encontrada.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}

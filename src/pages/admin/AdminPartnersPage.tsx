@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Users, DollarSign, Activity, TrendingUp, Search, Filter, 
   MoreVertical, CheckCircle2, XCircle, Eye, AlertCircle
@@ -6,50 +6,39 @@ import {
 import type { Partner } from '../../types/partner';
 import { PARTNER_LEVELS } from '../../types/partner';
 
-// Mock data based on context
-const MOCK_PARTNERS: Partner[] = [
-  {
-    id: 'rk-001', userId: 'usr-001', name: 'Thiago Martins', email: 'thiago@example.com',
-    whatsapp: '(11) 99999-1111', cpfCnpj: '111.111.111-11', pixKey: 'thiago@pix',
-    referralCode: 'thiago-nextia', level: 'diamante', status: 'ativo',
-    totalReferrals: 50, activeReferrals: 45, totalCommission: 35000,
-    availableBalance: 5000, pendingBalance: 1000, rankingPosition: 1, createdAt: '2025-01-10T10:00:00Z',
-  },
-  {
-    id: 'rk-002', userId: 'usr-002', name: 'Juliana Pereira', email: 'juliana@example.com',
-    whatsapp: '(11) 99999-2222', cpfCnpj: '222.222.222-22', pixKey: 'juliana@pix',
-    referralCode: 'juliana-nextia', level: 'diamante', status: 'ativo',
-    totalReferrals: 42, activeReferrals: 38, totalCommission: 28000,
-    availableBalance: 3000, pendingBalance: 800, rankingPosition: 2, createdAt: '2025-02-15T10:00:00Z',
-  },
-  {
-    id: 'rk-003', userId: 'usr-003', name: 'Marcos Paulo', email: 'marcos@example.com',
-    whatsapp: '(11) 99999-3333', cpfCnpj: '333.333.333-33', pixKey: 'marcos@pix',
-    referralCode: 'marcos-nextia', level: 'ouro', status: 'ativo',
-    totalReferrals: 30, activeReferrals: 25, totalCommission: 19500,
-    availableBalance: 2000, pendingBalance: 500, rankingPosition: 3, createdAt: '2025-03-20T10:00:00Z',
-  },
-  {
-    id: 'partner-001', userId: 'usr-004', name: 'Lucas Fernandes', email: 'lucas@example.com',
-    whatsapp: '(11) 98888-7777', cpfCnpj: '123.456.789-00', pixKey: 'lucas@example.com',
-    referralCode: 'lucas-nextia', level: 'ouro', status: 'ativo',
-    totalReferrals: 18, activeReferrals: 18, totalCommission: 12880,
-    availableBalance: 2450, pendingBalance: 450, rankingPosition: 4, createdAt: '2025-05-10T10:00:00Z',
-  },
-  {
-    id: 'rk-005', userId: 'usr-005', name: 'Camila Santos', email: 'camila@example.com',
-    whatsapp: '(11) 99999-5555', cpfCnpj: '555.555.555-55', pixKey: 'camila@pix',
-    referralCode: 'camila-nextia', level: 'prata', status: 'pendente',
-    totalReferrals: 0, activeReferrals: 0, totalCommission: 0,
-    availableBalance: 0, pendingBalance: 0, rankingPosition: 5, createdAt: '2026-07-29T10:00:00Z',
-  },
-];
-
 export default function AdminPartnersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredPartners = MOCK_PARTNERS.filter(partner => {
+  const getAuthToken = () => {
+    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
+      || localStorage.getItem('nextia_token');
+  };
+
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+        const res = await fetch('/api/admin/partners', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPartners(data.partners);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPartners();
+  }, []);
+
+  const filteredPartners = partners.filter(partner => {
     const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           partner.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || partner.status === statusFilter;
@@ -64,6 +53,11 @@ export default function AdminPartnersPage() {
       default: return null;
     }
   };
+
+  const totalPartners = partners.length;
+  const activePartners = partners.filter(p => p.status === 'ativo').length;
+  const totalCommissionsPaid = partners.reduce((sum, p) => sum + (p.totalCommission - p.availableBalance - p.pendingBalance), 0); // Estimate or get real total
+  const totalCommission = partners.reduce((sum, p) => sum + Number(p.totalCommission), 0);
 
   return (
     <div className="space-y-6">
@@ -83,7 +77,7 @@ export default function AdminPartnersPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Total de Parceiros</p>
-          <h3 className="text-2xl font-bold text-gray-900">45</h3>
+          <h3 className="text-2xl font-bold text-gray-900">{totalPartners}</h3>
         </div>
         
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -93,7 +87,7 @@ export default function AdminPartnersPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Parceiros Ativos</p>
-          <h3 className="text-2xl font-bold text-gray-900">38</h3>
+          <h3 className="text-2xl font-bold text-gray-900">{activePartners}</h3>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -102,8 +96,8 @@ export default function AdminPartnersPage() {
               <DollarSign className="w-5 h-5 text-purple-600" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">Comissões Pagas (Mês)</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 14.500</h3>
+          <p className="text-sm font-medium text-gray-500">Total Comissões</p>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {totalCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -112,8 +106,8 @@ export default function AdminPartnersPage() {
               <TrendingUp className="w-5 h-5 text-yellow-600" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">MRR via Parceiros</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ 48.200</h3>
+          <p className="text-sm font-medium text-gray-500">Saques Realizados</p>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {totalCommissionsPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
       </div>
 
@@ -146,78 +140,82 @@ export default function AdminPartnersPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
-                <th className="px-6 py-4 font-medium">Parceiro</th>
-                <th className="px-6 py-4 font-medium">Nível</th>
-                <th className="px-6 py-4 font-medium text-center">Clientes Ativos</th>
-                <th className="px-6 py-4 font-medium">Comissão Total</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredPartners.map((partner) => {
-                const levelInfo = PARTNER_LEVELS[partner.level];
-                return (
-                  <tr key={partner.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
-                          {partner.name.charAt(0)}
+          {loading ? (
+            <div className="p-8 text-center text-gray-500">Carregando parceiros...</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 text-sm border-b border-gray-200">
+                  <th className="px-6 py-4 font-medium">Parceiro</th>
+                  <th className="px-6 py-4 font-medium">Nível</th>
+                  <th className="px-6 py-4 font-medium text-center">Clientes Ativos</th>
+                  <th className="px-6 py-4 font-medium">Comissão Total</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredPartners.map((partner) => {
+                  const levelInfo = PARTNER_LEVELS[partner.level] || PARTNER_LEVELS.bronze;
+                  return (
+                    <tr key={partner.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
+                            {partner.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">{partner.name}</p>
+                            <p className="text-sm text-gray-500">{partner.email}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-900">{partner.name}</p>
-                          <p className="text-sm text-gray-500">{partner.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1 font-medium text-sm" style={{ color: levelInfo.color }}>
-                        {levelInfo.icon} {levelInfo.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
-                        {partner.activeReferrals}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">
-                        R$ {partner.totalCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(partner.status)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {partner.status === 'pendente' && (
-                          <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Aprovar">
-                            <CheckCircle2 className="w-5 h-5" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1 font-medium text-sm" style={{ color: levelInfo.color }}>
+                          {levelInfo.icon} {levelInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                          {partner.activeReferrals}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-gray-900">
+                          R$ {Number(partner.totalCommission).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getStatusBadge(partner.status)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          {partner.status === 'pendente' && (
+                            <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Aprovar">
+                              <CheckCircle2 className="w-5 h-5" />
+                            </button>
+                          )}
+                          <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalhes">
+                            <Eye className="w-5 h-5" />
                           </button>
-                        )}
-                        <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalhes">
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors" title="Mais Opções">
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
-                      </div>
+                          <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors" title="Mais Opções">
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredPartners.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      Nenhum parceiro encontrado com os filtros atuais.
                     </td>
                   </tr>
-                );
-              })}
-              {filteredPartners.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Nenhum parceiro encontrado com os filtros atuais.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

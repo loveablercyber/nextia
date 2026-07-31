@@ -9,6 +9,7 @@ import type {
   PartnerLevel,
 } from '../types/partner';
 import { PARTNER_LEVELS } from '../types/partner';
+import { apiFetch } from '../lib/api'; // assuming there is an api module, or I can use fetch
 
 interface PartnerState {
   profile: Partner | null;
@@ -18,141 +19,18 @@ interface PartnerState {
   achievements: Achievement[];
   ranking: Partner[];
   materials: MarketingMaterial[];
+  loading: boolean;
+  error: string | null;
 }
 
 interface PartnerContextType {
   state: PartnerState;
-  requestWithdrawal: (amount: number) => void;
-  updateProfile: (updates: Partial<Partner>) => void;
+  requestWithdrawal: (amount: number) => Promise<void>;
+  updateProfile: (updates: Partial<Partner>) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
-const defaultPartner: Partner = {
-  id: 'partner-001',
-  userId: 'usr-003',
-  name: 'Lucas Fernandes',
-  email: 'lucas@example.com',
-  whatsapp: '(11) 98888-7777',
-  cpfCnpj: '123.456.789-00',
-  pixKey: 'lucas@example.com',
-  referralCode: 'lucas-nextia',
-  level: 'ouro',
-  status: 'ativo',
-  totalReferrals: 18,
-  activeReferrals: 18, // Fixed to 18 to match ouro tier correctly (16-30)
-  totalCommission: 12880,
-  availableBalance: 2450,
-  pendingBalance: 450,
-  rankingPosition: 4,
-  createdAt: '2025-05-10T10:00:00Z',
-};
-
-const mockReferrals: Referral[] = [
-  {
-    id: 'ref-001',
-    partnerId: 'partner-001',
-    clientName: 'Ana Costa',
-    clientCompany: 'Restaurante Sabor',
-    plan: 'Premium',
-    monthlyFee: 299,
-    status: 'ativo',
-    commissionRate: 0.25,
-    commissionGenerated: 74.75,
-    startDate: '2026-06-15T14:30:00Z',
-    lastPaymentDate: '2026-07-15T10:00:00Z',
-  },
-  {
-    id: 'ref-002',
-    partnerId: 'partner-001',
-    clientName: 'Carlos Silva',
-    clientCompany: 'Oficina do Carlão',
-    plan: 'Basic',
-    monthlyFee: 99,
-    status: 'ativo',
-    commissionRate: 0.25,
-    commissionGenerated: 24.75,
-    startDate: '2026-05-20T09:15:00Z',
-    lastPaymentDate: '2026-07-20T09:00:00Z',
-  },
-  {
-    id: 'ref-003',
-    partnerId: 'partner-001',
-    clientName: 'Mariana Oliveira',
-    clientCompany: 'Estúdio Beauty',
-    plan: 'Pro',
-    monthlyFee: 199,
-    status: 'pendente',
-    commissionRate: 0.25,
-    commissionGenerated: 0,
-    startDate: '2026-07-28T16:45:00Z',
-    lastPaymentDate: '',
-  },
-  {
-    id: 'ref-004',
-    partnerId: 'partner-001',
-    clientName: 'Roberto Almeida',
-    clientCompany: 'Almeida Consultoria',
-    plan: 'Premium',
-    monthlyFee: 299,
-    status: 'inadimplente',
-    commissionRate: 0.25,
-    commissionGenerated: 74.75,
-    startDate: '2026-03-10T11:20:00Z',
-    lastPaymentDate: '2026-05-10T10:00:00Z',
-  },
-  {
-    id: 'ref-005',
-    partnerId: 'partner-001',
-    clientName: 'Fernanda Lima',
-    clientCompany: 'Doceria Doce Vida',
-    plan: 'Pro',
-    monthlyFee: 199,
-    status: 'cancelado',
-    commissionRate: 0.25,
-    commissionGenerated: 149.25,
-    startDate: '2025-11-05T13:00:00Z',
-    lastPaymentDate: '2026-02-05T10:00:00Z',
-  },
-];
-
-const mockCommissions: Commission[] = [
-  {
-    id: 'com-001',
-    partnerId: 'partner-001',
-    referralId: 'ref-001',
-    clientName: 'Ana Costa',
-    plan: 'Premium',
-    monthlyFee: 299,
-    commissionValue: 74.75,
-    status: 'confirmado',
-    period: '2026-07',
-    createdAt: '2026-07-15T10:05:00Z',
-  },
-  {
-    id: 'com-002',
-    partnerId: 'partner-001',
-    referralId: 'ref-002',
-    clientName: 'Carlos Silva',
-    plan: 'Basic',
-    monthlyFee: 99,
-    commissionValue: 24.75,
-    status: 'pago',
-    period: '2026-06',
-    createdAt: '2026-06-20T09:05:00Z',
-  },
-  {
-    id: 'com-003',
-    partnerId: 'partner-001',
-    referralId: 'ref-001',
-    clientName: 'Ana Costa',
-    plan: 'Premium',
-    monthlyFee: 299,
-    commissionValue: 74.75,
-    status: 'pago',
-    period: '2026-06',
-    createdAt: '2026-06-15T10:05:00Z',
-  },
-];
-
+// Keep static materials and achievements
 const mockAchievements: Achievement[] = [
   {
     id: 'ach-001',
@@ -196,14 +74,6 @@ const mockAchievements: Achievement[] = [
   },
 ];
 
-const mockRanking: Partner[] = [
-  { ...defaultPartner, id: 'rk-001', name: 'Thiago Martins', totalCommission: 35000, level: 'diamante', rankingPosition: 1, activeReferrals: 45 },
-  { ...defaultPartner, id: 'rk-002', name: 'Juliana Pereira', totalCommission: 28000, level: 'diamante', rankingPosition: 2, activeReferrals: 38 },
-  { ...defaultPartner, id: 'rk-003', name: 'Marcos Paulo', totalCommission: 19500, level: 'ouro', rankingPosition: 3, activeReferrals: 25 },
-  defaultPartner, // Lucas is 4th
-  { ...defaultPartner, id: 'rk-005', name: 'Camila Santos', totalCommission: 9800, level: 'prata', rankingPosition: 5, activeReferrals: 12 },
-];
-
 const mockMaterials: MarketingMaterial[] = [
   { id: 'mat-001', title: 'Post Instagram - Benefícios', category: 'instagram', thumbnail: 'https://via.placeholder.com/300', downloadUrl: '#', fileType: 'png', fileSize: '2MB' },
   { id: 'mat-002', title: 'Stories - Promoção Especial', category: 'stories', thumbnail: 'https://via.placeholder.com/300x500', downloadUrl: '#', fileType: 'mp4', fileSize: '15MB' },
@@ -215,88 +85,103 @@ const mockMaterials: MarketingMaterial[] = [
   { id: 'mat-008', title: 'Reels - Como Funciona', category: 'reels', thumbnail: 'https://via.placeholder.com/300x500', downloadUrl: '#', fileType: 'mp4', fileSize: '20MB' },
 ];
 
-const STORAGE_KEY = 'nextia_partner_state';
-
-const getInitialState = (): PartnerState => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error('Failed to parse stored partner state', e);
-    }
-  }
-  return {
-    profile: defaultPartner,
-    referrals: mockReferrals,
-    commissions: mockCommissions,
-    withdrawals: [],
-    achievements: mockAchievements,
-    ranking: mockRanking,
-    materials: mockMaterials,
-  };
-};
-
 const PartnerContext = createContext<PartnerContextType | undefined>(undefined);
 
 export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<PartnerState>(getInitialState);
+  const [state, setState] = useState<PartnerState>({
+    profile: null,
+    referrals: [],
+    commissions: [],
+    withdrawals: [],
+    achievements: mockAchievements,
+    ranking: [],
+    materials: mockMaterials,
+    loading: true,
+    error: null,
+  });
 
-  // Persist state changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  const getAuthToken = () => {
+    return document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] 
+      || localStorage.getItem('nextia_token');
+  };
 
-  const updateProfile = useCallback((updates: Partial<Partner>) => {
-    setState(prev => {
-      if (!prev.profile) return prev;
-      
-      const newProfile = { ...prev.profile, ...updates };
-      
-      // Recalculate level if activeReferrals changed
-      if (updates.activeReferrals !== undefined) {
-        let newLevel: PartnerLevel = 'bronze';
-        for (const [level, reqs] of Object.entries(PARTNER_LEVELS)) {
-          if (newProfile.activeReferrals >= reqs.min && newProfile.activeReferrals <= reqs.max) {
-            newLevel = level as PartnerLevel;
-            break;
-          }
+  const fetchPartnerData = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      const token = getAuthToken();
+      if (!token) throw new Error('Não autenticado');
+
+      const res = await fetch('/api/partner/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        newProfile.level = newLevel;
-      }
+      });
+      if (!res.ok) throw new Error('Falha ao carregar dados do parceiro');
       
-      return { ...prev, profile: newProfile };
-    });
-  }, []);
-
-  const requestWithdrawal = useCallback((amount: number) => {
-    setState(prev => {
-      if (!prev.profile || prev.profile.availableBalance < amount) return prev;
-      
-      const newWithdrawal: WithdrawalRequest = {
-        id: `wd-${Date.now()}`,
-        partnerId: prev.profile.id,
-        amount,
-        pixKey: prev.profile.pixKey,
-        status: 'pendente',
-        requestedAt: new Date().toISOString(),
-        processedAt: null,
-      };
-
-      return {
+      const data = await res.json();
+      setState(prev => ({
         ...prev,
-        profile: {
-          ...prev.profile,
-          availableBalance: prev.profile.availableBalance - amount,
-          pendingBalance: prev.profile.pendingBalance + amount,
-        },
-        withdrawals: [newWithdrawal, ...prev.withdrawals],
-      };
-    });
+        profile: data.profile,
+        referrals: data.referrals,
+        commissions: data.commissions,
+        withdrawals: data.withdrawals,
+        loading: false
+      }));
+    } catch (err) {
+      console.error(err);
+      setState(prev => ({ ...prev, loading: false, error: err instanceof Error ? err.message : 'Erro desconhecido' }));
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPartnerData();
+  }, [fetchPartnerData]);
+
+  const updateProfile = useCallback(async (updates: Partial<Partner>) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/partner/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!res.ok) throw new Error('Falha ao atualizar perfil');
+      await fetchPartnerData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [fetchPartnerData]);
+
+  const requestWithdrawal = useCallback(async (amount: number) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/partner/request-withdrawal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Falha ao solicitar saque');
+      }
+      await fetchPartnerData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [fetchPartnerData]);
 
   return (
-    <PartnerContext.Provider value={{ state, requestWithdrawal, updateProfile }}>
+    <PartnerContext.Provider value={{ state, requestWithdrawal, updateProfile, refresh: fetchPartnerData }}>
       {children}
     </PartnerContext.Provider>
   );
