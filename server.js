@@ -608,6 +608,8 @@ async function handleSupportApi(req, res, url) {
         await client.query('ROLLBACK');
         throw error;
       }
+    }
+
     if (url.pathname === '/api/admin/delete-item') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
