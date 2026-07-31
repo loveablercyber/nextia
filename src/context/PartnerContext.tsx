@@ -6,10 +6,7 @@ import type {
   WithdrawalRequest,
   Achievement,
   MarketingMaterial,
-  PartnerLevel,
 } from '../types/partner';
-import { PARTNER_LEVELS } from '../types/partner';
-import { apiFetch } from '../lib/api'; // assuming there is an api module, or I can use fetch
 
 interface PartnerState {
   profile: Partner | null;
