@@ -1217,6 +1217,30 @@ export default function TemplateDemoPage() {
     }
   ];
 
+  // 10. Prestador de Serviços Interactive State
+  const [servCategoryFilter, setServCategoryFilter] = useState('todos');
+
+  const servArticles = [
+    {
+      title: "Manutenção Preventiva vs Corretiva: Como Reduzir Custos Operacionais",
+      category: "Gestão de Facilities",
+      date: "25 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Adequação à Norma NR-10 em Instalações Elétricas Industriais",
+      category: "Segurança & Normas",
+      date: "21 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=400&auto=format&fit=crop"
+    },
+    {
+      title: "Eficiência Energética no Sistema de Climatização VRF para Prédios",
+      category: "Climatização & Energia",
+      date: "16 de Julho, 2026",
+      image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=400&auto=format&fit=crop"
+    }
+  ];
+
   // Selected Property Detail Modal
   const [selectedPropertyModal, setSelectedPropertyModal] = useState<DemoItem | null>(null);
   const [activePropTab, setActivePropTab] = useState<'fotos' | 'tour' | 'mapa' | 'financiamento'>('fotos');
@@ -1392,7 +1416,52 @@ export default function TemplateDemoPage() {
       </div>
 
       {/* Hero Section */}
-      {activeSlug === 'salao-elegance' ? (
+      {activeSlug === 'servicos-profissionais' ? (
+        <div
+          className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
+          style={{
+            backgroundImage: `linear-gradient(rgba(10, 17, 40, 0.85), rgba(10, 17, 40, 0.95)), url("https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=1600&auto=format&fit=crop")`
+          }}
+        >
+          <div className="max-w-4xl space-y-6 py-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2563EB]/10 border border-[#2563EB]/30 text-[#06B6D4] text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5 fill-[#06B6D4]" />
+              ENGENHARIA, TECNOLOGIA & SOLUÇÕES DE ALTA PERFORMANCE
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-serif font-black tracking-tight text-white leading-tight">
+              Prime Engenharia & Serviços Técnicos
+            </h1>
+            <p className="text-base sm:text-xl text-gray-300 max-w-2xl mx-auto font-light leading-relaxed">
+              Manutenção industrial, engenharia elétrica, climatização VRF, laudos técnicos com ART e gestão de facilities com garantia SLA de até 2 horas.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 pt-2">
+              <button
+                onClick={() => setIsReserveModalOpen(true)}
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-7 py-3.5 rounded-xl font-bold transition-all shadow-xl flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Solicitar Orçamento Online
+              </button>
+              <a
+                href="#servicos-tecnicos"
+                className="bg-white/10 hover:bg-white/20 border border-white/30 text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 backdrop-blur-md"
+              >
+                <Award className="w-4 h-4 text-[#06B6D4]" />
+                Ver Soluções & SLA
+              </a>
+              <a
+                href="https://wa.me/5514996405496?text=Ola!%20Gostaria%20de%20solicitar%20um%20orcamento%20para%20minha%20empresa."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1EBE57] text-white px-7 py-3.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg"
+              >
+                <Phone className="w-4 h-4" />
+                Atendimento Comercial WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : activeSlug === 'salao-elegance' ? (
         <div
           className="relative min-h-[550px] flex items-center justify-center text-center px-4 bg-cover bg-center"
           style={{
@@ -1569,6 +1638,87 @@ export default function TemplateDemoPage() {
           </div>
         </div>
       )}
+      {/* Seção 2: Sobre a Empresa (Prime Engenharia & Serviços Técnicos) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#1F2937]">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6 text-left">
+              <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">AUTORIDADE & ENGENHARIA</span>
+              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-white leading-tight">
+                Soluções Técnicas Integradas para Empresas e Indústrias
+              </h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Desde 2012, a Prime Engenharia & Serviços Técnicos presta consultoria, manutenção preventiva/corretiva e gestão de facilities para indústrias, edifícios corporativos e condomínios empresariais. Operamos sob os mais rigorosos padrões de segurança e certificação ISO 9001.
+              </p>
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="bg-[#111827] p-4 rounded-2xl border border-[#1F2937]">
+                  <span className="text-[#3B82F6] font-bold block text-sm mb-1">Corpo Técnico Credenciado</span>
+                  <p className="text-gray-400">Engenheiros e técnicos registrados no CREA com certificações NBR e NR-10/NR-35.</p>
+                </div>
+                <div className="bg-[#111827] p-4 rounded-2xl border border-[#1F2937]">
+                  <span className="text-[#06B6D4] font-bold block text-sm mb-1">Garantia de SLA 2h</span>
+                  <p className="text-gray-400">Atendimento emergencial de alta prioridade com tempo de resposta contratual garantido.</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden border border-[#1F2937] shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=800&auto=format&fit=crop"
+                  alt="Engenharia & Soluções Técnicas"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-6 text-left">
+                  <span className="text-xs text-[#06B6D4] font-bold uppercase tracking-wider">Diretoria Técnica</span>
+                  <h3 className="text-xl font-serif font-bold text-white">Eng. Eduardo Vasconcelos</h3>
+                  <p className="text-xs text-gray-300">Engenheiro Eletricista · CREA 50694829-SP</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 3: Serviços Interativos (Prime Engenharia & Serviços Técnicos) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div id="servicos-tecnicos" className="max-w-6xl mx-auto px-4 pt-16 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">CATÁLOGO DE SOLUÇÕES TÉCNICAS</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Serviços Especiais & Manutenção</h2>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 bg-[#111827] border border-[#1F2937] px-3 py-1.5 rounded-full">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#3B82F6]" />
+              Laudos com ART Emita Online
+            </span>
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar text-xs">
+            {[
+              { id: 'todos', label: 'Todas as Soluções' },
+              { id: 'eletrica', label: 'Engenharia Elétrica & NR-10' },
+              { id: 'climatizacao', label: 'Climatização & PMOC' },
+              { id: 'seguranca', label: 'CFTV & Controle de Acesso' },
+              { id: 'laudos', label: 'Laudos ART & Perícias' },
+              { id: 'facilities', label: 'Gestão de Facilities' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setServCategoryFilter(cat.id)}
+                className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-all border ${
+                  servCategoryFilter === cat.id
+                    ? 'bg-[#2563EB] text-white border-[#2563EB] shadow-lg'
+                    : 'bg-[#111827] text-gray-300 border-[#1F2937] hover:border-gray-700'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Seção 2: Sobre a Empresa (Salão & Barbearia Elegance) */}
       {activeSlug === 'salao-elegance' && (
         <div className="max-w-6xl mx-auto px-4 py-16 border-b border-[#311A4D]">
@@ -1895,6 +2045,192 @@ export default function TemplateDemoPage() {
           ))}
         </div>
       </div>
+
+      {/* Seção 4: Diferenciais Corporativos (Prime Engenharia & Serviços Técnicos) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-16 border-t border-[#1F2937]">
+          <div className="text-center space-y-2 mb-12">
+            <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">EXCELÊNCIA & SEGURANÇA</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Nossos Diferenciais Corporativos</h2>
+            <p className="text-gray-400 max-w-md mx-auto text-sm">Vantagens estratégicas que garantem continuidade operacional e conformidade legal.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: '📜', title: 'Equipe Credenciada CREA', desc: 'Engenheiros e técnicos habilitados com emissão imediata de ART por projeto.' },
+              { icon: '⚡', title: 'SLA de Emergência 2h', desc: 'Plantão técnico 24/7 com tempo de atendimento garantido em contrato de manutenção.' },
+              { icon: '🔒', title: 'Garantia Por Escrito', desc: 'Cobertura contratual completa de peças, mão de obra e suporte pós-execução.' },
+              { icon: '📄', title: 'Laudos Com QrCode', desc: 'Documentação digital criptografada válida perante seguradoras e órgãos reguladores.' }
+            ].map((diff, i) => (
+              <div key={i} className="bg-[#111827] p-6 rounded-2xl border border-[#1F2937] hover:border-[#3B82F6]/50 transition-all space-y-3">
+                <div className="text-3xl">{diff.icon}</div>
+                <h3 className="font-bold text-white text-base font-serif">{diff.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{diff.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 5: Galeria de Projetos & Obras (Prime Engenharia & Serviços) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1F2937]">
+          <div className="flex items-center justify-between mb-8 text-left">
+            <div>
+              <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">PORTFÓLIO TÉCNICO</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Projetos & Instalações Realizadas</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-mono hidden sm:inline">OBRAS INDUSTRIAIS E CORPORATIVAS</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              "https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=600&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop"
+            ].map((img, i) => (
+              <div key={i} className="h-48 rounded-2xl overflow-hidden border border-[#1F2937] group relative cursor-pointer">
+                <img src={img} alt="Galeria de Obras" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Eye className="w-6 h-6 text-[#06B6D4]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 7: Estatísticas Corporativas (Prime Engenharia) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1F2937]">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-8 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#3B82F6] font-mono">+1.200</div>
+              <span className="text-xs text-gray-400 font-medium">Projetos & Obras Concluídas</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">99.4%</div>
+              <span className="text-xs text-gray-400 font-medium">Conformidade com SLA</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-[#06B6D4] font-mono">85</div>
+              <span className="text-xs text-gray-400 font-medium">Técnicos & Engenheiros</span>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-black text-white font-mono">14 Anos</div>
+              <span className="text-xs text-gray-400 font-medium">História em Engenharia</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seção 8: FAQ Corporativo (Prime Engenharia) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6 text-left border-t border-[#1F2937]">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">ESCLARECIMENTOS</span>
+            <h2 className="text-3xl font-serif font-bold text-white">Perguntas Frequentes</h2>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {[
+              { q: "Como solicitar uma proposta técnica e orçamento?", a: "Preencha o formulário online ou envie o escopo do projeto via WhatsApp. Nossa engenharia enviará a proposta comercial detalhada em até 24 horas." },
+              { q: "A empresa emite Anotação de Responsabilidade Técnica (ART)?", a: "Sim! Todos os nossos projetos elétricos, laudos e manutenções prediais incluem a emissão de ART registrada no CREA-SP." },
+              { q: "Como funciona o contrato de manutenção preventiva (PMOC)?", a: "Oferecemos planos de PMOC personalizados para empresas e condomínios, garantindo auditorias mensais e atendimento emergencial prioritário." },
+              { q: "Quais são as condições e prazos de faturamento corporativo?", a: "Trabalhamos com faturamento faturado para PJ (15/30/45 dias), boleto bancário e nota fiscal eletrônica direta." }
+            ].map((faq, idx) => (
+              <div key={idx} className="bg-[#111827] p-5 rounded-2xl border border-[#1F2937] space-y-2">
+                <h3 className="font-bold text-white text-sm font-serif flex items-center gap-2">
+                  <span className="text-[#06B6D4]">●</span> {faq.q}
+                </h3>
+                <p className="text-gray-400 leading-relaxed pl-4">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 9: Blog Técnico (Prime Engenharia) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 space-y-8 border-t border-[#1F2937] text-left">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">ENGENHARIA & INTELIGÊNCIA</span>
+              <h2 className="text-3xl font-serif font-bold text-white">Blog Técnico & Normas</h2>
+            </div>
+            <button className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[#06B6D4] font-bold hover:underline">
+              Ver Todos os Artigos →
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {servArticles.map((art, i) => (
+              <div key={i} className="bg-[#111827] border border-[#1F2937] rounded-2xl overflow-hidden group hover:border-[#3B82F6]/40 transition-all flex flex-col">
+                <div className="h-44 overflow-hidden relative">
+                  <img src={art.image} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <span className="absolute top-3 left-3 bg-black/80 text-[#06B6D4] border border-[#06B6D4]/30 text-[9px] font-bold px-2 py-0.5 rounded">
+                    {art.category}
+                  </span>
+                </div>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-mono">{art.date}</span>
+                    <h3 className="font-bold text-white text-sm font-serif mt-1 leading-snug group-hover:text-[#3B82F6] transition-colors">{art.title}</h3>
+                  </div>
+                  <span className="text-[11px] text-[#06B6D4] font-bold flex items-center gap-1 pt-2 border-t border-[#1F2937]">
+                    Ler Artigo Completo →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seção 10: Sede Corporativa (Prime Engenharia) */}
+      {activeSlug === 'servicos-profissionais' && (
+        <div className="max-w-6xl mx-auto px-4 py-12 border-t border-[#1F2937] text-left">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-8 grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-[#06B6D4] uppercase tracking-widest block">SEDE CORPORATIVA</span>
+              <h3 className="text-2xl font-serif font-bold text-white">Nossas Instalações</h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Central de operações técnicas e atendimento a clientes corporativos em localização estratégica.
+              </p>
+
+              <div className="space-y-3 text-xs text-gray-300 pt-2">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-[#06B6D4]" />
+                  <span>Av. Brigadeiro Faria Lima, 3477 - Cj. 142 — São Paulo, SP</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-[#06B6D4]" />
+                  <span>(11) 4003-8920 · comercial@primeservicos.com.br</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#06B6D4]" />
+                  <span>Seg a Sex: 08h - 18h | Plantão Emergencial 24h</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-64 bg-[#0A1128] border border-[#1F2937] rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2">
+              <MapPin className="w-10 h-10 text-[#06B6D4]" />
+              <h4 className="font-bold text-white text-sm">Google Maps Integrado</h4>
+              <p className="text-xs text-gray-400">Clique para visualizar rota para nossa Sede Corporativa</p>
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#2563EB] text-white px-4 py-2 rounded-xl text-xs font-bold mt-2"
+              >
+                Abrir no Google Maps
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seção 4: Diferenciais da Beleza (Salão & Barbearia Elegance) */}
       {activeSlug === 'salao-elegance' && (

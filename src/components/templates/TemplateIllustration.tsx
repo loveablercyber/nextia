@@ -14,6 +14,9 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'salao-elegance' || slug === 'salao-barbearia') {
     return <SalaoPremiumIllustration />;
   }
+  if (slug === 'servicos-profissionais' || category === 'prestador-servicos') {
+    return <ServicosPremiumIllustration />;
+  }
 
   const illustrations: Record<string, React.ReactNode> = {
     'restaurante': <RestauranteIllustration />,
@@ -490,6 +493,68 @@ function SalaoPremiumIllustration() {
           <text x={74 + i*126} y="206" fill="#D946EF" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
           <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#D946EF" />
           <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Agendar Agora</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ServicosPremiumIllustration() {
+  return (
+    <svg viewBox="0 0 400 250" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bg-serv-premium" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0A1128" />
+          <stop offset="100%" stopColor="#101F42" />
+        </linearGradient>
+        <linearGradient id="blue-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#2563EB" />
+          <stop offset="100%" stopColor="#06B6D4" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="250" fill="url(#bg-serv-premium)" />
+      
+      {/* Top Bar */}
+      <rect x="0" y="0" width="400" height="34" fill="rgba(0,0,0,0.6)" />
+      <text x="18" y="22" fill="#06B6D4" fontSize="11.5" fontWeight="800" fontFamily="Inter, sans-serif">🏢 PRIME SERVIÇOS TÉCNICOS & ENGENHARIA</text>
+      <rect x="290" y="8" width="95" height="18" rx="9" fill="url(#blue-grad)" />
+      <text x="337" y="20" fill="white" fontSize="7.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">ISO 9001 · CREA</text>
+
+      {/* Hero Banner */}
+      <rect x="15" y="40" width="370" height="50" rx="10" fill="rgba(16,31,66,0.8)" stroke="rgba(6,182,212,0.4)" strokeWidth="1" />
+      <text x="200" y="60" fill="white" fontSize="13" fontWeight="900" fontFamily="Inter, sans-serif" textAnchor="middle">Soluções Técnicas & Gestão de Serviços</text>
+      <text x="200" y="75" fill="#93C5FD" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Engenharia elétrica, climatização industrial, CFTV e laudos com ART</text>
+
+      {/* Category Pills */}
+      <g>
+        <rect x="25" y="96" width="85" height="20" rx="10" fill="url(#blue-grad)" />
+        <text x="67" y="109" fill="white" fontSize="8" fontWeight="700" fontFamily="Inter, sans-serif" textAnchor="middle">Engenharia Elétrica</text>
+        <rect x="115" y="96" width="75" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="152" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Climatização VRF</text>
+        <rect x="195" y="96" width="75" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="232" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">CFTV & Segurança</text>
+        <rect x="275" y="96" width="60" height="20" rx="10" fill="rgba(255,255,255,0.08)" />
+        <text x="305" y="109" fill="white" fontSize="8" fontFamily="Inter, sans-serif" textAnchor="middle">Laudos ART</text>
+      </g>
+
+      {/* Service cards */}
+      {[
+        { title: 'Manutenção Elétrica', price: 'SLA 2h', specs: 'NR-10 · Laudo ART', badge: 'ALTA PRIORIDADE' },
+        { title: 'Climatização VRF', price: 'PMOC', specs: 'Preventiva & Contrato', badge: 'ISO GUARANTEE' },
+        { title: 'CFTV IP & Biometria', price: '24/7', specs: 'Câmeras 4K · Acesso', badge: 'DESTAQUE' }
+      ].map((p, i) => (
+        <g key={i}>
+          <rect x={15 + i*126} y="126" width="118" height="110" rx="10" fill="#0D1938" stroke="rgba(6,182,212,0.3)" strokeWidth="1" />
+          <rect x={15 + i*126} y="126" width="118" height="42" rx="10" fill="#172957" />
+          <text x={74 + i*126} y="152" fill="#06B6D4" fontSize="20" textAnchor="middle">⚡</text>
+          <rect x={20 + i*126} y="130" width="65" height="11" rx="5" fill="#2563EB" />
+          <text x={52 + i*126} y="138" fill="white" fontSize="5.5" fontWeight="800" fontFamily="Inter, sans-serif" textAnchor="middle">{p.badge}</text>
+          
+          <text x={74 + i*126} y="180" fill="white" fontSize="8.5" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">{p.title}</text>
+          <text x={74 + i*126} y="192" fill="#93C5FD" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle">{p.specs}</text>
+          <text x={74 + i*126} y="206" fill="#06B6D4" fontSize="10" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="900">{p.price}</text>
+          <rect x={39 + i*126} y="214" width="70" height="14" rx="7" fill="#2563EB" />
+          <text x={74 + i*126} y="224" fill="white" fontSize="7" fontFamily="Inter, sans-serif" textAnchor="middle" fontWeight="700">Cotar Serviço</text>
         </g>
       ))}
     </svg>
