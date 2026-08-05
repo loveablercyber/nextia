@@ -238,7 +238,7 @@ async function getSessionProfile(req, client) {
   const payload = verifyToken(requestToken(req));
   if (!payload?.sub) return null;
   const result = await client.query(
-    `SELECT id, email, name, role
+    `SELECT id, email, name, phone, role
      FROM public.profiles
      WHERE id = $1`,
     [payload.sub],
@@ -373,6 +373,8 @@ const supportApiMethods = new Map([
   ['/api/admin/backup/rollback', 'POST'],
   ['/api/admin/backup/delete', 'POST'],
   ['/api/admin/backup/logs', 'GET'],
+  ['/api/admin/users', 'GET'],
+  ['/api/admin/update-user', 'POST'],
   ['/api/admin/delete-item', 'POST'],
 ]);
 
@@ -607,6 +609,80 @@ async function handleSupportApi(req, res, url) {
         return json(res, 200, { status: 'success', message: messageResult.rows[0] });
       } catch (error) {
         await client.query('ROLLBACK');
+        throw error;
+      }
+    }
+
+    if (url.pathname === '/api/admin/users') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+
+      await ensurePartnerSchema(client);
+      const result = await client.query(`
+        SELECT p.id, p.email, p.name, p.company, p.phone, p.avatar_initials, p.created_at,
+               CASE
+                 WHEN p.role = 'admin' THEN 'admin'
+                 WHEN pp.id IS NOT NULL THEN 'partner'
+                 ELSE 'client'
+               END AS role,
+               pp.status AS partner_status,
+               pp.decision_reason AS partner_decision_reason
+        FROM public.profiles p
+        LEFT JOIN public.partner_profiles pp ON pp.user_id = p.id
+        ORDER BY p.name NULLS LAST, p.email
+      `);
+      return json(res, 200, { users: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/update-user') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+
+      const body = await readJson(req);
+      const targetUserId = String(body.targetUserId || '');
+      const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
+      const role = String(body.role || 'client');
+      const password = String(body.password || '');
+      if (!targetUserId || !name || !email) {
+        return json(res, 400, { error: 'Usuário, nome e e-mail são obrigatórios.' });
+      }
+      if (!['client', 'admin', 'partner'].includes(role)) {
+        return json(res, 400, { error: 'Perfil de acesso inválido.' });
+      }
+      if (password && password.length < 6) {
+        return json(res, 400, { error: 'A nova senha deve conter ao menos 6 caracteres.' });
+      }
+
+      await client.query('BEGIN');
+      try {
+        const result = await client.query(
+          `UPDATE public.profiles
+           SET name = $1, email = $2, company = $3, phone = $4,
+               role = CASE WHEN $5 = 'admin' THEN 'admin' ELSE 'client' END
+           WHERE id = $6
+           RETURNING id, email, name, company, phone, role, avatar_initials, created_at`,
+          [name, email, String(body.company || '').trim(), String(body.phone || '').trim(), role, targetUserId],
+        );
+        if (!result.rows[0]) {
+          await client.query('ROLLBACK');
+          return json(res, 404, { error: 'Usuário não encontrado.' });
+        }
+        if (password) {
+          await client.query(
+            `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+            [hashPassword(password), targetUserId],
+          );
+        }
+        await client.query('COMMIT');
+        return json(res, 200, { status: 'success', user: result.rows[0] });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        if (String(error.message || '').includes('duplicate')) {
+          return json(res, 409, { error: 'Este e-mail já está em uso.' });
+        }
         throw error;
       }
     }
@@ -1240,6 +1316,13 @@ async function ensurePartnerSchema(client) {
           requested_at TIMESTAMPTZ DEFAULT NOW(),
           processed_at TIMESTAMPTZ
         );
+        ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS decision_reason TEXT;
+        ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+        ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS reviewed_by UUID;
+        ALTER TABLE public.partner_referrals ADD COLUMN IF NOT EXISTS referred_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+        CREATE UNIQUE INDEX IF NOT EXISTS partner_referrals_referred_user_uidx
+          ON public.partner_referrals (referred_user_id)
+          WHERE referred_user_id IS NOT NULL;
       `);
     })();
   }
@@ -1296,7 +1379,8 @@ async function handlePartnerApi(req, res, url) {
         const result = await client.query(`
           SELECT pp.id, pp.user_id as "userId", pr.name, pr.email, pr.phone as whatsapp, 
                  pp.cpf_cnpj as "cpfCnpj", pp.pix_key as "pixKey", pp.referral_code as "referralCode", 
-                 pp.level, pp.status, pp.created_at as "createdAt",
+                 pp.level, pp.status, pp.decision_reason as "decisionReason",
+                 pp.reviewed_at as "reviewedAt", pp.created_at as "createdAt",
                  (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id) as "totalReferrals",
                  (SELECT COUNT(*) FROM public.partner_referrals r WHERE r.partner_id = pp.id AND r.status = 'ativo') as "activeReferrals",
                  (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id) as "totalCommission",
@@ -1346,28 +1430,38 @@ async function handlePartnerApi(req, res, url) {
 
       if (url.pathname === '/api/admin/update-partner') {
         const body = await readJson(req);
-        const { id, status } = body;
-        if (!['ativo', 'pendente', 'suspenso'].includes(status)) return json(res, 400, { error: 'Status inválido' });
-        
-        await client.query(`UPDATE public.partner_profiles SET status = $1, updated_at = NOW() WHERE id = $2`, [status, id]);
-        return json(res, 200, { status: 'success' });
+        const id = String(body.id || '');
+        const status = String(body.status || '');
+        const reason = String(body.reason || '').trim();
+        if (!id || !['ativo', 'pendente', 'suspenso', 'recusado'].includes(status)) {
+          return json(res, 400, { error: 'Parceiro ou status inválido.' });
+        }
+        if (status === 'recusado' && reason.length < 3) {
+          return json(res, 400, { error: 'Informe o motivo da recusa.' });
+        }
+
+        const result = await client.query(
+          `UPDATE public.partner_profiles
+           SET status = $1, decision_reason = $2, reviewed_at = NOW(), reviewed_by = $3, updated_at = NOW()
+           WHERE id = $4
+           RETURNING id, status, decision_reason as "decisionReason", reviewed_at as "reviewedAt"`,
+          [status, reason || null, sessionProfile.id, id],
+        );
+        if (!result.rows[0]) return json(res, 404, { error: 'Parceiro não encontrado.' });
+        return json(res, 200, { status: 'success', partner: result.rows[0] });
       }
     }
 
     if (url.pathname.startsWith('/api/partner/')) {
-      // Ensure partner profile exists for this user
-      let profileRes = await client.query(`SELECT * FROM public.partner_profiles WHERE user_id = $1`, [sessionProfile.id]);
+      const profileRes = await client.query(`SELECT * FROM public.partner_profiles WHERE user_id = $1`, [sessionProfile.id]);
       if (profileRes.rows.length === 0) {
-        const code = sessionProfile.name
-          ? sessionProfile.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 24) + '-' + Math.random().toString(36).substring(2, 6)
-          : 'partner-' + Math.random().toString(36).substring(2, 8);
-        profileRes = await client.query(`
-          INSERT INTO public.partner_profiles (user_id, referral_code, status) 
-          VALUES ($1, $2, 'pendente') RETURNING *`, 
-          [sessionProfile.id, code]
-        );
+        return json(res, 403, { error: 'Esta conta não está cadastrada como parceira.' });
       }
       const partnerProfile = profileRes.rows[0];
+
+      if (url.pathname === '/api/partner/request-withdrawal' && partnerProfile.status !== 'ativo') {
+        return json(res, 403, { error: 'A conta precisa estar aprovada para solicitar saques.' });
+      }
 
       if (url.pathname === '/api/partner/me') {
         const profile = {
@@ -1375,12 +1469,14 @@ async function handlePartnerApi(req, res, url) {
           userId: sessionProfile.id,
           name: sessionProfile.name,
           email: sessionProfile.email,
-          whatsapp: partnerProfile.whatsapp || '',
+          whatsapp: sessionProfile.phone || '',
           cpfCnpj: partnerProfile.cpf_cnpj || '',
           pixKey: partnerProfile.pix_key || '',
           referralCode: partnerProfile.referral_code,
           level: partnerProfile.level,
           status: partnerProfile.status,
+          decisionReason: partnerProfile.decision_reason || '',
+          reviewedAt: partnerProfile.reviewed_at || null,
           createdAt: partnerProfile.created_at
         };
 
@@ -1435,7 +1531,11 @@ async function handlePartnerApi(req, res, url) {
       if (url.pathname === '/api/partner/request-withdrawal') {
         const body = await readJson(req);
         const amount = Number(body.amount);
-        if (isNaN(amount) || amount <= 0) return json(res, 400, { error: 'Valor inválido' });
+        if (!Number.isFinite(amount) || amount < 50) {
+          return json(res, 400, { error: 'O valor mínimo para saque é R$ 50,00.' });
+        }
+        const pixKey = String(partnerProfile.pix_key || body.pixKey || '').trim();
+        if (!pixKey) return json(res, 400, { error: 'Cadastre uma chave PIX antes de solicitar o saque.' });
         
         // Ensure sufficient balance
         const commissionsRes = await client.query(`SELECT COALESCE(SUM(commission_value), 0) as total FROM public.partner_commissions WHERE partner_id = $1 AND status = 'confirmado'`, [partnerProfile.id]);
@@ -1447,7 +1547,7 @@ async function handlePartnerApi(req, res, url) {
         await client.query(`
           INSERT INTO public.partner_withdrawals (partner_id, amount, pix_key) 
           VALUES ($1, $2, $3)
-        `, [partnerProfile.id, amount, partnerProfile.pix_key || body.pixKey]);
+        `, [partnerProfile.id, amount, pixKey]);
         return json(res, 200, { status: 'success' });
       }
 
@@ -1503,7 +1603,8 @@ async function handleAuth(req, res, pathname) {
         `UPDATE public.profiles
          SET name = $1, email = $2, phone = $3, company = $4, avatar_initials = $5
          WHERE id = $6
-         RETURNING id, email, name, company, phone, role, avatar_initials, created_at`,
+         RETURNING id, email, name, company, phone, role, avatar_initials, created_at,
+                   EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = public.profiles.id) as is_partner`,
         [name, email, phone, company, avatarInitials, payload.sub],
       );
 
@@ -1615,6 +1716,7 @@ async function handleAuth(req, res, pathname) {
 
   if (pathname === '/api/auth/register' && req.method === 'POST') {
     const body = await readJson(req);
+    const trackedReferralCode = String(parseCookies(req).nextia_ref || '').trim();
     const id = randomUUID();
     const initials = String(body.name || 'NX')
       .trim()
@@ -1628,6 +1730,9 @@ async function handleAuth(req, res, pathname) {
     const client = dbClient();
     await client.connect();
     try {
+      if (isPartner || trackedReferralCode) {
+        await ensurePartnerSchema(client);
+      }
       await client.query('BEGIN');
       await client.query(
         `INSERT INTO public.profiles (id, email, name, company, phone, role, avatar_initials)
@@ -1639,7 +1744,6 @@ async function handleAuth(req, res, pathname) {
         [id, hashPassword(body.password)],
       );
       if (isPartner) {
-        await ensurePartnerSchema(client);
         const nameSlug = String(body.name || 'partner')
           .toLowerCase()
           .replace(/\s+/g, '-')
@@ -1651,6 +1755,17 @@ async function handleAuth(req, res, pathname) {
            VALUES ($1, $2, $3, 'pendente')
            ON CONFLICT (user_id) DO NOTHING`,
           [id, referralCode, body.cpfCnpj || body.cpf_cnpj || ''],
+        );
+      }
+      if (trackedReferralCode) {
+        await client.query(
+          `INSERT INTO public.partner_referrals
+             (partner_id, referred_user_id, client_name, client_company, plan, status, start_date)
+           SELECT pp.id, $2, $3, $4, $5, 'pendente', NOW()
+           FROM public.partner_profiles pp
+           WHERE pp.referral_code = $1 AND pp.status = 'ativo'
+           ON CONFLICT (referred_user_id) WHERE referred_user_id IS NOT NULL DO NOTHING`,
+          [trackedReferralCode, id, body.name, body.company || '', body.plan || ''],
         );
       }
       await client.query('COMMIT');
@@ -1840,10 +1955,27 @@ createServer(async (req, res) => {
     if (url.pathname.startsWith('/ref/')) {
       const code = url.pathname.replace('/ref/', '').trim();
       if (code) {
-        // Set a cookie with the referral code (valid for 30 days)
+        const client = dbClient();
+        await client.connect();
+        let validReferral = false;
+        try {
+          await ensurePartnerSchema(client);
+          const result = await client.query(
+            `SELECT 1 FROM public.partner_profiles WHERE referral_code = $1 AND status = 'ativo'`,
+            [code],
+          );
+          validReferral = result.rowCount > 0;
+        } finally {
+          await client.end();
+        }
+        if (!validReferral) {
+          res.writeHead(302, { 'Location': '/?ref=invalid' });
+          return res.end();
+        }
+        const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
         res.writeHead(302, {
           'Location': '/?ref=' + encodeURIComponent(code),
-          'Set-Cookie': `nextia_ref=${encodeURIComponent(code)}; Path=/; Max-Age=2592000; SameSite=Lax`,
+          'Set-Cookie': `nextia_ref=${encodeURIComponent(code)}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax${secure}`,
         });
         return res.end();
       }

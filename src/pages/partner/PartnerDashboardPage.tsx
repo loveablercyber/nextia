@@ -20,18 +20,18 @@ export default function PartnerDashboardPage() {
 
   if (!profile) return null;
 
+  const referralLink = `${window.location.origin}/ref/${profile.referralCode}`;
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const handleCopyLink = () => {
-    const link = `nextia.dev.br/ref/${profile.referralCode}`;
-    navigator.clipboard.writeText(link);
-    // In a real app, show a toast here
+    navigator.clipboard.writeText(referralLink);
     alert('Link copiado para a área de transferência!');
   };
 
-  const whatsappMessage = encodeURIComponent(`Conheça a Nextia, a melhor plataforma para o seu negócio! Use meu link para condições especiais: nextia.dev.br/ref/${profile.referralCode}`);
+  const whatsappMessage = encodeURIComponent(`Conheça a Nextia, a melhor plataforma para o seu negócio! Use meu link para condições especiais: ${referralLink}`);
   
   // Find current goal
   const currentGoalIndex = PARTNER_GOALS.findIndex(g => g.clients > profile.activeReferrals);
@@ -165,7 +165,7 @@ export default function PartnerDashboardPage() {
             <p className="text-gray-400 mb-6 relative">Compartilhe este link e ganhe 25% de comissão recorrente sobre as assinaturas.</p>
             
             <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-2 pl-4 mb-6 relative">
-              <span className="flex-1 text-gray-300 font-mono truncate">nextia.dev.br/ref/{profile.referralCode}</span>
+              <span className="flex-1 text-gray-300 font-mono truncate">{referralLink}</span>
               <button 
                 onClick={handleCopyLink}
                 className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium"

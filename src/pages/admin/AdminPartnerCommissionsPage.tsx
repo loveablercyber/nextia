@@ -85,6 +85,7 @@ export default function AdminPartnerCommissionsPage() {
   const paidCommissions = withdrawals.filter(w => w.status === 'pago').reduce((sum, w) => sum + Number(w.amount), 0);
   const pendingCommissions = commissions.filter(c => c.status === 'pendente').reduce((sum, c) => sum + Number(c.commissionValue), 0);
   const pendingWithdrawals = withdrawals.filter(w => w.status === 'pendente').reduce((sum, w) => sum + Number(w.amount), 0);
+  const pendingWithdrawalCount = withdrawals.filter(w => w.status === 'pendente').length;
   const filteredCommissions = commissions.filter(c => {
     const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           ((c as any).partnerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

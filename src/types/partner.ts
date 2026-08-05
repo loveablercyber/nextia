@@ -13,7 +13,9 @@ export interface Partner {
   pixKey: string;
   referralCode: string;
   level: PartnerLevel;
-  status: 'pendente' | 'ativo' | 'suspenso';
+  status: 'pendente' | 'ativo' | 'suspenso' | 'recusado';
+  decisionReason?: string;
+  reviewedAt?: string | null;
   totalReferrals: number;
   activeReferrals: number;
   totalCommission: number;

@@ -3,7 +3,6 @@ import {
   Users, Search, Edit2, Key, CheckCircle, AlertCircle, X, ShieldAlert,
   Building, Phone, Award, Lock, Trash2
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAdmin } from '../../context/AdminContext';
 import Button from '../../components/ui/Button';
 
@@ -69,11 +68,6 @@ export default function AdminClientsPage() {
     setPasswordModalOpen(true);
   };
 
-  const getClientSessionToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || '';
-  };
-
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -81,12 +75,11 @@ export default function AdminClientsPage() {
     setSuccess(null);
 
     try {
-      const token = await getClientSessionToken();
       const response = await fetch('/api/admin/update-user', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           targetUserId: selectedProfile.id,
@@ -125,12 +118,11 @@ export default function AdminClientsPage() {
     setSuccess(null);
 
     try {
-      const token = await getClientSessionToken();
       const response = await fetch('/api/admin/delete-item', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           type: 'client',
@@ -170,12 +162,11 @@ export default function AdminClientsPage() {
     setSuccess(null);
 
     try {
-      const token = await getClientSessionToken();
       const response = await fetch('/api/admin/update-user', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           targetUserId: selectedProfile.id,
@@ -337,11 +328,13 @@ export default function AdminClientsPage() {
                       </td>
                       <td className="py-4">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          p.role === 'admin' 
-                            ? 'bg-pink-100 text-pink-700' 
-                            : 'bg-gray-100 text-gray-700'
+                          p.role === 'admin'
+                            ? 'bg-pink-100 text-pink-700'
+                            : p.role === 'partner'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {p.role === 'admin' ? 'Admin' : 'Cliente'}
+                          {p.role === 'admin' ? 'Admin' : p.role === 'partner' ? 'Parceiro' : 'Cliente'}
                         </span>
                       </td>
                       <td className="py-4 text-right space-x-1">
@@ -462,6 +455,7 @@ export default function AdminClientsPage() {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#7c3aed] text-sm bg-white"
                 >
                   <option value="client">Cliente</option>
+                  <option value="partner" disabled>Parceiro (gerencie na área de parceiros)</option>
                   <option value="admin">Administrador (Acesso Total)</option>
                 </select>
               </div>

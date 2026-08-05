@@ -186,6 +186,18 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('nextia_profiles_state', JSON.stringify([]));
       }
     }
+    try {
+      const usersResponse = await fetch('/api/admin/users', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        setProfiles(usersData.users || []);
+      }
+    } catch (err) {
+      console.error('Error fetching users from local API:', err);
+    }
     setLoading(false);
   };
 
@@ -649,7 +661,6 @@ export function useAdmin() {
   if (!ctx) throw new Error('useAdmin must be used within <AdminProvider>');
   return ctx;
 }
-
 
 
 

@@ -13,6 +13,9 @@ export default function AdminPartnersPage() {
   const [loading, setLoading] = useState(true);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchPartners = async () => {
     try {
@@ -35,7 +38,13 @@ export default function AdminPartnersPage() {
     fetchPartners();
   }, []);
 
-  const handleUpdateStatus = async (id: string, status: 'ativo' | 'pendente' | 'suspenso') => {
+  const handleUpdateStatus = async (
+    id: string,
+    status: 'ativo' | 'pendente' | 'suspenso' | 'recusado',
+    reason = '',
+  ) => {
+    setUpdatingId(id);
+    setActionError(null);
     try {
       const res = await fetch('/api/admin/update-partner', {
         method: 'POST',
@@ -43,13 +52,19 @@ export default function AdminPartnersPage() {
         headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, status })
+        body: JSON.stringify({ id, status, reason })
       });
-      if (res.ok) {
-        fetchPartners(); // Refresh list
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível atualizar a conta.');
+      await fetchPartners();
+      setShowDetails(false);
+      setSelectedPartner(null);
+      setRejectionReason('');
     } catch (err) {
       console.error(err);
+      setActionError(err instanceof Error ? err.message : 'Erro inesperado ao atualizar a conta.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -65,6 +80,7 @@ export default function AdminPartnersPage() {
       case 'ativo': return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Ativo</span>;
       case 'pendente': return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Pendente</span>;
       case 'suspenso': return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1"><XCircle className="w-3 h-3" /> Suspenso</span>;
+      case 'recusado': return <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1"><XCircle className="w-3 h-3" /> Recusado</span>;
       default: return null;
     }
   };
@@ -82,6 +98,12 @@ export default function AdminPartnersPage() {
           <p className="text-sm text-gray-500">Gerencie o programa de afiliados e parceiros.</p>
         </div>
       </div>
+
+      {actionError && (
+        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          {actionError}
+        </div>
+      )}
 
       {/* Dashboard Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -150,6 +172,7 @@ export default function AdminPartnersPage() {
               <option value="ativo">Ativos</option>
               <option value="pendente">Pendentes</option>
               <option value="suspenso">Suspensos</option>
+              <option value="recusado">Recusados</option>
             </select>
           </div>
         </div>
@@ -208,14 +231,29 @@ export default function AdminPartnersPage() {
                           {partner.status === 'pendente' && (
                             <button 
                               onClick={() => handleUpdateStatus(partner.id, 'ativo')}
+                              disabled={updatingId === partner.id}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
                               title="Aprovar">
                               <CheckCircle2 className="w-5 h-5" />
                             </button>
                           )}
+                          {partner.status === 'pendente' && (
+                            <button
+                              onClick={() => {
+                                setSelectedPartner(partner);
+                                setRejectionReason('');
+                                setShowDetails(true);
+                              }}
+                              disabled={updatingId === partner.id}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Analisar recusa">
+                              <XCircle className="w-5 h-5" />
+                            </button>
+                          )}
                           {partner.status === 'ativo' && (
                             <button 
                               onClick={() => handleUpdateStatus(partner.id, 'suspenso')}
+                              disabled={updatingId === partner.id}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
                               title="Suspender">
                               <XCircle className="w-5 h-5" />
@@ -224,6 +262,7 @@ export default function AdminPartnersPage() {
                           {partner.status === 'suspenso' && (
                             <button 
                               onClick={() => handleUpdateStatus(partner.id, 'ativo')}
+                              disabled={updatingId === partner.id}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
                               title="Reativar">
                               <CheckCircle2 className="w-5 h-5" />
@@ -232,6 +271,7 @@ export default function AdminPartnersPage() {
                           <button 
                             onClick={() => {
                               setSelectedPartner(partner);
+                              setRejectionReason('');
                               setShowDetails(true);
                             }}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
@@ -311,6 +351,12 @@ export default function AdminPartnersPage() {
                   <p className="text-sm text-gray-500 mb-1">Data de Cadastro</p>
                   <p className="text-white font-medium">{new Date(selectedPartner.createdAt).toLocaleDateString('pt-BR')}</p>
                 </div>
+                {selectedPartner.decisionReason && (
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-gray-500 mb-1">Motivo da decisão</p>
+                    <p className="text-white font-medium whitespace-pre-wrap">{selectedPartner.decisionReason}</p>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-white/10 pt-6">
@@ -332,6 +378,22 @@ export default function AdminPartnersPage() {
                   </div>
                 </div>
               </div>
+              {selectedPartner.status === 'pendente' && (
+                <div className="border-t border-white/10 pt-6">
+                  <label htmlFor="partner-rejection-reason" className="block text-sm text-gray-300 mb-2">
+                    Motivo da recusa
+                  </label>
+                  <textarea
+                    id="partner-rejection-reason"
+                    value={rejectionReason}
+                    onChange={(event) => setRejectionReason(event.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Informe o motivo para recusar esta conta."
+                    className="w-full border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-red-500"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-white/5">
@@ -339,20 +401,30 @@ export default function AdminPartnersPage() {
                 <button
                   onClick={() => {
                     handleUpdateStatus(selectedPartner.id, 'ativo');
-                    setShowDetails(false);
                   }}
+                  disabled={updatingId === selectedPartner.id}
                   className="px-4 py-2 bg-green-600/20 text-green-500 hover:bg-green-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-5 h-5" />
                   Aprovar
                 </button>
               )}
+              {selectedPartner.status === 'pendente' && (
+                <button
+                  onClick={() => handleUpdateStatus(selectedPartner.id, 'recusado', rejectionReason)}
+                  disabled={updatingId === selectedPartner.id || rejectionReason.trim().length < 3}
+                  className="px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <XCircle className="w-5 h-5" />
+                  Recusar
+                </button>
+              )}
               {selectedPartner.status === 'ativo' && (
                 <button
                   onClick={() => {
                     handleUpdateStatus(selectedPartner.id, 'suspenso');
-                    setShowDetails(false);
                   }}
+                  disabled={updatingId === selectedPartner.id}
                   className="px-4 py-2 bg-red-600/20 text-red-500 hover:bg-red-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
                 >
                   <XCircle className="w-5 h-5" />
@@ -363,8 +435,8 @@ export default function AdminPartnersPage() {
                 <button
                   onClick={() => {
                     handleUpdateStatus(selectedPartner.id, 'ativo');
-                    setShowDetails(false);
                   }}
+                  disabled={updatingId === selectedPartner.id}
                   className="px-4 py-2 bg-green-600/20 text-green-500 hover:bg-green-600/30 rounded-lg transition-colors font-medium flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-5 h-5" />

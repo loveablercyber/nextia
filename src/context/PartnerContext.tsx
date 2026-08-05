@@ -27,8 +27,7 @@ interface PartnerContextType {
   refresh: () => Promise<void>;
 }
 
-// Keep static materials and achievements
-const mockAchievements: Achievement[] = [
+const achievementDefinitions: Achievement[] = [
   {
     id: 'ach-001',
     title: 'Primeiro Cliente',
@@ -36,8 +35,8 @@ const mockAchievements: Achievement[] = [
     icon: '🎯',
     requirement: 1,
     type: 'referrals',
-    unlocked: true,
-    unlockedAt: '2025-05-15T10:00:00Z',
+    unlocked: false,
+    unlockedAt: null,
   },
   {
     id: 'ach-002',
@@ -46,8 +45,8 @@ const mockAchievements: Achievement[] = [
     icon: '🌟',
     requirement: 10,
     type: 'referrals',
-    unlocked: true,
-    unlockedAt: '2026-01-20T10:00:00Z',
+    unlocked: false,
+    unlockedAt: null,
   },
   {
     id: 'ach-003',
@@ -56,8 +55,8 @@ const mockAchievements: Achievement[] = [
     icon: '💰',
     requirement: 10000,
     type: 'commission',
-    unlocked: true,
-    unlockedAt: '2026-05-10T10:00:00Z',
+    unlocked: false,
+    unlockedAt: null,
   },
   {
     id: 'ach-004',
@@ -71,17 +70,6 @@ const mockAchievements: Achievement[] = [
   },
 ];
 
-const mockMaterials: MarketingMaterial[] = [
-  { id: 'mat-001', title: 'Post Instagram - Benefícios', category: 'instagram', thumbnail: 'https://via.placeholder.com/300', downloadUrl: '#', fileType: 'png', fileSize: '2MB' },
-  { id: 'mat-002', title: 'Stories - Promoção Especial', category: 'stories', thumbnail: 'https://via.placeholder.com/300x500', downloadUrl: '#', fileType: 'mp4', fileSize: '15MB' },
-  { id: 'mat-003', title: 'Apresentação Comercial', category: 'pdf', thumbnail: 'https://via.placeholder.com/300x200', downloadUrl: '#', fileType: 'pdf', fileSize: '5MB' },
-  { id: 'mat-004', title: 'Banner Facebook', category: 'facebook', thumbnail: 'https://via.placeholder.com/400x200', downloadUrl: '#', fileType: 'jpg', fileSize: '1MB' },
-  { id: 'mat-005', title: 'Vídeo Promocional 30s', category: 'video', thumbnail: 'https://via.placeholder.com/300x200', downloadUrl: '#', fileType: 'mp4', fileSize: '25MB' },
-  { id: 'mat-006', title: 'Texto para WhatsApp 1', category: 'whatsapp', thumbnail: 'https://via.placeholder.com/300x100', downloadUrl: '#', fileType: 'txt', fileSize: '1KB' },
-  { id: 'mat-007', title: 'Logo Nextia Alta Resolução', category: 'logo', thumbnail: 'https://via.placeholder.com/300', downloadUrl: '#', fileType: 'png', fileSize: '3MB' },
-  { id: 'mat-008', title: 'Reels - Como Funciona', category: 'reels', thumbnail: 'https://via.placeholder.com/300x500', downloadUrl: '#', fileType: 'mp4', fileSize: '20MB' },
-];
-
 const PartnerContext = createContext<PartnerContextType | undefined>(undefined);
 
 export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -90,9 +78,9 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     referrals: [],
     commissions: [],
     withdrawals: [],
-    achievements: mockAchievements,
+    achievements: achievementDefinitions,
     ranking: [],
-    materials: mockMaterials,
+    materials: [],
     loading: true,
     error: null,
   });

@@ -28,8 +28,9 @@ export const PartnerLayout: React.FC = () => {
 
   const partner = state.profile;
   const levelInfo = partner ? PARTNER_LEVELS[partner.level] : null;
+  const canOperate = partner?.status === 'ativo';
 
-  const navItems = [
+  const operationalNavItems = [
     { to: '/parceiro', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { to: '/parceiro/indicacoes', icon: <Users size={20} />, label: 'Indicações' },
     { to: '/parceiro/comissoes', icon: <DollarSign size={20} />, label: 'Comissões' },
@@ -39,6 +40,9 @@ export const PartnerLayout: React.FC = () => {
     { to: '/parceiro/conquistas', icon: <Award size={20} />, label: 'Conquistas' },
     { to: '/parceiro/perfil', icon: <UserCircle size={20} />, label: 'Perfil' },
   ];
+  const navItems = canOperate
+    ? operationalNavItems
+    : operationalNavItems.filter((item) => item.to === '/parceiro' || item.to === '/parceiro/perfil');
 
   const currentPage = navItems.find(item => location.pathname === item.to)?.label || 'Dashboard';
 
@@ -144,9 +148,6 @@ export const PartnerLayout: React.FC = () => {
           <div className="flex items-center gap-6">
             <button className="relative text-gray-400 hover:text-white transition-colors">
               <Bell size={22} />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-[#111118] text-[9px] flex items-center justify-center font-bold">
-                2
-              </span>
             </button>
             
             {partner && (
@@ -163,7 +164,24 @@ export const PartnerLayout: React.FC = () => {
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-6 lg:p-8">
-          <Outlet />
+          {state.loading ? (
+            <div className="py-16 text-center text-gray-400">Carregando sua conta...</div>
+          ) : state.error ? (
+            <div className="border border-red-500/30 bg-red-500/10 p-6 text-red-200">{state.error}</div>
+          ) : !canOperate && location.pathname !== '/parceiro/perfil' ? (
+            <div className="mx-auto max-w-2xl border border-white/10 bg-[#111118] p-8">
+              <h2 className="text-xl font-bold text-white">
+                {partner?.status === 'recusado' ? 'Conta de parceiro recusada' : 'Conta aguardando análise'}
+              </h2>
+              <p className="mt-3 text-gray-400">
+                {partner?.status === 'recusado'
+                  ? partner.decisionReason || 'Entre em contato com o suporte para revisar os dados da sua conta.'
+                  : 'O painel de indicações e comissões será liberado após a aprovação do administrador.'}
+              </p>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
     </div>

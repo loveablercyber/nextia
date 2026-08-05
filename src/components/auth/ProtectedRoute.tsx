@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requireRole?: 'client' | 'admin';
+  requireRole?: 'client' | 'admin' | 'partner';
 }
 
 export default function ProtectedRoute({ children, requireRole }: ProtectedRouteProps) {
@@ -30,7 +30,7 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
   }
 
   if (requireRole && user.role !== requireRole && user.role !== 'admin') {
-    return <Navigate to="/painel" replace />;
+    return <Navigate to={user.role === 'partner' ? '/parceiro' : '/painel'} replace />;
   }
 
   return <>{children}</>;
