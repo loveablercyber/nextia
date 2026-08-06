@@ -1,8 +1,9 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "postgresql"]
+nixpkgsArchive = "b7c2ada94fe99c15b0dbcf4d11fd7850b957a436"
+nixPkgs = ["nodejs_22", "postgresql_18"]
 
 [phases.build]
-cmds = ["npm ci", "npm run build"]
+cmds = ["pg_dump --version | grep -E 'PostgreSQL\\) 18\\.'", "npm ci", "npm run build"]
 
 [start]
 cmd = "node server.js"

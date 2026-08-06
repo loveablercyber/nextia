@@ -1004,7 +1004,26 @@ async function handleSupportApi(req, res, url) {
     const validateBackupPreflight = async () => {
       const workspace = await createBackupWorkspace();
       try {
-        await execFileAsync('pg_dump', ['--version']);
+        const { stdout: pgDumpVersionOutput } = await execFileAsync('pg_dump', ['--version']);
+        const pgDumpVersionMatch = pgDumpVersionOutput.match(/PostgreSQL\)\s+(\d+)/i);
+        if (!pgDumpVersionMatch) {
+          throw new Error(`Não foi possível identificar a versão do pg_dump: ${pgDumpVersionOutput.trim()}`);
+        }
+
+        const serverVersionResult = await client.query(
+          `SELECT current_setting('server_version_num')::int AS version_num,
+                  current_setting('server_version') AS version`,
+        );
+        const pgDumpMajor = Number(pgDumpVersionMatch[1]);
+        const serverVersion = serverVersionResult.rows[0];
+        const serverMajor = Math.floor(Number(serverVersion.version_num) / 10000);
+        if (pgDumpMajor < serverMajor) {
+          throw new Error(
+            `pg_dump ${pgDumpMajor} é incompatível com o servidor PostgreSQL ${serverVersion.version}. `
+            + `Instale pg_dump ${serverMajor} ou superior no container.`,
+          );
+        }
+
         const writeProbe = join(workspace, '.write-check');
         await writeFile(writeProbe, 'ok');
         await access(writeProbe);
