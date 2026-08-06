@@ -58,13 +58,11 @@ export default function PartnerProfilePage() {
     }
 
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('nextia_session_token='))?.split('=')[1] || localStorage.getItem('nextia_token');
-      
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ currentPassword, newPassword })
       });

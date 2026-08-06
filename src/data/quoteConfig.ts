@@ -1,6 +1,6 @@
 // ─── Quote Configuration ───────────────────────────────────────────────────
 // All prices and configuration are defined here so they can be
-// migrated to the admin panel (Supabase) in the future without changing code.
+// migrated to a managed catalog in the future without changing code.
 
 export type ProjectType =
   | 'landing-page'

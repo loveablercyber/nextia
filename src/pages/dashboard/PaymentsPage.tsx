@@ -6,7 +6,7 @@ import { useProject } from '../../context/ProjectContext';
 import Button from '../../components/ui/Button';
 
 export default function PaymentsPage() {
-  const { project, simulatePayment } = useProject();
+  const { project, startPayment } = useProject();
   const [payingId, setPayingId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'pending'; text: string } | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,32 +26,18 @@ export default function PaymentsPage() {
 
   const handlePay = async (id: string) => {
     setPayingId(id);
-    const isSupabaseEnabled = false;
-    if (isSupabaseEnabled) {
-      try {
-        const response = await fetch('/api/payments/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ paymentId: id }),
-        });
-        const data = await response.json();
-        if (response.ok && data.initPoint) {
-          window.location.href = data.initPoint;
-          return;
-        } else {
-          console.error('Failed to create payment preference:', data.error || data);
-          setStatusMessage({ type: 'error', text: 'Erro ao iniciar pagamento com Mercado Pago. Tente novamente.' });
-        }
-      } catch (err) {
-        console.error('Error initiating checkout:', err);
-        setStatusMessage({ type: 'error', text: 'Erro de conexão ao iniciar o Mercado Pago.' });
-      }
-    } else {
-      await simulatePayment(id);
+    try {
+      const checkoutUrl = await startPayment(id);
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      console.error('Error registering payment:', error);
+      setStatusMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.',
+      });
+    } finally {
+      setPayingId(null);
     }
-    setPayingId(null);
   };
 
   const formatDate = (isoString: string) => {
@@ -165,13 +151,13 @@ export default function PaymentsPage() {
                   <td className="py-4">{getStatusBadge(p.status)}</td>
                   <td className="py-4 text-right">
                     {p.status === 'pago' ? (
-                      <a
+                      p.invoiceUrl ? <a
                         href={p.invoiceUrl}
                         className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 font-semibold px-2 py-1 rounded-lg hover:bg-gray-50 transition-all"
                         title="Baixar comprovante"
                       >
                         <Download className="w-3.5 h-3.5" /> Comprovante
-                      </a>
+                      </a> : <span className="text-[10px] text-gray-400">Confirmado</span>
                     ) : (
                       <Button
                         variant="gradient"

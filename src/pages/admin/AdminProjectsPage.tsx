@@ -6,7 +6,6 @@ import { useAdmin } from '../../context/AdminContext';
 import { statusConfig, type Project } from '../../types/project';
 import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
-import { supabase } from '../../lib/supabase';
 
 export default function AdminProjectsPage() {
   const { projects, profiles, loading, updateProjectProgress, updateProjectStatus, createProject, refreshData } = useAdmin();
@@ -18,7 +17,7 @@ export default function AdminProjectsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     userId: '',
     name: '',
     template: 'restaurante-premium',
@@ -27,7 +26,7 @@ export default function AdminProjectsPage() {
     monthlyFee: 79,
     activationFee: 497,
     estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  });
+  }));
 
   if (loading) {
     return (
@@ -56,17 +55,14 @@ export default function AdminProjectsPage() {
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
-      const response = await fetch('/api/admin/delete-item', {
+      const response = await fetch('/api/admin/app/project/delete', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          type: 'project',
-          id: projectId
+          projectId
         })
       });
 
@@ -78,9 +74,9 @@ export default function AdminProjectsPage() {
 
       alert('Projeto removido com sucesso!');
       await refreshData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || 'Erro inesperado ao remover projeto.');
+      alert(err instanceof Error ? err.message : 'Erro inesperado ao remover projeto.');
     }
   };
 
@@ -136,7 +132,7 @@ export default function AdminProjectsPage() {
       setForm(prev => ({
         ...prev,
         template: slug,
-        plan: (selected.recommendedPlan as any) || 'Pro',
+        plan: (selected.recommendedPlan as typeof form.plan) || 'Pro',
         monthlyFee: selected.price || 79,
         activationFee: selected.activationFee || 197
       }));
@@ -260,7 +256,7 @@ export default function AdminProjectsPage() {
 
                   <select
                     value={p.status}
-                    onChange={e => updateProjectStatus(p.id, e.target.value as any)}
+                    onChange={e => updateProjectStatus(p.id, e.target.value as Project['status'])}
                     className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
                   >
                     <option value="aguardando-briefing">Aguardando Briefing</option>
@@ -393,7 +389,7 @@ export default function AdminProjectsPage() {
                       </label>
                       <select
                         value={form.plan}
-                        onChange={e => setForm({ ...form, plan: e.target.value as any })}
+                        onChange={e => setForm({ ...form, plan: e.target.value as typeof form.plan })}
                         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-gray-800 text-xs focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
                       >
                         <option value="Start">Start</option>
@@ -535,6 +531,3 @@ export default function AdminProjectsPage() {
     </div>
   );
 }
-
-
-

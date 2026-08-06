@@ -42,6 +42,7 @@ import AdminQuotesPage from './pages/admin/AdminQuotesPage';
 import AdminClientsPage from './pages/admin/AdminClientsPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
 import AdminBackupPage from './pages/admin/AdminBackupPage';
+import AdminPartnerMaterialsPage from './pages/admin/AdminPartnerMaterialsPage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -316,6 +317,14 @@ function AppRoutes() {
         element={
           <AdminContainer title="Gestão de Parceiros">
             <AdminPartnersPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/parceiros/materiais"
+        element={
+          <AdminContainer title="Central de Materiais dos Parceiros">
+            <AdminPartnerMaterialsPage />
           </AdminContainer>
         }
       />

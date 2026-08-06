@@ -6,7 +6,6 @@ import {
 import { useAdmin } from '../../context/AdminContext';
 import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
-import { supabase } from '../../lib/supabase';
 
 export default function AdminQuotesPage() {
   const { quotes, profiles, updateQuoteStatus, deleteQuote, createProject, loading, refreshData } = useAdmin();
@@ -122,15 +121,12 @@ export default function AdminQuotesPage() {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
       const response = await fetch('/api/admin/delete-item', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           type: 'quote',
           id: quoteId

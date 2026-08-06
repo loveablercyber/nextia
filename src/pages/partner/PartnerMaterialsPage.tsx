@@ -88,12 +88,16 @@ export default function PartnerMaterialsPage() {
               key={material.id} 
               className="bg-[#111118] border border-white/10 rounded-2xl overflow-hidden group hover:border-white/30 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-black/50"
             >
-              {/* Thumbnail Placeholder */}
+              {/* Material preview */}
               <div className={`aspect-video w-full bg-gradient-to-br ${colorClass.split(' ').slice(0,2).join(' ')} relative flex items-center justify-center overflow-hidden`}>
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                <div className={`p-4 rounded-full bg-black/40 backdrop-blur-sm text-white/70 group-hover:scale-110 transition-transform ${colorClass.split(' ')[3]}`}>
-                  {getCategoryIcon(material.category)}
-                </div>
+                {material.thumbnail ? (
+                  <img src={material.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <div className={`p-4 rounded-full bg-black/40 backdrop-blur-sm text-white/70 group-hover:scale-110 transition-transform ${colorClass.split(' ')[3]}`}>
+                    {getCategoryIcon(material.category)}
+                  </div>
+                )}
               </div>
               
               <div className="p-5 space-y-4">
@@ -105,24 +109,19 @@ export default function PartnerMaterialsPage() {
                     <span className="text-xs text-gray-500 uppercase">{material.fileType} • {material.fileSize}</span>
                   </div>
                   <h3 className="text-white font-medium line-clamp-2" title={material.title}>{material.title}</h3>
+                  {material.description && <p className="text-xs text-gray-400 mt-2 line-clamp-2">{material.description}</p>}
                 </div>
                 
-                <button 
-                  onClick={() => {
-                    const content = `=== NEXTIA PARCEIROS ===\nMaterial: ${material.title}\nCategoria: ${material.category}\n\nDivulgue a Nextia e ganhe 25% de comissão recorrente!\nAcesse: https://nextia.dev.br`;
-                    const blob = new Blob([content], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${material.title.toLowerCase().replace(/[^a-z0-9]/g, '_')}.txt`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                <a
+                  href={material.downloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
                   className="w-full bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm border border-white/5 hover:border-white/10 group/btn"
                 >
                   <Download size={16} className="text-gray-400 group-hover/btn:text-white transition-colors" />
                   Download
-                </button>
+                </a>
               </div>
             </div>
           );

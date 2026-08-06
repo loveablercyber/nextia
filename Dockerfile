@@ -3,13 +3,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Accept build arguments for Vite environment variables
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_ANON_KEY
-
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
-
 # Copy package configuration
 COPY package.json package-lock.json ./
 
@@ -38,6 +31,7 @@ RUN apk add --no-cache postgresql-client
 # Copy compiled dist, server logic, and database schemas
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/app-api.js ./app-api.js
 COPY --from=builder /app/database ./database
 
 EXPOSE 3000

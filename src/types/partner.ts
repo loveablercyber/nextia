@@ -22,6 +22,8 @@ export interface Partner {
   availableBalance: number;
   pendingBalance: number;
   rankingPosition: number;
+  paidWithdrawals?: number;
+  referrals?: Referral[];
   createdAt: string;
 }
 
@@ -50,6 +52,7 @@ export interface Commission {
   status: CommissionStatus;
   period: string; // '2026-07'
   createdAt: string;
+  partnerName?: string;
 }
 
 export interface WithdrawalRequest {
@@ -60,6 +63,7 @@ export interface WithdrawalRequest {
   status: WithdrawalStatus;
   requestedAt: string;
   processedAt: string | null;
+  partnerName?: string;
 }
 
 export interface Achievement {
@@ -76,11 +80,16 @@ export interface Achievement {
 export interface MarketingMaterial {
   id: string;
   title: string;
+  description: string;
   category: 'instagram' | 'facebook' | 'stories' | 'reels' | 'whatsapp' | 'video' | 'pdf' | 'logo';
-  thumbnail: string;
+  thumbnail: string | null;
   downloadUrl: string;
   fileType: string;
   fileSize: string;
+  active?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  storageAccount?: string;
 }
 
 export const PARTNER_LEVELS: Record<PartnerLevel, { min: number; max: number; label: string; color: string; icon: string }> = {

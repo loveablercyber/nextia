@@ -15,7 +15,9 @@ interface EnterpriseBackupItem {
   sizeFormatted: string;
   checksum: string | null;
   backup_type: string;
-  status: 'PENDING' | 'PROCESSING' | 'GENERATING_DATABASE' | 'GENERATING_ARCHIVE' | 'CALCULATING_CHECKSUM' | 'UPLOADING_TO_MINIO' | 'COMPLETED' | 'FAILED' | 'RESTORING' | 'DELETED';
+  storage_provider: 'cloudinary' | 'minio';
+  storage_account?: string | null;
+  status: 'PENDING' | 'PROCESSING' | 'GENERATING_DATABASE' | 'GENERATING_ARCHIVE' | 'CALCULATING_CHECKSUM' | 'UPLOADING_TO_CLOUDINARY' | 'UPLOADING_TO_MINIO' | 'COMPLETED' | 'FAILED' | 'RESTORING' | 'DELETED';
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -64,13 +66,14 @@ export default function AdminBackupPage() {
   };
 
   useEffect(() => {
-    fetchBackupData();
+    const timer = window.setTimeout(() => void fetchBackupData(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Atualiza o acompanhamento enquanto o servidor executa qualquer etapa do backup.
   useEffect(() => {
     const hasActiveJob = backups.some(
-      (b) => ['PENDING', 'PROCESSING', 'GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_MINIO', 'RESTORING'].includes(b.status)
+      (b) => ['PENDING', 'PROCESSING', 'GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_CLOUDINARY', 'UPLOADING_TO_MINIO', 'RESTORING'].includes(b.status)
     );
 
     if (hasActiveJob) {
@@ -97,19 +100,19 @@ export default function AdminBackupPage() {
 
       addNotification(
         'Backup Concluído',
-        'Arquivo enviado ao MinIO e validado com SHA256.',
+        'Arquivo enviado à conta Cloudinary selecionada pela rotação e validado com SHA256.',
         'info'
       );
 
       await fetchBackupData();
-    } catch (err: any) {
-      addNotification('Erro no Backup', err.message || 'Falha ao iniciar backup.', 'request');
+    } catch (err: unknown) {
+      addNotification('Erro no Backup', err instanceof Error ? err.message : 'Falha ao iniciar backup.', 'request');
     } finally {
       setLoadingCreate(false);
     }
   };
 
-  // Download via Presigned URL (15 Minutest)
+  // Download via URL assinada da aplicação (15 minutos)
   const handleDownload = async (backupId: string) => {
     try {
       const response = await fetch(`/api/admin/backup/download?id=${backupId}`);
@@ -124,11 +127,11 @@ export default function AdminBackupPage() {
 
       addNotification(
         'Download Iniciado',
-        'Presigned URL de 15 min gerada com sucesso.',
+        'URL de download com validade de 15 minutos gerada.',
         'info'
       );
-    } catch (err: any) {
-      addNotification('Erro no Download', err.message, 'request');
+    } catch (err: unknown) {
+      addNotification('Erro no Download', err instanceof Error ? err.message : 'Falha ao baixar backup.', 'request');
     }
   };
 
@@ -157,24 +160,24 @@ export default function AdminBackupPage() {
       }
 
       addNotification(
-        'Restauração Iniciada',
-        'A restauração com rollback de segurança foi enviada para execução assíncrona.',
+        'Restauração Concluída',
+        'A restauração transacional foi concluída e validada.',
         'info'
       );
 
       setRestoreModalBackup(null);
       setConfirmationInput('');
       await fetchBackupData();
-    } catch (err: any) {
-      addNotification('Erro na Restauração', err.message, 'request');
+    } catch (err: unknown) {
+      addNotification('Erro na Restauração', err instanceof Error ? err.message : 'Falha ao restaurar backup.', 'request');
     } finally {
       setLoadingRestore(false);
     }
   };
 
-  // Delete Backup from MinIO/DB
+  // Delete backup from its original provider and update the database record.
   const handleDeleteBackup = async (backupId: string, filename: string) => {
-    if (!confirm(`Deseja realmente excluir o backup "${filename}" do MinIO e do banco de dados?`)) {
+    if (!confirm(`Deseja realmente excluir o backup "${filename}" do armazenamento e do banco de dados?`)) {
       return;
     }
 
@@ -214,7 +217,7 @@ export default function AdminBackupPage() {
               Gerenciamento de Backups Empresariais
             </h1>
             <p className="text-gray-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-              Sistema corporativo com empacotamento **TAR.GZ**, **Checksum SHA256**, armazenamento **MinIO/S3**, **Presigned URLs de 15 min**, **Rollback Atômico** e **Retenção Automática de 30 backups**.
+              Backups TAR.GZ com checksum SHA256, rotação entre contas Cloudinary, links de 15 minutos, restauração transacional e retenção automática de 30 arquivos.
             </p>
           </div>
 
@@ -280,7 +283,7 @@ export default function AdminBackupPage() {
           loadingList ? (
             <div className="py-12 text-center text-gray-400 text-xs">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#5B4FE9]" />
-              Carregando backups do MinIO e banco de dados...
+              Carregando backups do armazenamento e banco de dados...
             </div>
           ) : backups.length === 0 ? (
             <div className="py-12 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 space-y-2">
@@ -311,6 +314,9 @@ export default function AdminBackupPage() {
                           <Server className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           <span className="truncate">{b.filename}</span>
                         </div>
+                        <div className="mt-1 pl-6 text-[9px] font-sans text-gray-400">
+                          {b.storage_provider === 'cloudinary' ? `Cloudinary · ${b.storage_account || 'conta não identificada'}` : 'MinIO legado'}
+                        </div>
                       </td>
 
                       <td className="py-4 px-3">
@@ -324,7 +330,7 @@ export default function AdminBackupPage() {
                             <RefreshCw className="w-3 h-3 animate-spin" /> PROCESSING
                           </span>
                         )}
-                        {['GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_MINIO'].includes(b.status) && (
+                        {['GENERATING_DATABASE', 'GENERATING_ARCHIVE', 'CALCULATING_CHECKSUM', 'UPLOADING_TO_CLOUDINARY', 'UPLOADING_TO_MINIO'].includes(b.status) && (
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200/60 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
                             <RefreshCw className="w-3 h-3 animate-spin" /> {b.status}
                           </span>

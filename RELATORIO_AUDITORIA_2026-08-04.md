@@ -129,3 +129,49 @@ Validacao:
 - HTTP local `/`: status 200 e raiz React presente.
 - ESLint focado: ainda acusa divida tecnica preexistente (`any`, exports de contexto e regra de efeito); nao ha erro de TypeScript ou build causado por essas ocorrencias.
 - APIs dependentes do banco nao puderam ser executadas localmente porque o hostname do `DATABASE_URL` e interno ao Coolify. A verificacao final deve ocorrer apos o deploy.
+
+## Execucao complementar - 06/08/2026
+
+### Banco de dados e pagamentos
+
+- Removido o SDK e os fluxos ativos do Supabase. Projetos, orcamentos, notificacoes, faturas e dados administrativos agora usam a API local conectada por `DATABASE_URL` ao PostgreSQL do Coolify.
+- Removidos mocks e fallbacks em `localStorage` dos contextos de projeto, administracao e notificacoes.
+- O botao de pagamento nao marca mais uma fatura como paga no navegador. Ele cria checkout no Mercado Pago e o status somente muda apos o webhook consultar a transacao, validar moeda, valor e referencia.
+- Pagamentos aprovados de clientes indicados geram comissao idempotente e ativam a indicacao correspondente.
+
+### Correspondencia entre admin e parceiro
+
+- Criada a rota administrativa `/admin/parceiros/materiais`.
+- Criadas APIs e tabela PostgreSQL para cadastrar, editar, ordenar, publicar, ocultar e excluir materiais.
+- O painel do parceiro passou a baixar o arquivo real; o download `.txt` simulado foi removido.
+- Ranking e nivel agora sao calculados a partir de comissoes e indicacoes reais.
+- O admin passou a visualizar as mesmas indicacoes vinculadas exibidas ao parceiro.
+- O total de saques pagos deixou de ser uma estimativa e passou a usar somente saques com status `pago`.
+- Solicitacoes de saque usam bloqueio transacional para impedir saldo negativo em requisicoes concorrentes.
+
+### Backups Cloudinary
+
+- Novos backups usam arquivos `raw` autenticados e rotacao round-robin persistente entre contas Cloudinary.
+- Sao aceitos `CLOUDINARY_BACKUP_URL_1`, `CLOUDINARY_BACKUP_URL_2`, ... ou a lista legada `CLOUDINARY_URLS`.
+- A pre-validacao exige no minimo duas contas e testa upload, download assinado, integridade e exclusao antes de criar o registro.
+- A conta escolhida, o asset ID, o public ID e a versao ficam registrados no PostgreSQL sem persistir chaves ou segredos.
+- Download, restore, retencao e exclusao resolvem a conta original de cada arquivo.
+- Backups MinIO anteriores continuam suportados como legado.
+- A restauracao deixou de usar uma conexao encerrada em background e passou a executar `psql --single-transaction --set ON_ERROR_STOP=on`.
+
+### Validacao local
+
+- `node --check server.js`: aprovado.
+- `node --check app-api.js`: aprovado.
+- TypeScript sem emissao: aprovado.
+- ESLint focado nos arquivos alterados: aprovado.
+- ESLint completo ainda encontra divida tecnica fora deste fluxo em telas legadas e demonstracoes (`AuthContext`, suporte, templates e formularios); o build nao e bloqueado por essas ocorrencias.
+- `npm run build`: aprovado; 1879 modulos transformados.
+- Servidor local: `/api/health` retornou `ok` e `/admin/parceiros/materiais` retornou HTTP 200.
+- Teste de URL assinada Cloudinary confirmou que o `api_secret` nao aparece na URL gerada.
+
+### Dependencias para producao
+
+- Configurar pelo menos duas URLs Cloudinary validas no Coolify antes de gerar um novo backup.
+- `CLOUDINARY_MATERIALS_URL` e opcional; sem ela, a primeira conta da rotacao armazena os materiais.
+- As variaveis MinIO so sao necessarias enquanto existirem backups legados nesse provedor.

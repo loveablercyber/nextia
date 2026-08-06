@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type {
   Partner,
@@ -35,6 +36,16 @@ const achievementDefinitions: Achievement[] = [
     icon: '🎯',
     requirement: 1,
     type: 'referrals',
+    unlocked: false,
+    unlockedAt: null,
+  },
+  {
+    id: 'ach-005',
+    title: 'Top 10 Nextia',
+    description: 'Alcançou uma posição entre os 10 parceiros com maior comissão.',
+    icon: '🏆',
+    requirement: 10,
+    type: 'ranking',
     unlocked: false,
     unlockedAt: null,
   },
@@ -97,15 +108,12 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       const data = await res.json();
 
-      // Fetch ranking separately
-      let rankingData: any[] = [];
-      try {
-        const rankRes = await fetch('/api/partner/ranking', { credentials: 'include', cache: 'no-store' });
-        if (rankRes.ok) {
-          const rd = await rankRes.json();
-          rankingData = rd.ranking || [];
-        }
-      } catch {}
+      const [rankRes, materialsRes] = await Promise.all([
+        fetch('/api/partner/ranking', { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/partner/materials', { credentials: 'include', cache: 'no-store' }),
+      ]);
+      const rankingData = rankRes.ok ? (await rankRes.json()).ranking || [] : [];
+      const materialsData = materialsRes.ok ? (await materialsRes.json()).materials || [] : [];
 
       setState(prev => ({
         ...prev,
@@ -114,6 +122,7 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         commissions: data.commissions,
         withdrawals: data.withdrawals,
         ranking: rankingData,
+        materials: materialsData,
         loading: false
       }));
     } catch (err) {
@@ -123,7 +132,8 @@ export const PartnerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-    fetchPartnerData();
+    const timer = window.setTimeout(() => void fetchPartnerData(), 0);
+    return () => window.clearTimeout(timer);
   }, [fetchPartnerData]);
 
   const updateProfile = useCallback(async (updates: Partial<Partner>) => {

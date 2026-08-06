@@ -294,7 +294,7 @@ export default function AdminClientsPage() {
                       <td className="py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7c3aed] to-[#db2777] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                            {p.avatar_initials || p.avatarInitials || 'US'}
+                            {p.avatarInitials || 'US'}
                           </div>
                           <div className="min-w-0">
                             <span className="font-bold text-gray-900 block truncate">{p.name || 'Sem nome'}</span>

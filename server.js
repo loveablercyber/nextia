@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
+import { v2 as cloudinary } from 'cloudinary';
+import { handleAppApi, isAppApiPath } from './app-api.js';
 
 const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
@@ -146,14 +148,177 @@ async function minioRequest(method, objectKey = '', body) {
   return response;
 }
 
-async function validateMinioUpload() {
-  const probeKey = `backups/.healthchecks/${randomUUID()}.txt`;
-  const probePayload = Buffer.from(`nextia-backup-preflight:${new Date().toISOString()}`);
+function parseCloudinaryUrl(value, index) {
   try {
-    await minioRequest('PUT', probeKey, probePayload);
-  } finally {
-    await minioRequest('DELETE', probeKey).catch(() => undefined);
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'cloudinary:') throw new Error('protocolo inválido');
+    const cloudName = parsed.hostname;
+    const apiKey = decodeURIComponent(parsed.username);
+    const apiSecret = decodeURIComponent(parsed.password);
+    if (!cloudName || !apiKey || !apiSecret) throw new Error('credenciais incompletas');
+    return { index, cloudName, apiKey, apiSecret };
+  } catch (error) {
+    const variableName = index === 'materials' ? 'CLOUDINARY_MATERIALS_URL' : `CLOUDINARY_BACKUP_URL_${index}`;
+    throw new Error(`${variableName} inválida: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function cloudinaryMaterialsAccount() {
+  return process.env.CLOUDINARY_MATERIALS_URL
+    ? parseCloudinaryUrl(process.env.CLOUDINARY_MATERIALS_URL, 'materials')
+    : cloudinaryBackupAccounts()[0];
+}
+
+function formatByteSize(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${Math.max(0.1, bytes / 1024).toFixed(1)} KB`;
+}
+
+async function uploadMarketingMaterial(fileData, fileName) {
+  const match = String(fileData || '').match(/^data:([^;]+);base64,(.+)$/s);
+  if (!match) throw new Error('Arquivo inválido. Envie um arquivo codificado em base64.');
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length === 0 || buffer.length > 25 * 1024 * 1024) {
+    throw new Error('O material deve ter entre 1 byte e 25 MB.');
+  }
+  const safeName = basename(String(fileName || 'material.bin')).replace(/[^a-zA-Z0-9._-]/g, '-');
+  const workspace = await mkdtemp(join(tmpdir(), 'nextia-material-'));
+  const filePath = join(workspace, safeName);
+  try {
+    await writeFile(filePath, buffer);
+    const account = cloudinaryMaterialsAccount();
+    const result = await cloudinary.uploader.upload(filePath, {
+      ...cloudinaryOptions(account),
+      resource_type: 'auto',
+      type: 'upload',
+      folder: 'nextia-materials',
+      use_filename: true,
+      unique_filename: true,
+      overwrite: false,
+    });
+    return {
+      account,
+      assetId: result.asset_id,
+      publicId: result.public_id,
+      resourceType: result.resource_type,
+      format: result.format || safeName.split('.').pop() || 'bin',
+      bytes: Number(result.bytes || buffer.length),
+      secureUrl: result.secure_url,
+    };
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+}
+
+function cloudinaryBackupAccounts() {
+  let entries = Object.entries(process.env)
+    .map(([name, value]) => {
+      const match = name.match(/^CLOUDINARY_BACKUP_URL_(\d+)$/);
+      return match && value ? { index: Number(match[1]), value } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+
+  if (entries.length === 0 && process.env.CLOUDINARY_URLS) {
+    const raw = process.env.CLOUDINARY_URLS.trim().replace(/^['"]|['"]$/g, '');
+    let urls = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) urls = parsed.filter((item) => typeof item === 'string');
+    } catch {
+      urls = raw.split(/[,;\n]+/).map((item) => item.trim()).filter(Boolean);
+    }
+    entries = urls.map((value, offset) => ({ index: offset + 1, value }));
+  }
+
+  if (entries.length < 2) {
+    throw new Error('Configure pelo menos duas contas em CLOUDINARY_BACKUP_URL_1/CLOUDINARY_BACKUP_URL_2 ou na lista CLOUDINARY_URLS para ativar a rotação.');
+  }
+  const accounts = entries.map(({ index, value }) => parseCloudinaryUrl(value, index));
+  if (new Set(accounts.map((account) => account.cloudName)).size !== accounts.length) {
+    throw new Error('Cada CLOUDINARY_BACKUP_URL_n deve apontar para um cloud_name diferente.');
+  }
+  return accounts;
+}
+
+function cloudinaryOptions(account) {
+  return {
+    cloud_name: account.cloudName,
+    api_key: account.apiKey,
+    api_secret: account.apiSecret,
+    secure: true,
+    hide_sensitive: true,
+  };
+}
+
+async function selectCloudinaryBackupAccount(client) {
+  const accounts = cloudinaryBackupAccounts();
+  const sequence = await client.query(`SELECT nextval('public.backup_storage_rotation_seq') AS position`);
+  const start = (Number(sequence.rows[0].position) - 1) % accounts.length;
+  return accounts.map((_, offset) => accounts[(start + offset) % accounts.length]);
+}
+
+async function cloudinaryUploadFile(account, filePath, publicId, options = {}) {
+  return cloudinary.uploader.upload_large(filePath, {
+    ...cloudinaryOptions(account),
+    resource_type: 'raw',
+    type: 'authenticated',
+    public_id: publicId,
+    overwrite: false,
+    chunk_size: 6_000_000,
+    ...options,
+  });
+}
+
+async function cloudinaryDeleteAsset(account, publicId, options = {}) {
+  const result = await cloudinary.uploader.destroy(publicId, {
+    ...cloudinaryOptions(account),
+    resource_type: options.resourceType || 'raw',
+    type: options.type || 'authenticated',
+    invalidate: true,
+  });
+  if (!['ok', 'not found'].includes(result.result)) {
+    throw new Error(`Cloudinary não confirmou a exclusão do ativo ${publicId}.`);
+  }
+}
+
+async function cloudinaryDownloadAsset(account, backup) {
+  const signedUrl = cloudinary.url(backup.storage_public_id || backup.object_key, {
+    ...cloudinaryOptions(account),
+    resource_type: 'raw',
+    type: 'authenticated',
+    sign_url: true,
+    version: backup.storage_version || undefined,
+  });
+  const response = await fetch(signedUrl, { headers: { Accept: 'application/octet-stream' } });
+  if (!response.ok) {
+    throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup.`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function cloudinaryAccountForBackup(backup) {
+  const account = cloudinaryBackupAccounts().find((item) => item.cloudName === backup.storage_account);
+  if (!account) throw new Error(`A conta Cloudinary "${backup.storage_account || 'não informada'}" não está configurada neste deploy.`);
+  return account;
+}
+
+async function downloadBackupObject(backup) {
+  if (backup.storage_provider === 'cloudinary') {
+    return cloudinaryDownloadAsset(cloudinaryAccountForBackup(backup), backup);
+  }
+  const response = await minioRequest('GET', backup.object_key);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function deleteBackupObject(backup) {
+  if (backup.storage_provider === 'cloudinary') {
+    return cloudinaryDeleteAsset(
+      cloudinaryAccountForBackup(backup),
+      backup.storage_public_id || backup.object_key,
+    );
+  }
+  return minioRequest('DELETE', backup.object_key);
 }
 
 function mapProfile(row) {
@@ -736,6 +901,11 @@ async function handleSupportApi(req, res, url) {
         error_message TEXT,
         error_details TEXT,
         backup_type TEXT DEFAULT 'full',
+        storage_provider TEXT NOT NULL DEFAULT 'minio',
+        storage_account TEXT,
+        storage_asset_id TEXT,
+        storage_public_id TEXT,
+        storage_version BIGINT,
         status TEXT DEFAULT 'PENDING',
         created_by TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -744,6 +914,12 @@ async function handleSupportApi(req, res, url) {
 
       ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS error_message TEXT;
       ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS error_details TEXT;
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS storage_provider TEXT NOT NULL DEFAULT 'minio';
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS storage_account TEXT;
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS storage_asset_id TEXT;
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS storage_public_id TEXT;
+      ALTER TABLE public.backups ADD COLUMN IF NOT EXISTS storage_version BIGINT;
+      CREATE SEQUENCE IF NOT EXISTS public.backup_storage_rotation_seq;
 
       CREATE TABLE IF NOT EXISTS public.backup_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -838,7 +1014,31 @@ async function handleSupportApi(req, res, url) {
         const checksumProbe = createHash('sha256').update(archiveProbe).digest('hex');
         if (!/^[a-f0-9]{64}$/.test(checksumProbe)) throw new Error('Não foi possível calcular SHA256 do arquivo de teste.');
 
-        await validateMinioUpload();
+        const accounts = await selectCloudinaryBackupAccount(client);
+        const failures = [];
+        for (const account of accounts) {
+          const probePath = join(workspace, `cloudinary-probe-${account.index}.txt`);
+          const probePublicId = `nextia-backups/healthchecks/${randomUUID()}.txt`;
+          const probePayload = Buffer.from(`nextia-backup-preflight:${new Date().toISOString()}`);
+          let uploaded;
+          try {
+            await writeFile(probePath, probePayload);
+            uploaded = await cloudinaryUploadFile(account, probePath, probePublicId);
+            const downloaded = await cloudinaryDownloadAsset(account, {
+              storage_public_id: uploaded.public_id || probePublicId,
+              storage_version: uploaded.version,
+            });
+            if (!downloaded.equals(probePayload)) throw new Error('O arquivo de teste retornou com conteúdo divergente.');
+            await cloudinaryDeleteAsset(account, uploaded.public_id || probePublicId);
+            return account;
+          } catch (error) {
+            if (uploaded) {
+              await cloudinaryDeleteAsset(account, uploaded.public_id || probePublicId).catch(() => undefined);
+            }
+            failures.push(`${account.cloudName}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        throw new Error(`Nenhuma conta Cloudinary passou na validação de upload: ${failures.join(' | ')}`);
       } finally {
         await rm(workspace, { recursive: true, force: true });
       }
@@ -849,6 +1049,8 @@ async function handleSupportApi(req, res, url) {
       await execFileAsync('pg_dump', [
         '--no-owner',
         '--no-privileges',
+        '--clean',
+        '--if-exists',
         '--format=plain',
         '--file', dumpPath,
         process.env.DATABASE_URL,
@@ -906,8 +1108,9 @@ async function handleSupportApi(req, res, url) {
         return json(res, 403, { error: 'Acesso restrito a administradores.' });
       }
 
+      let selectedStorageAccount;
       try {
-        await validateBackupPreflight();
+        selectedStorageAccount = await validateBackupPreflight();
       } catch (error) {
         const details = error instanceof Error ? error.stack || error.message : String(error);
         console.error('[BACKUP] PRECHECK_FAILED', details);
@@ -919,18 +1122,20 @@ async function handleSupportApi(req, res, url) {
 
       const timestampStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
       const filename = `nextia-fullbackup-${timestampStr}.tar.gz`;
-      const objectKey = `backups/${filename}`;
+      const objectKey = `nextia-backups/${randomUUID()}/${filename}`;
 
       // Insere registro no banco com status PENDING
       const insertRes = await client.query(
-        `INSERT INTO public.backups (filename, object_key, size, backup_type, status, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [filename, objectKey, 0, 'full', 'PENDING', sessionProfile.email]
+        `INSERT INTO public.backups
+           (filename, object_key, size, backup_type, storage_provider, storage_account, status, created_by)
+         VALUES ($1, $2, $3, $4, 'cloudinary', $5, $6, $7) RETURNING id`,
+        [filename, objectKey, 0, 'full', selectedStorageAccount.cloudName, 'PENDING', sessionProfile.email]
       );
       const backupId = insertRes.rows[0].id;
       await logAuditAction(backupId, 'BACKUP_STARTED', sessionProfile.email, 'Início do backup após pré-validação completa.');
 
       let workspace;
+      let uploadedCloudinaryAsset;
       let currentStage = 'PROCESSING';
       try {
         workspace = await createBackupWorkspace();
@@ -964,25 +1169,38 @@ async function handleSupportApi(req, res, url) {
         if (!/^[a-f0-9]{64}$/.test(checksum)) throw new Error('SHA256 inválido para o TAR.GZ gerado.');
         await client.query(`UPDATE public.backups SET checksum = $1, updated_at = NOW() WHERE id = $2`, [checksum, backupId]);
 
-        currentStage = 'UPLOADING_TO_MINIO';
+        currentStage = 'UPLOADING_TO_CLOUDINARY';
         await client.query(`UPDATE public.backups SET status = $1, updated_at = NOW() WHERE id = $2`, [currentStage, backupId]);
-        await logAuditAction(backupId, 'MINIO_UPLOAD_STARTED', sessionProfile.email, `Enviando ${objectKey} ao MinIO.`);
-        await minioRequest('PUT', objectKey, tarGzBuffer);
+        await logAuditAction(
+          backupId,
+          'CLOUDINARY_UPLOAD_STARTED',
+          sessionProfile.email,
+          `Enviando ${objectKey} para a conta ${selectedStorageAccount.cloudName}.`,
+        );
+        const archivePath = join(workspace, filename);
+        await writeFile(archivePath, tarGzBuffer);
+        uploadedCloudinaryAsset = await cloudinaryUploadFile(selectedStorageAccount, archivePath, objectKey);
 
         await client.query(
           `UPDATE public.backups
-           SET status = 'COMPLETED', error_message = NULL, error_details = NULL, updated_at = NOW()
+           SET status = 'COMPLETED', storage_asset_id = $2, storage_public_id = $3,
+               storage_version = $4, error_message = NULL, error_details = NULL, updated_at = NOW()
            WHERE id = $1`,
-          [backupId],
+          [backupId, uploadedCloudinaryAsset.asset_id || null, uploadedCloudinaryAsset.public_id || objectKey, uploadedCloudinaryAsset.version || null],
         );
-        await logAuditAction(backupId, 'BACKUP_COMPLETED', sessionProfile.email, `Fim backup. Tamanho: ${tarGzBuffer.length} bytes; SHA256: ${checksum}`);
+        await logAuditAction(
+          backupId,
+          'BACKUP_COMPLETED',
+          sessionProfile.email,
+          `Fim backup na conta ${selectedStorageAccount.cloudName}. Tamanho: ${tarGzBuffer.length} bytes; SHA256: ${checksum}`,
+        );
 
         try {
           const activeBackups = (await client.query(
-            `SELECT id, object_key FROM public.backups WHERE status = 'COMPLETED' ORDER BY created_at ASC`,
+            `SELECT * FROM public.backups WHERE status = 'COMPLETED' ORDER BY created_at ASC`,
           )).rows;
           for (const oldBackup of activeBackups.slice(0, Math.max(0, activeBackups.length - 30))) {
-            await minioRequest('DELETE', oldBackup.object_key);
+            await deleteBackupObject(oldBackup);
             await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [oldBackup.id]);
             await logAuditAction(oldBackup.id, 'BACKUP_DELETED', 'system', 'Exclusão por retenção automática (limite de 30 backups).');
           }
@@ -994,12 +1212,18 @@ async function handleSupportApi(req, res, url) {
 
         return json(res, 201, { ok: true, backupId, filename, status: 'COMPLETED' });
       } catch (error) {
+        if (uploadedCloudinaryAsset) {
+          await cloudinaryDeleteAsset(
+            selectedStorageAccount,
+            uploadedCloudinaryAsset.public_id || objectKey,
+          ).catch((cleanupError) => console.error('[BACKUP] CLOUDINARY_ORPHAN_CLEANUP_FAILED', cleanupError));
+        }
         const details = error instanceof Error ? error.stack || error.message : String(error);
         const stageLabels = {
           GENERATING_DATABASE: 'Falha pg_dump',
           GENERATING_ARCHIVE: 'Falha TAR.GZ',
           CALCULATING_CHECKSUM: 'Falha SHA256',
-          UPLOADING_TO_MINIO: 'Falha Upload MinIO',
+          UPLOADING_TO_CLOUDINARY: 'Falha Upload Cloudinary',
         };
         const message = stageLabels[currentStage] || 'Falha no processamento do backup';
         console.error(`[BACKUP] ${message}`, details);
@@ -1040,6 +1264,8 @@ async function handleSupportApi(req, res, url) {
           sizeFormatted,
           checksum: b.checksum || null,
           backup_type: b.backup_type,
+          storage_provider: b.storage_provider,
+          storage_account: b.storage_account,
           status: b.status,
           error_message: b.error_message,
           error_details: b.error_details,
@@ -1120,15 +1346,14 @@ async function handleSupportApi(req, res, url) {
 
       let fileBuffer;
       try {
-        const response = await minioRequest('GET', b.object_key);
-        fileBuffer = Buffer.from(await response.arrayBuffer());
+        fileBuffer = await downloadBackupObject(b);
       } catch (error) {
-        console.error('[BACKUP] MINIO_DOWNLOAD_FAILED', error);
-        return json(res, 502, { error: 'Não foi possível recuperar o arquivo no MinIO.' });
+        console.error('[BACKUP] STORAGE_DOWNLOAD_FAILED', error);
+        return json(res, 502, { error: 'Não foi possível recuperar o arquivo no armazenamento configurado.' });
       }
       const computedChecksum = createHash('sha256').update(fileBuffer).digest('hex');
       if (computedChecksum !== b.checksum) {
-        return json(res, 409, { error: 'Falha de integridade: SHA256 do arquivo MinIO não confere.' });
+        return json(res, 409, { error: 'Falha de integridade: SHA256 do arquivo armazenado não confere.' });
       }
       res.writeHead(200, {
         'Content-Type': 'application/gzip',
@@ -1164,11 +1389,10 @@ async function handleSupportApi(req, res, url) {
       await client.query(`UPDATE public.backups SET status = 'RESTORING', updated_at = NOW() WHERE id = $1`, [backupId]);
       await logAuditAction(backupId, 'RESTORE_STARTED', sessionProfile.email, 'Restauração com Rollback atômico iniciada');
 
-      // Executa Restauração em Background
-      setTimeout(async () => {
-        try {
-          const minioResponse = await minioRequest('GET', b.object_key);
-          const fileBuf = Buffer.from(await minioResponse.arrayBuffer());
+      let restoreWorkspace;
+      try {
+          restoreWorkspace = await createBackupWorkspace();
+          const fileBuf = await downloadBackupObject(b);
           const computedChecksum = createHash('sha256').update(fileBuf).digest('hex');
 
           // Valida Checksum SHA256
@@ -1183,22 +1407,25 @@ async function handleSupportApi(req, res, url) {
             throw new Error('Dump SQL (database.sql) não encontrado dentro do pacote TAR.GZ.');
           }
 
-          // Transação SQL Atômica para Restore
-          await client.query('BEGIN');
-          const sqlCommands = sqlDumpEntry.data.toString('utf-8').split(';\n');
-          for (const cmd of sqlCommands) {
-            const cleanCmd = cmd.trim();
-            if (cleanCmd && !cleanCmd.startsWith('--')) {
-              await client.query(cleanCmd);
-            }
-          }
-          await client.query('COMMIT');
+          // O psql interpreta corretamente funções, COPY e demais comandos do pg_dump.
+          const restoreSqlPath = join(restoreWorkspace, 'database.sql');
+          await writeFile(restoreSqlPath, sqlDumpEntry.data);
+          await execFileAsync('psql', [
+            '--single-transaction',
+            '--set', 'ON_ERROR_STOP=on',
+            '--file', restoreSqlPath,
+            process.env.DATABASE_URL,
+          ]);
 
           // Restaura Arquivos Persistentes
           for (const file of extractedFiles) {
             if (file.path.startsWith('files/')) {
               const relativeTarget = file.path.replace(/^files\//, '');
-              const fullTarget = join(process.cwd(), relativeTarget);
+              const restoreRoot = normalize(`${process.cwd()}/`);
+              const fullTarget = normalize(join(restoreRoot, relativeTarget));
+              if (!fullTarget.startsWith(restoreRoot)) {
+                throw new Error(`Caminho inválido dentro do backup: ${file.path}`);
+              }
               const parentDir = join(fullTarget, '..');
               if (!existsSync(parentDir)) mkdirSync(parentDir, { recursive: true });
               writeFileSync(fullTarget, file.data);
@@ -1207,25 +1434,28 @@ async function handleSupportApi(req, res, url) {
 
           await client.query(`UPDATE public.backups SET status = 'COMPLETED', updated_at = NOW() WHERE id = $1`, [backupId]);
           await logAuditAction(backupId, 'RESTORE_COMPLETED', sessionProfile.email, 'Restauração concluída com sucesso!');
+          return json(res, 200, {
+            ok: true,
+            message: 'Restauração concluída e validada.',
+            status: 'COMPLETED',
+          });
         } catch (err) {
           console.error('[RESTORE ROLLBACK TRIGGERED]', err);
-          try {
-            await client.query('ROLLBACK');
-          } catch (rErr) {}
-
-          await client.query(`UPDATE public.backups SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [backupId]);
-          await logAuditAction(backupId, 'RESTORE_FAILED', sessionProfile.email, `Rollback ativado: ${err.message}`);
+          const details = err instanceof Error ? err.stack || err.message : String(err);
+          await client.query(
+            `UPDATE public.backups
+             SET status = 'FAILED', error_message = 'Falha na restauração', error_details = $2, updated_at = NOW()
+             WHERE id = $1`,
+            [backupId, details],
+          );
+          await logAuditAction(backupId, 'RESTORE_FAILED', sessionProfile.email, `Rollback ativado: ${err instanceof Error ? err.message : String(err)}`);
+          return json(res, 500, { error: 'Falha na restauração do backup.', backupId });
+        } finally {
+          if (restoreWorkspace) await rm(restoreWorkspace, { recursive: true, force: true });
         }
-      }, 100);
-
-      return json(res, 200, {
-        ok: true,
-        message: 'Processo de restauração iniciado em segundo plano.',
-        status: 'RESTORING',
-      });
     }
 
-    // Endpoint 6: Excluir Backup (MinIO + Banco + Logs)
+    // Endpoint 6: Excluir Backup no provedor original + atualizar banco e logs
     if (url.pathname === '/api/admin/backup/delete') {
       const sessionProfile = await getSessionProfile(req, client);
       if (sessionProfile?.role !== 'admin') {
@@ -1240,7 +1470,7 @@ async function handleSupportApi(req, res, url) {
       if (bRes.rows.length === 0) return json(res, 404, { error: 'Backup não encontrado.' });
       const b = bRes.rows[0];
 
-      if (b.status === 'COMPLETED') await minioRequest('DELETE', b.object_key);
+      if (b.status === 'COMPLETED') await deleteBackupObject(b);
 
       await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [backupId]);
       await logAuditAction(backupId, 'BACKUP_DELETED', sessionProfile.email, 'Backup removido manualmente pelo admin');
@@ -1316,13 +1546,38 @@ async function ensurePartnerSchema(client) {
           requested_at TIMESTAMPTZ DEFAULT NOW(),
           processed_at TIMESTAMPTZ
         );
+        CREATE TABLE IF NOT EXISTS public.partner_materials (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          category TEXT NOT NULL,
+          cloudinary_account TEXT NOT NULL,
+          cloudinary_asset_id TEXT,
+          cloudinary_public_id TEXT NOT NULL,
+          resource_type TEXT NOT NULL DEFAULT 'raw',
+          format TEXT NOT NULL DEFAULT 'bin',
+          bytes BIGINT NOT NULL DEFAULT 0,
+          secure_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          active BOOLEAN NOT NULL DEFAULT TRUE,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS partner_materials_active_order_idx
+          ON public.partner_materials(active, sort_order, created_at DESC);
         ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS decision_reason TEXT;
         ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
         ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS reviewed_by UUID;
         ALTER TABLE public.partner_referrals ADD COLUMN IF NOT EXISTS referred_user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+        ALTER TABLE public.partner_commissions ADD COLUMN IF NOT EXISTS payment_id UUID;
         CREATE UNIQUE INDEX IF NOT EXISTS partner_referrals_referred_user_uidx
           ON public.partner_referrals (referred_user_id)
           WHERE referred_user_id IS NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS partner_commissions_payment_uidx
+          ON public.partner_commissions (payment_id)
+          WHERE payment_id IS NOT NULL;
       `);
     })();
   }
@@ -1337,6 +1592,7 @@ async function ensurePartnerSchema(client) {
 const partnerApiMethods = new Map([
   ['/api/partner/me', 'GET'],
   ['/api/partner/ranking', 'GET'],
+  ['/api/partner/materials', 'GET'],
   ['/api/partner/update-profile', 'POST'],
   ['/api/partner/request-withdrawal', 'POST'],
   ['/api/admin/partners', 'GET'],
@@ -1344,6 +1600,9 @@ const partnerApiMethods = new Map([
   ['/api/admin/partner-withdrawals', 'GET'],
   ['/api/admin/update-withdrawal', 'POST'],
   ['/api/admin/update-partner', 'POST'],
+  ['/api/admin/partner-materials', 'GET'],
+  ['/api/admin/partner-materials/save', 'POST'],
+  ['/api/admin/partner-materials/delete', 'POST'],
 ]);
 
 async function handlePartnerApi(req, res, url) {
@@ -1375,6 +1634,26 @@ async function handlePartnerApi(req, res, url) {
             AND NOT EXISTS (SELECT 1 FROM public.partner_profiles pp WHERE pp.user_id = p.id)
           ON CONFLICT (user_id) DO NOTHING
         `);
+        await client.query(`
+          WITH referral_counts AS (
+            SELECT pp.id,
+                   COUNT(referral.id) FILTER (WHERE referral.status = 'ativo') AS active_count
+            FROM public.partner_profiles pp
+            LEFT JOIN public.partner_referrals referral ON referral.partner_id = pp.id
+            GROUP BY pp.id
+          )
+          UPDATE public.partner_profiles profile
+          SET level = CASE
+            WHEN counts.active_count >= 51 THEN 'elite'
+            WHEN counts.active_count >= 31 THEN 'diamante'
+            WHEN counts.active_count >= 16 THEN 'ouro'
+            WHEN counts.active_count >= 6 THEN 'prata'
+            ELSE 'bronze'
+          END,
+          updated_at = NOW()
+          FROM referral_counts counts
+          WHERE counts.id = profile.id
+        `);
 
         const result = await client.query(`
           SELECT pp.id, pp.user_id as "userId", pr.name, pr.email, pr.phone as whatsapp, 
@@ -1386,7 +1665,24 @@ async function handlePartnerApi(req, res, url) {
                  (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id) as "totalCommission",
                  (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id AND c.status = 'pendente') as "pendingBalance",
                  (SELECT COALESCE(SUM(c.commission_value), 0) FROM public.partner_commissions c WHERE c.partner_id = pp.id AND c.status = 'confirmado') - 
-                 (SELECT COALESCE(SUM(w.amount), 0) FROM public.partner_withdrawals w WHERE w.partner_id = pp.id AND w.status IN ('pendente', 'pago')) as "availableBalance"
+                 (SELECT COALESCE(SUM(w.amount), 0) FROM public.partner_withdrawals w WHERE w.partner_id = pp.id AND w.status IN ('pendente', 'pago')) as "availableBalance",
+                 (SELECT COALESCE(SUM(w.amount), 0) FROM public.partner_withdrawals w WHERE w.partner_id = pp.id AND w.status = 'pago') as "paidWithdrawals",
+                 COALESCE((
+                   SELECT json_agg(json_build_object(
+                     'id', referral.id,
+                     'partnerId', referral.partner_id,
+                     'clientName', referral.client_name,
+                     'clientCompany', referral.client_company,
+                     'plan', referral.plan,
+                     'monthlyFee', referral.monthly_fee,
+                     'status', referral.status,
+                     'commissionRate', referral.commission_rate,
+                     'commissionGenerated', referral.commission_generated,
+                     'startDate', referral.start_date,
+                     'lastPaymentDate', referral.last_payment_date
+                   ) ORDER BY referral.start_date DESC)
+                   FROM public.partner_referrals referral WHERE referral.partner_id = pp.id
+                 ), '[]'::json) as referrals
           FROM public.partner_profiles pp
           JOIN public.profiles pr ON pr.id = pp.user_id
           ORDER BY "totalCommission" DESC
@@ -1450,6 +1746,87 @@ async function handlePartnerApi(req, res, url) {
         if (!result.rows[0]) return json(res, 404, { error: 'Parceiro não encontrado.' });
         return json(res, 200, { status: 'success', partner: result.rows[0] });
       }
+
+      if (url.pathname === '/api/admin/partner-materials') {
+        const result = await client.query(`
+          SELECT id, title, description, category, format as "fileType", bytes,
+                 secure_url as "downloadUrl", thumbnail_url as thumbnail,
+                 active, sort_order as "sortOrder", created_at as "createdAt",
+                 cloudinary_account as "storageAccount"
+          FROM public.partner_materials
+          ORDER BY sort_order, created_at DESC
+        `);
+        return json(res, 200, {
+          materials: result.rows.map((item) => ({ ...item, fileSize: formatByteSize(Number(item.bytes)) })),
+        });
+      }
+
+      if (url.pathname === '/api/admin/partner-materials/save') {
+        const body = await readJson(req);
+        const id = String(body.id || '');
+        const title = String(body.title || '').trim();
+        const description = String(body.description || '').trim();
+        const category = String(body.category || '');
+        const allowedCategories = ['instagram', 'facebook', 'stories', 'reels', 'whatsapp', 'video', 'pdf', 'logo'];
+        if (!title || !allowedCategories.includes(category)) {
+          return json(res, 400, { error: 'Título e categoria válida são obrigatórios.' });
+        }
+
+        if (id) {
+          const result = await client.query(
+            `UPDATE public.partner_materials
+             SET title = $1, description = $2, category = $3, active = $4,
+                 sort_order = $5, updated_at = NOW()
+             WHERE id = $6 RETURNING id`,
+            [title, description, category, body.active !== false, Number(body.sortOrder || 0), id],
+          );
+          if (!result.rows[0]) return json(res, 404, { error: 'Material não encontrado.' });
+          return json(res, 200, { status: 'success', id });
+        }
+
+        if (!body.fileData || !body.fileName) {
+          return json(res, 400, { error: 'Selecione o arquivo do material.' });
+        }
+        const uploaded = await uploadMarketingMaterial(body.fileData, body.fileName);
+        const thumbnail = uploaded.resourceType === 'image' ? uploaded.secureUrl : null;
+        try {
+          const result = await client.query(
+            `INSERT INTO public.partner_materials
+               (title, description, category, cloudinary_account, cloudinary_asset_id,
+                cloudinary_public_id, resource_type, format, bytes, secure_url,
+                thumbnail_url, active, sort_order, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+             RETURNING id`,
+            [title, description, category, uploaded.account.cloudName, uploaded.assetId,
+              uploaded.publicId, uploaded.resourceType, uploaded.format, uploaded.bytes,
+              uploaded.secureUrl, thumbnail, body.active !== false, Number(body.sortOrder || 0), sessionProfile.id],
+          );
+          return json(res, 201, { status: 'success', id: result.rows[0].id });
+        } catch (error) {
+          await cloudinaryDeleteAsset(uploaded.account, uploaded.publicId, {
+            resourceType: uploaded.resourceType,
+            type: 'upload',
+          }).catch(() => undefined);
+          throw error;
+        }
+      }
+
+      if (url.pathname === '/api/admin/partner-materials/delete') {
+        const body = await readJson(req);
+        const result = await client.query('SELECT * FROM public.partner_materials WHERE id = $1', [body.id]);
+        const material = result.rows[0];
+        if (!material) return json(res, 404, { error: 'Material não encontrado.' });
+        const account = material.cloudinary_account === cloudinaryMaterialsAccount().cloudName
+          ? cloudinaryMaterialsAccount()
+          : cloudinaryBackupAccounts().find((item) => item.cloudName === material.cloudinary_account);
+        if (!account) return json(res, 409, { error: 'A conta Cloudinary deste material não está configurada.' });
+        await cloudinaryDeleteAsset(account, material.cloudinary_public_id, {
+          resourceType: material.resource_type,
+          type: 'upload',
+        });
+        await client.query('DELETE FROM public.partner_materials WHERE id = $1', [material.id]);
+        return json(res, 200, { status: 'success' });
+      }
     }
 
     if (url.pathname.startsWith('/api/partner/')) {
@@ -1459,8 +1836,8 @@ async function handlePartnerApi(req, res, url) {
       }
       const partnerProfile = profileRes.rows[0];
 
-      if (url.pathname === '/api/partner/request-withdrawal' && partnerProfile.status !== 'ativo') {
-        return json(res, 403, { error: 'A conta precisa estar aprovada para solicitar saques.' });
+      if (!['/api/partner/me', '/api/partner/update-profile'].includes(url.pathname) && partnerProfile.status !== 'ativo') {
+        return json(res, 403, { error: 'A conta precisa estar aprovada para acessar este recurso.' });
       }
 
       if (url.pathname === '/api/partner/me') {
@@ -1501,6 +1878,14 @@ async function handlePartnerApi(req, res, url) {
         // Calculate balances
         profile.totalReferrals = referralsRes.rows.length;
         profile.activeReferrals = referralsRes.rows.filter(r => r.status === 'ativo').length;
+        profile.level = profile.activeReferrals >= 51 ? 'elite'
+          : profile.activeReferrals >= 31 ? 'diamante'
+          : profile.activeReferrals >= 16 ? 'ouro'
+          : profile.activeReferrals >= 6 ? 'prata'
+          : 'bronze';
+        if (profile.level !== partnerProfile.level) {
+          await client.query('UPDATE public.partner_profiles SET level = $1, updated_at = NOW() WHERE id = $2', [profile.level, partnerProfile.id]);
+        }
         profile.totalCommission = commissionsRes.rows.reduce((sum, c) => sum + Number(c.commissionValue), 0);
         
         const confirmedCommissions = commissionsRes.rows.filter(c => c.status === 'confirmado').reduce((sum, c) => sum + Number(c.commissionValue), 0);
@@ -1508,13 +1893,41 @@ async function handlePartnerApi(req, res, url) {
         
         profile.availableBalance = Math.max(0, confirmedCommissions - withdrawnAmount);
         profile.pendingBalance = commissionsRes.rows.filter(c => c.status === 'pendente').reduce((sum, c) => sum + Number(c.commissionValue), 0);
-        profile.rankingPosition = 0; // Can be calculated by joining all if needed
+        const rankingRes = await client.query(`
+          WITH partner_totals AS (
+            SELECT candidate.id,
+                   COALESCE(SUM(commission.commission_value), 0) AS total
+            FROM public.partner_profiles candidate
+            LEFT JOIN public.partner_commissions commission ON commission.partner_id = candidate.id
+            WHERE candidate.status = 'ativo'
+            GROUP BY candidate.id
+          ), ranked AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY total DESC, id) AS position
+            FROM partner_totals
+          )
+          SELECT position FROM ranked WHERE id = $1
+        `, [partnerProfile.id]);
+        profile.rankingPosition = Number(rankingRes.rows[0]?.position || 0);
 
         return json(res, 200, { 
           profile, 
           referrals: referralsRes.rows, 
           commissions: commissionsRes.rows, 
           withdrawals: withdrawalsRes.rows 
+        });
+      }
+
+      if (url.pathname === '/api/partner/materials') {
+        const result = await client.query(`
+          SELECT id, title, description, category, format as "fileType", bytes,
+                 secure_url as "downloadUrl", thumbnail_url as thumbnail,
+                 sort_order as "sortOrder", created_at as "createdAt"
+          FROM public.partner_materials
+          WHERE active = TRUE
+          ORDER BY sort_order, created_at DESC
+        `);
+        return json(res, 200, {
+          materials: result.rows.map((item) => ({ ...item, fileSize: formatByteSize(Number(item.bytes)) })),
         });
       }
 
@@ -1536,19 +1949,27 @@ async function handlePartnerApi(req, res, url) {
         }
         const pixKey = String(partnerProfile.pix_key || body.pixKey || '').trim();
         if (!pixKey) return json(res, 400, { error: 'Cadastre uma chave PIX antes de solicitar o saque.' });
-        
-        // Ensure sufficient balance
-        const commissionsRes = await client.query(`SELECT COALESCE(SUM(commission_value), 0) as total FROM public.partner_commissions WHERE partner_id = $1 AND status = 'confirmado'`, [partnerProfile.id]);
-        const withdrawalsRes = await client.query(`SELECT COALESCE(SUM(amount), 0) as total FROM public.partner_withdrawals WHERE partner_id = $1 AND status IN ('pendente', 'pago')`, [partnerProfile.id]);
-        const available = Number(commissionsRes.rows[0].total) - Number(withdrawalsRes.rows[0].total);
 
-        if (amount > available) return json(res, 400, { error: 'Saldo insuficiente' });
-
-        await client.query(`
-          INSERT INTO public.partner_withdrawals (partner_id, amount, pix_key) 
-          VALUES ($1, $2, $3)
-        `, [partnerProfile.id, amount, pixKey]);
-        return json(res, 200, { status: 'success' });
+        await client.query('BEGIN');
+        try {
+          await client.query('SELECT id FROM public.partner_profiles WHERE id = $1 FOR UPDATE', [partnerProfile.id]);
+          const commissionsRes = await client.query(`SELECT COALESCE(SUM(commission_value), 0) as total FROM public.partner_commissions WHERE partner_id = $1 AND status = 'confirmado'`, [partnerProfile.id]);
+          const withdrawalsRes = await client.query(`SELECT COALESCE(SUM(amount), 0) as total FROM public.partner_withdrawals WHERE partner_id = $1 AND status IN ('pendente', 'pago')`, [partnerProfile.id]);
+          const available = Number(commissionsRes.rows[0].total) - Number(withdrawalsRes.rows[0].total);
+          if (amount > available) {
+            await client.query('ROLLBACK');
+            return json(res, 400, { error: 'Saldo insuficiente' });
+          }
+          await client.query(`
+            INSERT INTO public.partner_withdrawals (partner_id, amount, pix_key)
+            VALUES ($1, $2, $3)
+          `, [partnerProfile.id, amount, pixKey]);
+          await client.query('COMMIT');
+          return json(res, 200, { status: 'success' });
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
       }
 
       if (url.pathname === '/api/partner/ranking') {
@@ -1936,6 +2357,9 @@ createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/auth/')) {
       return await handleAuth(req, res, url.pathname);
+    }
+    if (isAppApiPath(url.pathname)) {
+      return await handleAppApi(req, res, url, { dbClient, ensurePartnerSchema, getSessionProfile, json, readJson });
     }
     if (
       url.pathname.startsWith('/api/partner/') ||

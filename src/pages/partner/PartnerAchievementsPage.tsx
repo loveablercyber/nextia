@@ -107,10 +107,15 @@ export default function PartnerAchievementsPage() {
             let currentValue = 0;
             if (achievement.type === 'referrals') currentValue = profile.totalReferrals;
             else if (achievement.type === 'commission') currentValue = profile.totalCommission;
-            else if (achievement.type === 'ranking') currentValue = profile.rankingPosition > 0 ? (100 - profile.rankingPosition) : 0;
+            else if (achievement.type === 'ranking') currentValue = profile.rankingPosition;
             
-            const isUnlocked = achievement.unlocked || currentValue >= achievement.requirement;
-            const progress = Math.min(100, Math.max(0, (currentValue / achievement.requirement) * 100));
+            const isRankingAchievement = achievement.type === 'ranking';
+            const isUnlocked = achievement.unlocked || (isRankingAchievement
+              ? currentValue > 0 && currentValue <= achievement.requirement
+              : currentValue >= achievement.requirement);
+            const progress = isRankingAchievement
+              ? (currentValue > 0 ? Math.min(100, (achievement.requirement / currentValue) * 100) : 0)
+              : Math.min(100, Math.max(0, (currentValue / achievement.requirement) * 100));
 
             return (
               <div 
@@ -139,7 +144,7 @@ export default function PartnerAchievementsPage() {
                 ) : (
                   <div className="space-y-1.5 mt-auto">
                     <div className="flex justify-between text-xs text-gray-500">
-                      <span>{currentValue} / {achievement.requirement}</span>
+                      <span>{isRankingAchievement ? `#${currentValue || '-'}` : `${currentValue} / ${achievement.requirement}`}</span>
                       <span>{Math.floor(progress)}%</span>
                     </div>
                     <div className="h-1.5 bg-black/50 rounded-full overflow-hidden">

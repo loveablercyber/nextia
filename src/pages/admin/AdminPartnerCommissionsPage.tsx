@@ -44,7 +44,10 @@ export default function AdminPartnerCommissionsPage() {
   };
 
   useEffect(() => {
-    Promise.all([fetchCommissions(), fetchWithdrawals()]).finally(() => setLoading(false));
+    const timer = window.setTimeout(() => {
+      void Promise.all([fetchCommissions(), fetchWithdrawals()]).finally(() => setLoading(false));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleUpdateWithdrawal = async (id: string, status: 'pago' | 'rejeitado') => {
@@ -88,14 +91,14 @@ export default function AdminPartnerCommissionsPage() {
   const pendingWithdrawalCount = withdrawals.filter(w => w.status === 'pendente').length;
   const filteredCommissions = commissions.filter(c => {
     const matchesSearch = (c.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          ((c as any).partnerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (c.partnerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (c.plan || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const filteredWithdrawals = withdrawals.filter(w => {
-    const matchesSearch = ((w as any).partnerName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = (w.partnerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (w.pixKey || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || w.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -198,7 +201,7 @@ export default function AdminPartnerCommissionsPage() {
             <Filter className="w-4 h-4 text-gray-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20"
             >
               <option value="all">Todos os Status</option>
@@ -229,7 +232,7 @@ export default function AdminPartnerCommissionsPage() {
                 {filteredCommissions.map((comm) => (
                   <tr key={comm.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{(comm as any).partnerName || comm.partnerId}</span>
+                      <span className="font-medium text-gray-900">{comm.partnerName || comm.partnerId}</span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-gray-900">{comm.clientName}</p>
@@ -270,7 +273,7 @@ export default function AdminPartnerCommissionsPage() {
                 {filteredWithdrawals.map((wd) => (
                   <tr key={wd.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">{(wd as any).partnerName || wd.partnerId}</span>
+                      <span className="font-medium text-gray-900">{wd.partnerName || wd.partnerId}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-gray-900">

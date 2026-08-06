@@ -35,7 +35,8 @@ export default function AdminPartnersPage() {
   };
 
   useEffect(() => {
-    fetchPartners();
+    const timer = window.setTimeout(() => void fetchPartners(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleUpdateStatus = async (
@@ -87,7 +88,7 @@ export default function AdminPartnersPage() {
 
   const totalPartners = partners.length;
   const activePartners = partners.filter(p => p.status === 'ativo').length;
-  const totalCommissionsPaid = partners.reduce((sum, p) => sum + (p.totalCommission - p.availableBalance - p.pendingBalance), 0); // Estimate or get real total
+  const totalWithdrawalsPaid = partners.reduce((sum, p) => sum + Number(p.paidWithdrawals || 0), 0);
   const totalCommission = partners.reduce((sum, p) => sum + Number(p.totalCommission), 0);
 
   return (
@@ -144,7 +145,7 @@ export default function AdminPartnersPage() {
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500">Saques Realizados</p>
-          <h3 className="text-2xl font-bold text-gray-900">R$ {totalCommissionsPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+          <h3 className="text-2xl font-bold text-gray-900">R$ {totalWithdrawalsPaid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
         </div>
       </div>
 
@@ -377,6 +378,28 @@ export default function AdminPartnersPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+              <div className="border-t border-white/10 pt-6">
+                <h3 className="text-lg font-medium text-white mb-4">Indicações vinculadas</h3>
+                {selectedPartner.referrals && selectedPartner.referrals.length > 0 ? (
+                  <div className="overflow-x-auto border border-white/10">
+                    <table className="w-full min-w-[540px] text-left text-xs">
+                      <thead className="bg-white/5 text-gray-400 uppercase">
+                        <tr><th className="px-3 py-2">Cliente</th><th className="px-3 py-2">Plano</th><th className="px-3 py-2">Status</th><th className="px-3 py-2 text-right">Comissão</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {selectedPartner.referrals.map((referral) => (
+                          <tr key={referral.id}>
+                            <td className="px-3 py-2"><div className="text-white">{referral.clientName}</div><div className="text-gray-500">{referral.clientCompany || 'Sem empresa'}</div></td>
+                            <td className="px-3 py-2 text-gray-300">{referral.plan || '-'}</td>
+                            <td className="px-3 py-2 capitalize text-gray-300">{referral.status}</td>
+                            <td className="px-3 py-2 text-right text-[#D4A853]">R$ {Number(referral.commissionGenerated || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="text-sm text-gray-500">Nenhuma indicação vinculada.</p>}
               </div>
               {selectedPartner.status === 'pendente' && (
                 <div className="border-t border-white/10 pt-6">

@@ -4,7 +4,6 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import Button from '../../components/ui/Button';
-import { supabase } from '../../lib/supabase';
 
 export default function AdminPaymentsPage() {
   const { projects, loading, createInvoice, refreshData } = useAdmin();
@@ -46,17 +45,14 @@ export default function AdminPaymentsPage() {
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || '';
-      const response = await fetch('/api/admin/delete-item', {
+      const response = await fetch('/api/admin/app/payment/delete', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          type: 'payment',
-          id: paymentId
+          paymentId
         })
       });
 
@@ -68,9 +64,9 @@ export default function AdminPaymentsPage() {
 
       alert('Cobrança removida com sucesso!');
       await refreshData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || 'Erro inesperado ao remover cobrança.');
+      alert(err instanceof Error ? err.message : 'Erro inesperado ao remover cobrança.');
     }
   };
 
@@ -213,7 +209,7 @@ export default function AdminPaymentsPage() {
                   </label>
                   <select
                     value={form.type}
-                    onChange={e => setForm({ ...form, type: e.target.value as any })}
+                    onChange={e => setForm({ ...form, type: e.target.value as typeof form.type })}
                     className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-gray-800 text-xs focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
                   >
                     <option value="mensalidade">Mensalidade</option>
