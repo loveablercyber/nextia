@@ -300,7 +300,41 @@ async function cloudinaryDeleteAsset(account, publicId, options = {}) {
 
 async function cloudinaryDownloadAsset(account, backup) {
   return withCloudinaryAccount(account, async () => {
-    const signedUrl = cloudinary.url(backup.storage_public_id || backup.object_key, {
+    const publicId = backup.storage_public_id || backup.object_key;
+
+    // If we have asset_id but the stored public_id might be stale, resolve via Admin API
+    if (backup.storage_asset_id && !backup.storage_public_id) {
+      try {
+        const asset = await cloudinary.api.resource_by_asset_id(backup.storage_asset_id, { resource_type: 'raw' });
+        if (asset && asset.public_id) {
+          backup.storage_public_id = asset.public_id;
+          backup.storage_version = asset.version;
+        }
+      } catch (resolveErr) {
+        console.warn('[BACKUP] Não foi possível resolver ativo pelo asset_id:', resolveErr.message);
+      }
+    }
+
+    const resolvedPublicId = backup.storage_public_id || publicId;
+
+    // Primary: use private_download_url for authenticated raw assets
+    try {
+      const downloadUrl = cloudinary.utils.private_download_url(resolvedPublicId, '', {
+        resource_type: 'raw',
+        type: 'authenticated',
+        expires_at: Math.floor(Date.now() / 1000) + 900,
+      });
+      const response = await fetch(downloadUrl, { headers: { Accept: 'application/octet-stream' } });
+      if (response.ok) {
+        return Buffer.from(await response.arrayBuffer());
+      }
+      console.warn(`[BACKUP] private_download_url retornou HTTP ${response.status}, tentando fallback sign_url...`);
+    } catch (pdErr) {
+      console.warn('[BACKUP] private_download_url falhou:', pdErr.message, '— tentando fallback sign_url...');
+    }
+
+    // Fallback: signed URL via cloudinary.url
+    const signedUrl = cloudinary.url(resolvedPublicId, {
       resource_type: 'raw',
       type: 'authenticated',
       sign_url: true,
@@ -308,7 +342,7 @@ async function cloudinaryDownloadAsset(account, backup) {
     });
     const response = await fetch(signedUrl, { headers: { Accept: 'application/octet-stream' } });
     if (!response.ok) {
-      throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup.`);
+      throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup (public_id: ${resolvedPublicId}).`);
     }
     return Buffer.from(await response.arrayBuffer());
   });
@@ -1217,12 +1251,22 @@ async function handleSupportApi(req, res, url) {
         await writeFile(archivePath, tarGzBuffer);
         uploadedCloudinaryAsset = await cloudinaryUploadFile(selectedStorageAccount, archivePath, objectKey);
 
+        // Validate that Cloudinary returned essential metadata
+        if (!uploadedCloudinaryAsset.public_id || !uploadedCloudinaryAsset.asset_id || !uploadedCloudinaryAsset.version) {
+          console.error('[BACKUP] Cloudinary retornou metadados incompletos:', JSON.stringify({
+            public_id: uploadedCloudinaryAsset.public_id,
+            asset_id: uploadedCloudinaryAsset.asset_id,
+            version: uploadedCloudinaryAsset.version,
+          }));
+          throw new Error('Cloudinary não retornou public_id, asset_id ou version após o upload.');
+        }
+
         await client.query(
           `UPDATE public.backups
            SET status = 'COMPLETED', storage_asset_id = $2, storage_public_id = $3,
                storage_version = $4, error_message = NULL, error_details = NULL, updated_at = NOW()
            WHERE id = $1`,
-          [backupId, uploadedCloudinaryAsset.asset_id || null, uploadedCloudinaryAsset.public_id || objectKey, uploadedCloudinaryAsset.version || null],
+          [backupId, uploadedCloudinaryAsset.asset_id, uploadedCloudinaryAsset.public_id, uploadedCloudinaryAsset.version],
         );
         await logAuditAction(
           backupId,
