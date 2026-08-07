@@ -15,6 +15,13 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
 
+import AutomacaoIAPage from './pages/AutomacaoIAPage';
+import TechCarePage from './pages/TechCarePage';
+import RedesWifiPage from './pages/RedesWifiPage';
+import CamerasSegurancaPage from './pages/CamerasSegurancaPage';
+import SolucoesPage from './pages/SolucoesPage';
+import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
+
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
@@ -81,7 +88,7 @@ function NotFound() {
         <div className="text-8xl font-black text-gray-100 mb-4">404</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Página não encontrada</h2>
         <p className="text-gray-500 mb-6">A página que você procura não existe ou foi movida.</p>
-        <a href="/" className="inline-flex items-center gap-2 bg-[#5B4FE9] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#4338CA] transition-colors">
+        <a href="/" className="inline-flex items-center gap-2 bg-[#2086FF] text-white px-6 py-3 rounded-xl font-semibold hover:bg-[#1a6ecc] transition-colors">
           Voltar ao início
         </a>
       </div>
@@ -138,6 +145,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sites-prontos" element={<TemplatesPage />} />
+      <Route path="/automacao-ia" element={<AutomacaoIAPage />} />
+      <Route path="/techcare" element={<TechCarePage />} />
+      <Route path="/redes-wifi" element={<RedesWifiPage />} />
+      <Route path="/cameras-seguranca" element={<CamerasSegurancaPage />} />
+      <Route path="/solucoes" element={<SolucoesPage />} />
+      <Route path="/termos" element={<TermosPage />} />
+      <Route path="/privacidade" element={<PrivacidadePage />} />
+      <Route path="/cookies" element={<CookiesPage />} />
       <Route path="/templates/:slug" element={<TemplateDetailPage />} />
       <Route path="/demo/:slug" element={<TemplateDemoPage />} />
       <Route path="/planos" element={<PlansPage />} />
@@ -219,96 +234,84 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/painel/perfil"
-        element={
-          <DashboardContainer title="Meu perfil">
-            <ProfilePage />
-          </DashboardContainer>
-        }
-      />
-      <Route
         path="/perfil"
         element={
-          <DashboardContainer title="Meu perfil">
+          <ProtectedRoute>
             <ProfilePage />
-          </DashboardContainer>
+          </ProtectedRoute>
         }
       />
-
-      {/* Partner Subroutes */}
-      <Route element={<PartnerContainer />}>
-        <Route path="/parceiro" element={<PartnerDashboardPage />} />
-        <Route path="/parceiro/indicacoes" element={<PartnerReferralsPage />} />
-        <Route path="/parceiro/comissoes" element={<PartnerCommissionsPage />} />
-        <Route path="/parceiro/financeiro" element={<PartnerFinancialPage />} />
-        <Route path="/parceiro/ranking" element={<PartnerRankingPage />} />
-        <Route path="/parceiro/materiais" element={<PartnerMaterialsPage />} />
-        <Route path="/parceiro/conquistas" element={<PartnerAchievementsPage />} />
-        <Route path="/parceiro/perfil" element={<PartnerProfilePage />} />
-      </Route>
 
       {/* Admin Subroutes */}
       <Route
         path="/admin"
         element={
-          <AdminContainer title="Painel de controle geral">
+          <AdminContainer title="Visão Geral do Sistema">
             <AdminOverviewPage />
-          </AdminContainer>
-        }
-      />
-      <Route
-        path="/admin/clientes"
-        element={
-          <AdminContainer title="Gestão de clientes">
-            <AdminClientsPage />
-          </AdminContainer>
-        }
-      />
-      <Route
-        path="/admin/orcamentos"
-        element={
-          <AdminContainer title="Orçamentos recebidos">
-            <AdminQuotesPage />
           </AdminContainer>
         }
       />
       <Route
         path="/admin/projetos"
         element={
-          <AdminContainer title="Gestão de projetos">
+          <AdminContainer title="Gerenciar Projetos">
             <AdminProjectsPage />
           </AdminContainer>
         }
       />
       <Route
-        path="/admin/chamados"
+        path="/admin/solicitacoes"
         element={
-          <AdminContainer title="Gestão de solicitações">
+          <AdminContainer title="Solicitações de Alteração">
             <AdminRequestsPage />
           </AdminContainer>
         }
       />
       <Route
-        path="/admin/suporte"
+        path="/admin/pagamentos"
         element={
-          <AdminContainer title="Chamados Suporte">
-            <AdminSupportPage />
+          <AdminContainer title="Controle de Pagamentos">
+            <AdminPaymentsPage />
           </AdminContainer>
         }
       />
       <Route
-        path="/admin/cobrancas"
+        path="/admin/orcamentos"
         element={
-          <AdminContainer title="Gestão financeira">
-            <AdminPaymentsPage />
+          <AdminContainer title="Solicitações de Orçamento">
+            <AdminQuotesPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/clientes"
+        element={
+          <AdminContainer title="Gerenciar Clientes">
+            <AdminClientsPage />
           </AdminContainer>
         }
       />
       <Route
         path="/admin/backup"
         element={
-          <AdminContainer title="Backup & Restauração">
+          <AdminContainer title="Central de Backup">
             <AdminBackupPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/perfil"
+        element={
+          <AdminContainer title="Perfil do Administrador">
+            <AdminProfilePage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/suporte"
+        element={
+          <AdminContainer title="Gestão de Suporte / Tickets">
+            <AdminSupportPage />
           </AdminContainer>
         }
       />
@@ -321,14 +324,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/admin/parceiros/materiais"
-        element={
-          <AdminContainer title="Central de Materiais dos Parceiros">
-            <AdminPartnerMaterialsPage />
-          </AdminContainer>
-        }
-      />
-      <Route
         path="/admin/parceiros/comissoes"
         element={
           <AdminContainer title="Comissões de Parceiros">
@@ -337,14 +332,27 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/admin/perfil"
+        path="/admin/parceiros/materiais"
         element={
-          <AdminContainer title="Perfil do administrador">
-            <AdminProfilePage />
+          <AdminContainer title="Materiais de Parceiros">
+            <AdminPartnerMaterialsPage />
           </AdminContainer>
         }
       />
 
+      {/* Partner Subroutes */}
+      <Route path="/parceiro" element={<PartnerContainer />}>
+        <Route index element={<PartnerDashboardPage />} />
+        <Route path="indicacoes" element={<PartnerReferralsPage />} />
+        <Route path="comissoes" element={<PartnerCommissionsPage />} />
+        <Route path="financeiro" element={<PartnerFinancialPage />} />
+        <Route path="ranking" element={<PartnerRankingPage />} />
+        <Route path="materiais" element={<PartnerMaterialsPage />} />
+        <Route path="conquistas" element={<PartnerAchievementsPage />} />
+        <Route path="perfil" element={<PartnerProfilePage />} />
+      </Route>
+
+      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

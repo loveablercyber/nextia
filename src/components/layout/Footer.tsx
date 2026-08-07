@@ -1,175 +1,151 @@
 import { Link } from 'react-router-dom';
-import { Zap, MessageCircle, Mail, MapPin } from 'lucide-react';
-
-const footerLinks = {
-  plataforma: [
-    { label: 'Sites Prontos', href: '/sites-prontos' },
-    { label: 'Planos e Preços', href: '/planos' },
-    { label: 'Como Funciona', href: '/como-funciona' },
-    { label: 'Programa de Parceiros', href: '/parceiros' },
-    { label: 'Projeto Personalizado', href: '/projeto-personalizado' },
-  ],
-  segmentos: [
-    { label: 'Restaurantes', href: '/sites-prontos?categoria=restaurante' },
-    { label: 'Salões e Barbearias', href: '/sites-prontos?categoria=salao-barbearia' },
-    { label: 'Clínicas e Estética', href: '/sites-prontos?categoria=clinica-estetica' },
-    { label: 'Prestadores de Serviço', href: '/sites-prontos?categoria=prestador-servicos' },
-    { label: 'Contabilidade', href: '/sites-prontos?categoria=contabilidade' },
-    { label: 'Imobiliárias', href: '/sites-prontos?categoria=imobiliaria' },
-  ],
-  suporte: [
-    { label: 'Central de Ajuda', href: '/contato' },
-    { label: 'Perguntas Frequentes', href: '/como-funciona#faq' },
-    { label: 'Entrar em Contato', href: '/contato' },
-    { label: 'Área do Cliente', href: '/login' },
-  ],
-};
+import { Zap, Phone, MapPin } from 'lucide-react';
+import { getWhatsAppLink } from '../../utils/whatsapp';
 
 export default function Footer() {
   return (
-    <footer className="bg-[#0f0c29] text-white">
-      {/* Main footer */}
+    <footer className="bg-[#07111F] text-gray-400 text-sm border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
-          {/* Brand */}
-          <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
+          {/* Brand Col */}
+          <div className="lg:col-span-2 space-y-4">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2086FF] to-[#7C5CFF] flex items-center justify-center shadow-lg shadow-[#2086FF]/20">
+                <Zap className="w-4 h-4 text-white" />
               </div>
-              <span className="text-2xl font-black">Nextia</span>
+              <span className="text-xl font-black tracking-tight text-white">Nextia</span>
             </Link>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-xs">
-              Parceira estratégica de presença digital e autoridade para empresas que buscam gerar credibilidade, confiança e oportunidades no mercado.
+            <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+              Tecnologia completa para empresas e profissionais. Estrutura digital, automação, suporte de TI, redes e segurança em um só lugar.
             </p>
-            {/* Contact info */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <MessageCircle className="w-4 h-4 text-green-400" />
-                <span>(14) 99640-5496</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Mail className="w-4 h-4 text-[#818cf8]" />
-                <span>ola@nextia.dev.br</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <MapPin className="w-4 h-4 text-[#818cf8]" />
-                <span>Bauru, SP — Brasil</span>
-              </div>
-            </div>
-            {/* Social */}
-            <div className="flex items-center gap-3 mt-6">
-              {[
-                {
-                  label: 'Instagram',
-                  href: 'https://www.instagram.com/nextia.dev/',
-                  svg: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                    </svg>
-                  )
-                },
-                {
-                  label: 'Facebook',
-                  href: '', // removed Facebook icon
-                  svg: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                    </svg>
-                  )
-                },
-                {
-                  label: 'LinkedIn',
-                  href: '', // removed LinkedIn icon
-                  svg: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-                      <rect width="4" height="12" x="2" y="9" />
-                      <circle cx="4" cy="4" r="2" />
-                    </svg>
-                  )
-                }
-              ].map(({ svg, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#5B4FE9] flex items-center justify-center transition-colors duration-200 text-white"
-                >
-                  {svg}
-                </a>
-              ))}
+            <div className="space-y-2 pt-2 text-xs">
+              <p className="flex items-center gap-2 text-gray-300">
+                <MapPin className="w-4 h-4 text-[#2086FF] flex-shrink-0" />
+                Atendimento em Bauru - SP e Região
+              </p>
+              <p className="flex items-center gap-2 text-gray-300">
+                <Phone className="w-4 h-4 text-[#FF9D2E] flex-shrink-0" />
+                WhatsApp: (14) 99640-5496
+              </p>
+              <p className="text-gray-400">CNPJ: 57.285.901/0001-94</p>
             </div>
           </div>
 
-          {/* Links columns */}
+          {/* Soluções */}
           <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-300 mb-4">Plataforma</h4>
-            <ul className="space-y-2">
-              {footerLinks.plataforma.map((link) => (
-                <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Soluções</h3>
+            <ul className="space-y-2.5 text-xs">
+              <li>
+                <Link to="/sites-prontos" className="hover:text-[#2086FF] transition-colors">
+                  Sites Profissionais
+                </Link>
+              </li>
+              <li>
+                <Link to="/automacao-ia" className="hover:text-[#7C5CFF] transition-colors">
+                  Automação & IA
+                </Link>
+              </li>
+              <li>
+                <Link to="/techcare" className="hover:text-[#FF9D2E] transition-colors">
+                  Nextia TechCare (Suporte TI)
+                </Link>
+              </li>
+              <li>
+                <Link to="/redes-wifi" className="hover:text-[#21C77A] transition-colors">
+                  Redes & Wi-Fi
+                </Link>
+              </li>
+              <li>
+                <Link to="/cameras-seguranca" className="hover:text-[#21C77A] transition-colors">
+                  Câmeras & Segurança
+                </Link>
+              </li>
+              <li>
+                <Link to="/solucoes" className="hover:text-white transition-colors">
+                  Soluções por Segmento
+                </Link>
+              </li>
             </ul>
           </div>
 
+          {/* Navegação */}
           <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-300 mb-4">Segmentos</h4>
-            <ul className="space-y-2">
-              {footerLinks.segmentos.map((link) => (
-                <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Empresa</h3>
+            <ul className="space-y-2.5 text-xs">
+              <li>
+                <Link to="/planos" className="hover:text-white transition-colors">
+                  Planos Mensais
+                </Link>
+              </li>
+              <li>
+                <Link to="/como-funciona" className="hover:text-white transition-colors">
+                  Como Funciona
+                </Link>
+              </li>
+              <li>
+                <Link to="/parceiros" className="hover:text-white transition-colors">
+                  Programa de Parceiros
+                </Link>
+              </li>
+              <li>
+                <Link to="/contato" className="hover:text-white transition-colors">
+                  Fale Conosco
+                </Link>
+              </li>
+              <li>
+                <Link to="/login" className="hover:text-white transition-colors">
+                  Área do Cliente
+                </Link>
+              </li>
             </ul>
           </div>
 
+          {/* Redes Sociais e Atendimento */}
           <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-300 mb-4">Suporte</h4>
-            <ul className="space-y-2">
-              {footerLinks.suporte.map((link) => (
-                <li key={link.href}>
-                  <Link to={link.href} className="text-sm text-gray-400 hover:text-white transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            {/* WhatsApp CTA */}
-            <div className="mt-6 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-              <p className="text-xs text-gray-400 mb-2">Precisa de ajuda agora?</p>
+            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Atendimento</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Precisa de suporte urgente ou proposta rápida?
+            </p>
+            <a
+              href={getWhatsAppLink('geral')}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-[#21C77A] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#1bb06b] transition-colors mb-4"
+            >
+              <Phone className="w-4 h-4" />
+              Chamar no WhatsApp
+            </a>
+            <div className="pt-2">
               <a
-                href="https://wa.me/5514996405496"
+                href="https://www.instagram.com/nextia.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-green-400 font-semibold text-sm hover:text-green-300 transition-colors"
+                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-xs"
               >
-                <MessageCircle className="w-4 h-4" />
-                WhatsApp direto
+                <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                </svg>
+                @nextia.dev
               </a>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom bar */}
-      <div className="border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">
-            © 2025 Nextia. Todos os direitos reservados. CNPJ: 57.285.901/0001-94
-          </p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Termos de uso</a>
-            <a href="#" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Privacidade</a>
-            <a href="#" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Cookies</a>
+        {/* Bottom bar */}
+        <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <p>© {new Date().getFullYear()} Nextia. Todos os direitos reservados.</p>
+          <div className="flex items-center gap-6">
+            <Link to="/termos" className="hover:text-white transition-colors">
+              Termos de Uso
+            </Link>
+            <Link to="/privacidade" className="hover:text-white transition-colors">
+              Política de Privacidade
+            </Link>
+            <Link to="/cookies" className="hover:text-white transition-colors">
+              Política de Cookies
+            </Link>
           </div>
         </div>
       </div>
