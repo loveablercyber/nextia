@@ -251,6 +251,18 @@ function cloudinaryOptions(account) {
   };
 }
 
+// The SDK configuration is process-global, so account rotations must not overlap.
+let cloudinaryOperationQueue = Promise.resolve();
+
+function withCloudinaryAccount(account, operation) {
+  const run = cloudinaryOperationQueue.then(async () => {
+    cloudinary.config(cloudinaryOptions(account));
+    return operation();
+  });
+  cloudinaryOperationQueue = run.catch(() => undefined);
+  return run;
+}
+
 async function selectCloudinaryBackupAccount(client) {
   const accounts = cloudinaryBackupAccounts();
   const sequence = await client.query(`SELECT nextval('public.backup_storage_rotation_seq') AS position`);
@@ -259,42 +271,47 @@ async function selectCloudinaryBackupAccount(client) {
 }
 
 async function cloudinaryUploadFile(account, filePath, publicId, options = {}) {
-  return cloudinary.uploader.upload_large(filePath, {
-    ...cloudinaryOptions(account),
-    resource_type: 'raw',
-    type: 'authenticated',
-    public_id: publicId,
-    overwrite: false,
-    chunk_size: 6_000_000,
-    ...options,
-  });
+  return withCloudinaryAccount(account, () => new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_large(filePath, {
+      resource_type: 'raw',
+      type: 'authenticated',
+      public_id: publicId,
+      overwrite: false,
+      chunk_size: 6_000_000,
+      ...options,
+    }, (error, result) => {
+      if (error) reject(error);
+      else if (!result?.public_id) reject(new Error('Cloudinary não retornou o public_id após o upload.'));
+      else resolve(result);
+    });
+  }));
 }
 
 async function cloudinaryDeleteAsset(account, publicId, options = {}) {
-  const result = await cloudinary.uploader.destroy(publicId, {
-    ...cloudinaryOptions(account),
+  const result = await withCloudinaryAccount(account, () => cloudinary.uploader.destroy(publicId, {
     resource_type: options.resourceType || 'raw',
     type: options.type || 'authenticated',
     invalidate: true,
-  });
+  }));
   if (!['ok', 'not found'].includes(result.result)) {
     throw new Error(`Cloudinary não confirmou a exclusão do ativo ${publicId}.`);
   }
 }
 
 async function cloudinaryDownloadAsset(account, backup) {
-  const signedUrl = cloudinary.url(backup.storage_public_id || backup.object_key, {
-    ...cloudinaryOptions(account),
-    resource_type: 'raw',
-    type: 'authenticated',
-    sign_url: true,
-    version: backup.storage_version || undefined,
+  return withCloudinaryAccount(account, async () => {
+    const signedUrl = cloudinary.url(backup.storage_public_id || backup.object_key, {
+      resource_type: 'raw',
+      type: 'authenticated',
+      sign_url: true,
+      version: backup.storage_version || undefined,
+    });
+    const response = await fetch(signedUrl, { headers: { Accept: 'application/octet-stream' } });
+    if (!response.ok) {
+      throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup.`);
+    }
+    return Buffer.from(await response.arrayBuffer());
   });
-  const response = await fetch(signedUrl, { headers: { Accept: 'application/octet-stream' } });
-  if (!response.ok) {
-    throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup.`);
-  }
-  return Buffer.from(await response.arrayBuffer());
 }
 
 function cloudinaryAccountForBackup(backup) {
