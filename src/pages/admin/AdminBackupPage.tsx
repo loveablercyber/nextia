@@ -55,7 +55,7 @@ export default function AdminBackupPage() {
       const response = await fetch('/api/admin/backup/list');
       const data = await response.json();
       if (response.ok) {
-        setBackups(data.backups || []);
+        setBackups(data.backups?.filter((b: any) => b.status !== 'DELETED') || []);
         setLogs(data.logs || []);
       }
     } catch (err) {
@@ -348,11 +348,6 @@ export default function AdminBackupPage() {
                         {b.status === 'FAILED' && (
                           <span className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200/60 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" /> FAILED
-                          </span>
-                        )}
-                        {b.status === 'DELETED' && (
-                          <span className="px-2.5 py-1 bg-gray-100 text-gray-500 border border-gray-200 rounded-full font-bold text-[10px]">
-                            DELETED
                           </span>
                         )}
                       </td>

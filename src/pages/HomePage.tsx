@@ -9,7 +9,7 @@ import Badge from '../components/ui/Badge';
 import TemplateCard from '../components/templates/TemplateCard';
 import { templates } from '../data/templates';
 import { testimonials, stats } from '../data/testimonials';
-
+import { plans } from '../data/plans';
 export default function HomePage() {
   const featuredTemplates = templates.filter(t => t.featured);
 
@@ -342,12 +342,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {[
-              { name: 'Start', price: 59, color: '#64748b', features: ['Presença digital ativa', 'Hospedagem + SSL Corporativo', 'Atendimento WhatsApp direto', '1 atualização estratégica/mês'] },
-              { name: 'Pro', price: 99, color: '#5B4FE9', features: ['Tudo do Start', 'Multi-páginas de serviços + SEO', 'Integração de canais', '2 atualizações estratégicas/mês'], highlight: true },
-              { name: 'Business', price: 159, color: '#7c3aed', features: ['Tudo do Pro', 'Agendamento & Conversão online', 'Catálogo de autoridade', '4 atualizações estratégicas/mês'] },
-              { name: 'Personalizado', price: null, color: '#059669', features: ['Arquitetura sob medida', 'Posicionamento exclusivo', 'Recursos avançados', 'Suporte dedicado'] },
-            ].map((plan) => (
+            {plans.filter(p => p.id !== 'custom').map((plan) => (
               <div
                 key={plan.name}
                 className={`relative bg-white rounded-2xl border p-6 transition-all duration-200 hover:shadow-lg ${
@@ -370,6 +365,9 @@ export default function HomePage() {
                     </div>
                   ) : (
                     <div className="text-2xl font-black mt-1" style={{ color: plan.color }}>Sob orçamento</div>
+                  )}
+                  {plan.activationFee > 0 && (
+                    <p className="text-sm text-gray-500 mt-1">Taxa de ativação: R$ {plan.activationFee}</p>
                   )}
                 </div>
                 <ul className="space-y-2 mb-6">

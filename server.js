@@ -1552,10 +1552,12 @@ async function handleSupportApi(req, res, url) {
 
       if (b.status === 'COMPLETED') await deleteBackupObject(b);
 
-      await client.query(`UPDATE public.backups SET status = 'DELETED', updated_at = NOW() WHERE id = $1`, [backupId]);
-      await logAuditAction(backupId, 'BACKUP_DELETED', sessionProfile.email, 'Backup removido manualmente pelo admin');
+      // Delete backup record from database permanently
+      await client.query(`DELETE FROM public.backups WHERE id = $1`, [backupId]);
 
-      return json(res, 200, { ok: true, message: 'Backup excluído do servidor com sucesso.' });
+      await logAuditAction(backupId, 'BACKUP_DELETED', sessionProfile.email, 'Backup removido permanentemente pelo admin');
+
+      return json(res, 200, { ok: true, message: 'Backup excluído permanentemente.' });
     }
 
     // Endpoint 7: Logs de Auditoria
