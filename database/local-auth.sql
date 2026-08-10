@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS public.local_auth_users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('client', 'admin', 'technician'));
+
 CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles(role);
 CREATE INDEX IF NOT EXISTS profiles_email_lower_idx ON public.profiles(lower(email));
 

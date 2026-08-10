@@ -3,18 +3,19 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync, r
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
-import { extname, join, normalize, basename } from 'node:path';
+import { extname, join, resolve, sep, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
 import { v2 as cloudinary } from 'cloudinary';
-import { handleAppApi, isAppApiPath } from './app-api.js';
+import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
 
 const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
 const sessionSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nextia-local-dev-secret';
 let supportSchemaPromise;
+let commercialCatalogSchemaPromise;
 const execFileAsync = promisify(execFile);
 
 const contentTypes = {
@@ -23,13 +24,28 @@ const contentTypes = {
   '.ico': 'image/x-icon',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
   '.webp': 'image/webp',
+  '.xml': 'application/xml; charset=utf-8',
 };
+
+function securityHeaders() {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(self)',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    ...(process.env.NODE_ENV === 'production' ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {}),
+  };
+}
 
 function json(res, status, body) {
   res.writeHead(status, {
+    ...securityHeaders(),
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
   });
@@ -380,7 +396,7 @@ function mapProfile(row) {
     company: row.company || '',
     phone: row.phone || '',
     avatarInitials: row.avatar_initials || 'NX',
-    role: row.role === 'admin' ? 'admin' : (row.is_partner ? 'partner' : 'client'),
+    role: row.role === 'admin' ? 'admin' : (row.role === 'technician' ? 'technician' : (row.is_partner ? 'partner' : 'client')),
     createdAt: row.created_at || new Date().toISOString(),
   };
 }
@@ -475,6 +491,387 @@ async function ensureSupportSchema(client) {
   } catch (error) {
     supportSchemaPromise = undefined;
     throw error;
+  }
+}
+
+async function ensureCommercialCatalogSchema(client) {
+  if (!commercialCatalogSchemaPromise) {
+    commercialCatalogSchemaPromise = readFile(join(process.cwd(), 'database', 'commercial-catalog.sql'), 'utf8')
+      .then((schema) => client.query(schema));
+  }
+  try {
+    await commercialCatalogSchemaPromise;
+  } catch (error) {
+    commercialCatalogSchemaPromise = undefined;
+    throw error;
+  }
+}
+
+async function handleCatalogApi(req, res, url) {
+  const client = dbClient();
+  await client.connect();
+  try {
+    await ensureCommercialCatalogSchema(client);
+    await ensureAppSchema(client);
+    const sessionProfile = await getSessionProfile(req, client);
+    const isAdminRoute = url.pathname.startsWith('/api/admin/');
+    if (isAdminRoute && sessionProfile?.role !== 'admin') {
+      return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+    }
+
+    if ((url.pathname === '/api/catalog/services' || url.pathname === '/api/admin/catalog/services') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT slug, name, category, price_cents, price_label, recurring, active, sort_order, updated_at
+         FROM public.commercial_services
+         ${isAdminRoute ? '' : 'WHERE active = TRUE'}
+         ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { services: result.rows });
+    }
+
+    if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT id, name, monthly_amount_cents, activation_amount_cents, active, sort_order, updated_at
+         FROM public.commercial_plans ${isAdminRoute ? '' : 'WHERE active = TRUE'} ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { plans: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/catalog/plans' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const monthly = Number(body.monthlyAmountCents);
+      const activation = Number(body.activationAmountCents);
+      const order = Number(body.sortOrder);
+      if (!String(body.id || '') || !Number.isInteger(monthly) || monthly <= 0 || !Number.isInteger(activation) || activation <= 0 || !Number.isInteger(order)) {
+        return json(res, 400, { error: 'Plano ou valores inválidos.' });
+      }
+      const result = await client.query(
+        `UPDATE public.commercial_plans SET monthly_amount_cents = $1, activation_amount_cents = $2,
+           active = $3, sort_order = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6 RETURNING *`,
+        [monthly, activation, body.active !== false, order, sessionProfile.id, body.id],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Plano não encontrado.' });
+      return json(res, 200, { plan: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/catalog/services' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const slug = String(body.slug || '').trim();
+      const priceCents = body.priceCents === null || body.priceCents === '' ? null : Number(body.priceCents);
+      const sortOrder = Number(body.sortOrder);
+      if (!slug || (priceCents !== null && (!Number.isInteger(priceCents) || priceCents < 0))) {
+        return json(res, 400, { error: 'Serviço ou preço inválido.' });
+      }
+      if (!Number.isInteger(sortOrder)) return json(res, 400, { error: 'Ordem inválida.' });
+      const result = await client.query(
+        `UPDATE public.commercial_services
+         SET price_cents = $1, price_label = $2, recurring = $3, active = $4,
+             sort_order = $5, updated_at = NOW(), updated_by = $6
+         WHERE slug = $7
+         RETURNING slug, name, category, price_cents, price_label, recurring, active, sort_order, updated_at`,
+        [priceCents, String(body.priceLabel || '').trim() || 'sob orçamento', body.recurring === true,
+          body.active !== false, sortOrder, sessionProfile.id, slug],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Serviço não encontrado.' });
+      return json(res, 200, { service: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/commerce/orders' && req.method === 'GET') {
+      if (!sessionProfile) return json(res, 401, { error: 'Faça login para consultar seus pedidos.' });
+      const result = await client.query(
+        `SELECT id, item_type, item_id, item_name, amount_cents, recurring, status,
+                checkout_url, created_at, updated_at, paid_at
+         FROM public.commercial_orders WHERE user_id = $1 ORDER BY created_at DESC`,
+        [sessionProfile.id],
+      );
+      return json(res, 200, { orders: result.rows });
+    }
+
+    if (url.pathname === '/api/commerce/orders' && req.method === 'POST') {
+      if (!sessionProfile) return json(res, 401, { error: 'Faça login para contratar.' });
+      const body = await readJson(req);
+      const serviceResult = await client.query(
+        `SELECT slug, name, price_cents, recurring FROM public.commercial_services
+         WHERE slug = $1 AND active = TRUE`,
+        [String(body.serviceSlug || '').trim()],
+      );
+      const service = serviceResult.rows[0];
+      if (!service) return json(res, 404, { error: 'Serviço não encontrado ou indisponível.' });
+      if (!Number.isInteger(service.price_cents) || service.price_cents <= 0) {
+        return json(res, 409, { error: 'Este serviço precisa de orçamento antes da contratação.' });
+      }
+      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+      if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });
+      const orderId = randomUUID();
+      const protocol = String(req.headers['x-forwarded-proto'] || (process.env.NODE_ENV === 'production' ? 'https' : 'http')).split(',')[0].trim();
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+      const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
+      const externalReference = `order:${orderId}`;
+      await client.query(
+        `INSERT INTO public.commercial_orders
+          (id, user_id, item_id, item_name, amount_cents, recurring, customer_notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [orderId, sessionProfile.id, service.slug, service.name, service.price_cents, service.recurring, String(body.notes || '').trim().slice(0, 2000) || null],
+      );
+
+      const recurringPayload = {
+        reason: `Nextia - ${service.name}`,
+        external_reference: externalReference,
+        payer_email: sessionProfile.email,
+        back_url: `${baseUrl}/checkout?status=return&order=${orderId}`,
+        notification_url: `${baseUrl}/api/commerce/webhook`,
+        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: service.price_cents / 100, currency_id: 'BRL' },
+      };
+      const oneTimePayload = {
+        items: [{ id: service.slug, title: `Nextia - ${service.name}`, quantity: 1, unit_price: service.price_cents / 100, currency_id: 'BRL' }],
+        payer: { name: sessionProfile.name, email: sessionProfile.email },
+        external_reference: externalReference,
+        back_urls: { success: `${baseUrl}/checkout?status=success&order=${orderId}`, failure: `${baseUrl}/checkout?status=failure&order=${orderId}`, pending: `${baseUrl}/checkout?status=pending&order=${orderId}` },
+        auto_return: 'approved',
+        notification_url: `${baseUrl}/api/commerce/webhook`,
+      };
+      const endpoint = service.recurring ? 'https://api.mercadopago.com/preapproval' : 'https://api.mercadopago.com/checkout/preferences';
+      const providerResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-order-${orderId}` },
+        body: JSON.stringify(service.recurring ? recurringPayload : oneTimePayload),
+      });
+      const providerData = await providerResponse.json();
+      if (!providerResponse.ok || !providerData.init_point) {
+        await client.query(`UPDATE public.commercial_orders SET status = 'failed', updated_at = NOW() WHERE id = $1`, [orderId]);
+        console.error('[COMMERCE] Checkout creation failed', providerResponse.status, providerData);
+        return json(res, 502, { error: 'Não foi possível iniciar o pagamento. O pedido foi registrado para análise.' });
+      }
+      await client.query(
+        `UPDATE public.commercial_orders SET status = 'payment_pending', provider_reference = $2,
+          checkout_url = $3, updated_at = NOW() WHERE id = $1`,
+        [orderId, String(providerData.id), providerData.init_point],
+      );
+      return json(res, 201, { orderId, checkoutUrl: providerData.init_point, recurring: service.recurring });
+    }
+
+    if (url.pathname === '/api/commerce/plan-contracts' && req.method === 'GET') {
+      if (!sessionProfile) return json(res, 401, { error: 'Faça login para consultar seus planos.' });
+      const result = await client.query(
+        `SELECT id, plan_id, plan_name, monthly_amount_cents, activation_amount_cents, status,
+                activation_checkout_url, subscription_checkout_url, created_at, updated_at, activated_at
+         FROM public.commercial_plan_contracts WHERE user_id = $1 ORDER BY created_at DESC`,
+        [sessionProfile.id],
+      );
+      return json(res, 200, { contracts: result.rows });
+    }
+
+    if (url.pathname === '/api/commerce/plan-contracts' && req.method === 'POST') {
+      if (!sessionProfile) return json(res, 401, { error: 'Faça login para assinar um plano.' });
+      const body = await readJson(req);
+      const planId = String(body.planId || '').toLowerCase();
+      const planResult = await client.query(
+        `SELECT id, name, monthly_amount_cents AS monthly, activation_amount_cents AS activation
+         FROM public.commercial_plans WHERE id = $1 AND active = TRUE`, [planId],
+      );
+      const plan = planResult.rows[0];
+      if (!plan) return json(res, 400, { error: 'Plano inválido.' });
+      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+      if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });
+      const contractId = randomUUID();
+      const protocol = String(req.headers['x-forwarded-proto'] || (process.env.NODE_ENV === 'production' ? 'https' : 'http')).split(',')[0].trim();
+      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+      const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
+      await client.query(
+        `INSERT INTO public.commercial_plan_contracts
+          (id, user_id, plan_id, plan_name, monthly_amount_cents, activation_amount_cents)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [contractId, sessionProfile.id, planId, plan.name, plan.monthly, plan.activation],
+      );
+      const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+        method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-contract-${contractId}` },
+        body: JSON.stringify({
+          items: [{ id: planId, title: `Ativação - ${plan.name}`, quantity: 1, unit_price: plan.activation / 100, currency_id: 'BRL' }],
+          payer: { name: sessionProfile.name, email: sessionProfile.email },
+          external_reference: `contract:${contractId}:activation`,
+          back_urls: { success: `${baseUrl}/checkout?status=success&contract=${contractId}`, failure: `${baseUrl}/checkout?status=failure&contract=${contractId}`, pending: `${baseUrl}/checkout?status=pending&contract=${contractId}` },
+          auto_return: 'approved', notification_url: `${baseUrl}/api/commerce/webhook`,
+        }),
+      });
+      const providerData = await providerResponse.json();
+      if (!providerResponse.ok || !providerData.init_point) {
+        await client.query(`UPDATE public.commercial_plan_contracts SET status = 'failed', updated_at = NOW() WHERE id = $1`, [contractId]);
+        return json(res, 502, { error: 'Não foi possível iniciar o pagamento da ativação.' });
+      }
+      await client.query(
+        `UPDATE public.commercial_plan_contracts SET activation_preference_id = $2,
+           activation_checkout_url = $3, updated_at = NOW() WHERE id = $1`,
+        [contractId, String(providerData.id), providerData.init_point],
+      );
+      return json(res, 201, { contractId, checkoutUrl: providerData.init_point });
+    }
+
+    if (url.pathname === '/api/admin/commerce/orders' && req.method === 'GET') {
+      const [result, contracts] = await Promise.all([client.query(
+        `SELECT o.id, o.item_name, o.amount_cents, o.recurring, o.status, o.provider,
+                o.created_at, o.updated_at, o.paid_at, p.name AS customer_name, p.email AS customer_email
+         FROM public.commercial_orders o JOIN public.profiles p ON p.id = o.user_id
+         ORDER BY o.created_at DESC`,
+      ), client.query(
+        `SELECT c.id, c.plan_id, c.plan_name, c.monthly_amount_cents, c.activation_amount_cents,
+                c.status, c.created_at, c.updated_at, c.activated_at,
+                p.name AS customer_name, p.email AS customer_email
+         FROM public.commercial_plan_contracts c JOIN public.profiles p ON p.id = c.user_id
+         ORDER BY c.created_at DESC`,
+      )]);
+      return json(res, 200, { orders: result.rows, contracts: contracts.rows });
+    }
+
+    if (url.pathname === '/api/admin/commerce/orders' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const status = String(body.status || '');
+      if (!['pending', 'payment_pending', 'paid', 'active', 'failed', 'cancelled'].includes(status)) {
+        return json(res, 400, { error: 'Status inválido.' });
+      }
+      const result = await client.query(
+        `UPDATE public.commercial_orders SET status = $1, updated_at = NOW(),
+           paid_at = CASE WHEN $1 IN ('paid','active') THEN COALESCE(paid_at, NOW()) ELSE paid_at END
+         WHERE id = $2 RETURNING *`,
+        [status, body.orderId],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Pedido não encontrado.' });
+      return json(res, 200, { order: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/commerce/contracts' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const status = String(body.status || '');
+      if (!['activation_pending', 'subscription_pending', 'active', 'failed', 'cancelled'].includes(status)) {
+        return json(res, 400, { error: 'Status de contrato inválido.' });
+      }
+      const result = await client.query(
+        `UPDATE public.commercial_plan_contracts SET status = $1, updated_at = NOW(),
+           activated_at = CASE WHEN $1 = 'active' THEN COALESCE(activated_at, NOW()) ELSE activated_at END
+         WHERE id = $2 RETURNING *`, [status, body.contractId],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Contrato não encontrado.' });
+      return json(res, 200, { contract: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/commerce/webhook' && req.method === 'POST') {
+      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+      if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });
+      const body = await readJson(req);
+      const resourceId = String(body.data?.id || url.searchParams.get('data.id') || '');
+      const eventType = String(body.type || url.searchParams.get('type') || '');
+      if (!resourceId || !['payment', 'subscription_preapproval'].includes(eventType)) return json(res, 200, { status: 'ignored' });
+      const lookupUrl = eventType === 'payment'
+        ? `https://api.mercadopago.com/v1/payments/${encodeURIComponent(resourceId)}`
+        : `https://api.mercadopago.com/preapproval/${encodeURIComponent(resourceId)}`;
+      const providerResponse = await fetch(lookupUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!providerResponse.ok) return json(res, 502, { error: 'Não foi possível validar o evento.' });
+      const providerData = await providerResponse.json();
+      const externalReference = String(providerData.external_reference || '');
+      if (externalReference.startsWith('contract:') && eventType === 'payment') {
+        const [, contractId, phase] = externalReference.split(':');
+        if (phase !== 'activation' || providerData.status !== 'approved') return json(res, 200, { status: 'pending' });
+        const contractResult = await client.query(
+          `SELECT c.*, p.email AS customer_email FROM public.commercial_plan_contracts c
+           JOIN public.profiles p ON p.id = c.user_id WHERE c.id = $1`, [contractId],
+        );
+        const contract = contractResult.rows[0];
+        if (!contract) return json(res, 404, { error: 'Contrato não encontrado.' });
+        if (providerData.currency_id !== 'BRL' || Math.round(Number(providerData.transaction_amount) * 100) !== contract.activation_amount_cents) {
+          throw new Error('Valor de ativação divergente.');
+        }
+        if (contract.status !== 'activation_pending') return json(res, 200, { status: 'already_processed' });
+        const protocol = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+        const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+        const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
+        const subscriptionResponse = await fetch('https://api.mercadopago.com/preapproval', {
+          method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-subscription-${contractId}` },
+          body: JSON.stringify({ reason: contract.plan_name, external_reference: `contract:${contractId}:subscription`, payer_email: contract.customer_email, back_url: `${baseUrl}/checkout?status=subscription&contract=${contractId}`, notification_url: `${baseUrl}/api/commerce/webhook`, auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: contract.monthly_amount_cents / 100, currency_id: 'BRL' } }),
+        });
+        const subscription = await subscriptionResponse.json();
+        if (!subscriptionResponse.ok || !subscription.init_point) throw new Error('Falha ao criar assinatura após ativação.');
+        await client.query(
+          `UPDATE public.commercial_plan_contracts SET status = 'subscription_pending', activation_payment_id = $2,
+             subscription_id = $3, subscription_checkout_url = $4, updated_at = NOW() WHERE id = $1`,
+          [contractId, resourceId, String(subscription.id), subscription.init_point],
+        );
+        return json(res, 200, { status: 'activation_confirmed' });
+      }
+      if (externalReference.startsWith('contract:') && eventType === 'subscription_preapproval') {
+        const [, contractId, phase] = externalReference.split(':');
+        if (phase !== 'subscription') return json(res, 200, { status: 'ignored' });
+        const active = providerData.status === 'authorized';
+        await client.query('BEGIN');
+        try {
+          const contractResult = await client.query(
+            `UPDATE public.commercial_plan_contracts SET status = $2, subscription_id = $3,
+               activated_at = CASE WHEN $2 = 'active' THEN COALESCE(activated_at, NOW()) ELSE activated_at END, updated_at = NOW()
+             WHERE id = $1 RETURNING *`, [contractId, active ? 'active' : 'subscription_pending', resourceId],
+          );
+          const contract = contractResult.rows[0];
+          if (active && contract) {
+            const quotaMap = { start: 1, pro: 2, business: 4 };
+            const quota = quotaMap[contract.plan_id] || 1;
+            const projectResult = await client.query(
+              `INSERT INTO public.projects
+                (user_id, name, segment, status, plan, monthly_fee, activation_fee,
+                 estimated_delivery, requests_remaining, requests_total, source_contract_id)
+               VALUES ($1,$2,'Geral','aguardando-briefing',$3,$4,$5,NOW() + INTERVAL '14 days',$6,$6,$7)
+               ON CONFLICT (source_contract_id) WHERE source_contract_id IS NOT NULL DO NOTHING
+               RETURNING id`,
+              [contract.user_id, `Projeto ${contract.plan_name}`, contract.plan_name.replace(/^Nextia\s+/i, ''),
+                contract.monthly_amount_cents / 100, contract.activation_amount_cents / 100, quota, contract.id],
+            );
+            if (projectResult.rows[0]) {
+              const projectId = projectResult.rows[0].id;
+              const milestones = [
+                ['Briefing recebido', 'Formulário e materiais recebidos.', 0, 2],
+                ['Design aprovado', 'Estrutura visual aprovada.', 1, 5],
+                ['Desenvolvimento', 'Construção e integrações.', 2, 10],
+                ['Revisão do cliente', 'Validação antes da publicação.', 3, 12],
+                ['Publicação', 'Publicação no domínio contratado.', 4, 14],
+              ];
+              for (const [title, description, position, days] of milestones) {
+                await client.query(
+                  `INSERT INTO public.milestones(project_id,title,description,position,estimated_at)
+                   VALUES ($1,$2,$3,$4,NOW() + ($5 || ' days')::interval)`,
+                  [projectId, title, description, position, days],
+                );
+              }
+              await client.query(
+                `INSERT INTO public.notifications(user_id,title,message,type)
+                 VALUES ($1,'Plano ativado',$2,'project')`,
+                [contract.user_id, `${contract.plan_name} foi ativado. Preencha o briefing para iniciar o projeto.`],
+              );
+            }
+          }
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
+        }
+        return json(res, 200, { status: active ? 'active' : 'pending' });
+      }
+      if (!externalReference.startsWith('order:')) return json(res, 200, { status: 'ignored' });
+      const orderId = externalReference.slice(6);
+      const orderResult = await client.query('SELECT * FROM public.commercial_orders WHERE id = $1 FOR UPDATE', [orderId]);
+      const order = orderResult.rows[0];
+      if (!order) return json(res, 404, { error: 'Pedido não encontrado.' });
+      if (eventType === 'payment') {
+        const amountCents = Math.round(Number(providerData.transaction_amount) * 100);
+        if (providerData.currency_id !== 'BRL' || amountCents !== order.amount_cents) throw new Error('Valor ou moeda divergente no pedido comercial.');
+      }
+      const approved = eventType === 'payment' ? providerData.status === 'approved' : providerData.status === 'authorized';
+      await client.query(
+        `UPDATE public.commercial_orders SET status = $2, provider_payment_id = $3,
+           paid_at = CASE WHEN $2 IN ('paid','active') THEN COALESCE(paid_at, NOW()) ELSE paid_at END, updated_at = NOW()
+         WHERE id = $1`,
+        [orderId, approved ? (order.recurring ? 'active' : 'paid') : 'payment_pending', resourceId],
+      );
+      return json(res, 200, { status: approved ? 'confirmed' : 'pending' });
+    }
+    return json(res, 405, { error: 'Método não permitido.' });
+  } finally {
+    await client.end();
   }
 }
 
@@ -580,6 +977,18 @@ const supportApiMethods = new Map([
   ['/api/support/reply-ticket', 'POST'],
   ['/api/admin/list-support-tickets', 'GET'],
   ['/api/admin/update-ticket-status', 'POST'],
+  ['/api/admin/assign-support-ticket', 'POST'],
+  ['/api/technician/tickets', 'GET'],
+  ['/api/technician/update-ticket', 'POST'],
+  ['/api/technician/resources', 'GET'],
+  ['/api/technician/equipment', 'GET'],
+  ['/api/admin/technical-resources', 'GET'],
+  ['/api/admin/technical-resources/save', 'POST'],
+  ['/api/admin/technical-resources/delete', 'POST'],
+  ['/api/admin/equipment', 'GET'],
+  ['/api/admin/equipment/save', 'POST'],
+  ['/api/admin/equipment/delete', 'POST'],
+  ['/api/client/equipment', 'GET'],
   ['/api/admin/backup/create', 'POST'],
   ['/api/admin/backup/export', 'POST'],
   ['/api/admin/backup/list', 'GET'],
@@ -697,13 +1106,14 @@ async function handleSupportApi(req, res, url) {
       if (!sessionProfile) return json(res, 401, { error: 'Usuario nao autenticado.' });
       if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
 
-      const result = await client.query(
+      const [result, technicians] = await Promise.all([client.query(
         `SELECT id, name, email, phone, company, subject, message, status,
-                created_at, resolved_at, user_id
+                created_at, resolved_at, user_id, assigned_technician_id, priority,
+                technical_notes, started_at
          FROM public.support_tickets
          ORDER BY created_at DESC`,
-      );
-      return json(res, 200, { tickets: result.rows });
+      ), client.query(`SELECT id, name, email FROM public.profiles WHERE role = 'technician' ORDER BY name`)]);
+      return json(res, 200, { tickets: result.rows, technicians: technicians.rows });
     }
 
     if (url.pathname === '/api/admin/update-ticket-status') {
@@ -726,6 +1136,149 @@ async function handleSupportApi(req, res, url) {
       );
       if (!result.rows[0]) return json(res, 404, { error: 'Chamado nao encontrado.' });
       return json(res, 200, { status: 'success', ticket: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/assign-support-ticket') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const body = await readJson(req);
+      const technicianId = body.technicianId || null;
+      if (technicianId) {
+        const technician = await client.query(`SELECT 1 FROM public.profiles WHERE id = $1 AND role = 'technician'`, [technicianId]);
+        if (!technician.rows[0]) return json(res, 400, { error: 'Técnico inválido.' });
+      }
+      const result = await client.query(
+        `UPDATE public.support_tickets SET assigned_technician_id = $1, priority = $2,
+           started_at = CASE WHEN $1::uuid IS NOT NULL THEN COALESCE(started_at, NOW()) ELSE started_at END
+         WHERE id = $3 RETURNING id, assigned_technician_id, priority, started_at`,
+        [technicianId, ['baixa','normal','alta','urgente'].includes(body.priority) ? body.priority : 'normal', body.ticketId],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Chamado não encontrado.' });
+      return json(res, 200, { ticket: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/technician/tickets') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'technician') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para técnicos.' });
+      const result = await client.query(
+        `SELECT id, name, company, phone, subject, message, status, priority, technical_notes,
+                created_at, started_at, resolved_at
+         FROM public.support_tickets WHERE assigned_technician_id = $1 ORDER BY
+           CASE priority WHEN 'urgente' THEN 1 WHEN 'alta' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END, created_at`,
+        [sessionProfile.id],
+      );
+      return json(res, 200, { tickets: result.rows });
+    }
+
+    if (url.pathname === '/api/technician/update-ticket') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'technician') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para técnicos.' });
+      const body = await readJson(req);
+      if (!['aberto','respondido','fechado'].includes(body.status)) return json(res, 400, { error: 'Status inválido.' });
+      const result = await client.query(
+        `UPDATE public.support_tickets SET status = $1, technical_notes = $2,
+           resolved_at = CASE WHEN $1 = 'fechado' THEN NOW() ELSE NULL END,
+           started_at = COALESCE(started_at, NOW())
+         WHERE id = $3 AND assigned_technician_id = $4
+         RETURNING id, status, technical_notes, resolved_at, started_at`,
+        [body.status, String(body.technicalNotes || '').trim().slice(0, 10000) || null, body.ticketId, sessionProfile.id],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Chamado não encontrado ou não atribuído a você.' });
+      return json(res, 200, { ticket: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/technician/resources') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'technician') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para técnicos.' });
+      const result = await client.query(
+        `SELECT id, name, description, category, platform, version, url
+         FROM public.technical_resources WHERE active = TRUE ORDER BY category, sort_order, name`,
+      );
+      return json(res, 200, { resources: result.rows });
+    }
+
+    if (url.pathname === '/api/technician/equipment') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'technician') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para técnicos.' });
+      const result = await client.query(
+        `SELECT DISTINCT e.*, p.name AS customer_name, p.company AS customer_company
+         FROM public.customer_equipment e
+         JOIN public.profiles p ON p.id = e.user_id
+         JOIN public.support_tickets t ON t.user_id = e.user_id
+         WHERE t.assigned_technician_id = $1
+         ORDER BY p.name, e.name`, [sessionProfile.id],
+      );
+      return json(res, 200, { equipment: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/technical-resources') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const result = await client.query('SELECT * FROM public.technical_resources ORDER BY category, sort_order, name');
+      return json(res, 200, { resources: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/technical-resources/save') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const body = await readJson(req);
+      if (!String(body.name || '').trim() || !['tool','driver','document'].includes(body.category) || !/^https?:\/\//i.test(String(body.url || ''))) {
+        return json(res, 400, { error: 'Nome, categoria e URL HTTP(S) válida são obrigatórios.' });
+      }
+      const result = body.id
+        ? await client.query(
+            `UPDATE public.technical_resources SET name=$1,description=$2,category=$3,platform=$4,version=$5,url=$6,active=$7,sort_order=$8,updated_at=NOW()
+             WHERE id=$9 RETURNING *`, [body.name.trim(), String(body.description || '').trim(), body.category, String(body.platform || 'Todos').trim(), String(body.version || '').trim() || null, body.url.trim(), body.active !== false, Number(body.sortOrder || 0), body.id])
+        : await client.query(
+            `INSERT INTO public.technical_resources(name,description,category,platform,version,url,active,sort_order,created_by)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [body.name.trim(), String(body.description || '').trim(), body.category, String(body.platform || 'Todos').trim(), String(body.version || '').trim() || null, body.url.trim(), body.active !== false, Number(body.sortOrder || 0), sessionProfile.id]);
+      if (!result.rows[0]) return json(res, 404, { error: 'Recurso não encontrado.' });
+      return json(res, 200, { resource: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/technical-resources/delete') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      await client.query('DELETE FROM public.technical_resources WHERE id = $1', [(await readJson(req)).id]);
+      return json(res, 200, { status: 'success' });
+    }
+
+    if (url.pathname === '/api/admin/equipment') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const result = await client.query(`SELECT e.*, p.name AS customer_name, p.email AS customer_email FROM public.customer_equipment e JOIN public.profiles p ON p.id=e.user_id ORDER BY p.name,e.name`);
+      const customers = await client.query(`SELECT id,name,email,company FROM public.profiles WHERE role='client' ORDER BY name`);
+      return json(res, 200, { equipment: result.rows, customers: customers.rows });
+    }
+
+    if (url.pathname === '/api/admin/equipment/save') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const body = await readJson(req);
+      if (!body.userId || !String(body.name || '').trim() || !String(body.equipmentType || '').trim()) return json(res, 400, { error: 'Cliente, nome e tipo são obrigatórios.' });
+      const values = [body.userId, body.name.trim(), body.equipmentType.trim(), String(body.manufacturer || '').trim() || null, String(body.model || '').trim() || null, String(body.serialNumber || '').trim() || null, String(body.operatingSystem || '').trim() || null, String(body.notes || '').trim() || null, ['active','maintenance','retired'].includes(body.status) ? body.status : 'active'];
+      const result = body.id
+        ? await client.query(`UPDATE public.customer_equipment SET user_id=$1,name=$2,equipment_type=$3,manufacturer=$4,model=$5,serial_number=$6,operating_system=$7,notes=$8,status=$9,updated_at=NOW() WHERE id=$10 RETURNING *`, [...values, body.id])
+        : await client.query(`INSERT INTO public.customer_equipment(user_id,name,equipment_type,manufacturer,model,serial_number,operating_system,notes,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, values);
+      if (!result.rows[0]) return json(res, 404, { error: 'Equipamento não encontrado.' });
+      return json(res, 200, { equipment: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/equipment/delete') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      await client.query('DELETE FROM public.customer_equipment WHERE id = $1', [(await readJson(req)).id]);
+      return json(res, 200, { status: 'success' });
+    }
+
+    if (url.pathname === '/api/client/equipment') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile || sessionProfile.role !== 'client') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para clientes.' });
+      const result = await client.query(
+        `SELECT id,name,equipment_type,manufacturer,model,serial_number,operating_system,status,notes,updated_at
+         FROM public.customer_equipment WHERE user_id=$1 ORDER BY name`, [sessionProfile.id],
+      );
+      return json(res, 200, { equipment: result.rows });
     }
 
     if (url.pathname === '/api/support/get-ticket') {
@@ -838,7 +1391,7 @@ async function handleSupportApi(req, res, url) {
       const result = await client.query(`
         SELECT p.id, p.email, p.name, p.company, p.phone, p.avatar_initials, p.created_at,
                CASE
-                 WHEN p.role = 'admin' THEN 'admin'
+                 WHEN p.role IN ('admin', 'technician') THEN p.role
                  WHEN pp.id IS NOT NULL THEN 'partner'
                  ELSE 'client'
                END AS role,
@@ -865,7 +1418,7 @@ async function handleSupportApi(req, res, url) {
       if (!targetUserId || !name || !email) {
         return json(res, 400, { error: 'Usuário, nome e e-mail são obrigatórios.' });
       }
-      if (!['client', 'admin', 'partner'].includes(role)) {
+      if (!['client', 'admin', 'partner', 'technician'].includes(role)) {
         return json(res, 400, { error: 'Perfil de acesso inválido.' });
       }
       if (password && password.length < 6) {
@@ -877,7 +1430,7 @@ async function handleSupportApi(req, res, url) {
         const result = await client.query(
           `UPDATE public.profiles
            SET name = $1, email = $2, company = $3, phone = $4,
-               role = CASE WHEN $5 = 'admin' THEN 'admin' ELSE 'client' END
+               role = CASE WHEN $5 IN ('admin', 'technician') THEN $5 ELSE 'client' END
            WHERE id = $6
            RETURNING id, email, name, company, phone, role, avatar_initials, created_at`,
           [name, email, String(body.company || '').trim(), String(body.phone || '').trim(), role, targetUserId],
@@ -2423,11 +2976,21 @@ async function serveStatic(req, res) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   let requestedPath = decodeURIComponent(url.pathname);
   if (requestedPath === '/') requestedPath = '/index.html';
-  const normalized = normalize(requestedPath).replace(/^(\.\.[/\\])+/, '');
-  let filePath = join(distDir, normalized);
+  const distRoot = resolve(distDir);
+  let filePath = resolve(distRoot, `.${requestedPath}`);
+  if (filePath !== distRoot && !filePath.startsWith(`${distRoot}${sep}`)) {
+    return json(res, 403, { error: 'Caminho inválido.' });
+  }
   if (!existsSync(filePath)) filePath = join(distDir, 'index.html');
   const ext = extname(filePath);
-  res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'application/octet-stream' });
+  const isPrivateRoute = ['/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'].some((prefix) => url.pathname.startsWith(prefix));
+  const cacheControl = filePath.endsWith('sw.js') || filePath.endsWith('index.html') ? 'no-cache' : /\.[a-f0-9_-]{8,}\.(?:js|css)$/i.test(filePath) ? 'public, max-age=31536000, immutable' : 'public, max-age=3600';
+  res.writeHead(200, {
+    ...securityHeaders(),
+    'Content-Type': contentTypes[ext] || 'application/octet-stream',
+    'Cache-Control': cacheControl,
+    ...(isPrivateRoute ? { 'X-Robots-Tag': 'noindex, nofollow' } : {}),
+  });
   createReadStream(filePath).pipe(res);
 }
 
@@ -2443,6 +3006,9 @@ createServer(async (req, res) => {
     if (isAppApiPath(url.pathname)) {
       return await handleAppApi(req, res, url, { dbClient, ensurePartnerSchema, getSessionProfile, json, readJson });
     }
+    if (url.pathname.startsWith('/api/catalog/') || url.pathname.startsWith('/api/admin/catalog') || url.pathname.startsWith('/api/admin/commerce') || url.pathname.startsWith('/api/commerce/')) {
+      return await handleCatalogApi(req, res, url);
+    }
     if (
       url.pathname.startsWith('/api/partner/') ||
       url.pathname.startsWith('/api/admin/partner') ||
@@ -2451,7 +3017,7 @@ createServer(async (req, res) => {
     ) {
       return await handlePartnerApi(req, res, url);
     }
-    if (url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/')) {
+    if (url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/') || url.pathname.startsWith('/api/technician/') || url.pathname.startsWith('/api/client/')) {
       return await handleSupportApi(req, res, url);
     }
     if (url.pathname.startsWith('/api/')) {

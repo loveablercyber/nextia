@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { Check, X, MessageCircle, ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { plans, planComparison } from '../data/plans';
+import { planComparison } from '../data/plans';
+import { useCommercialPlans } from '../hooks/useCommercialPlans';
 
 export default function PlansPage() {
+  const plans = useCommercialPlans();
 
   useEffect(() => {
     document.title = 'Planos e Preços — Nextia';
@@ -105,7 +107,7 @@ export default function PlansPage() {
                     </a>
                   </div>
                 ) : (
-                  <Link to={`/cadastro?plano=${plan.id}`}>
+                  <Link to={`/checkout?plan=${plan.id}`}>
                     <Button
                       variant={plan.highlight ? 'gradient' : 'outline'}
                       size="md"

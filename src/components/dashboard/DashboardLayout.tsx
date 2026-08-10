@@ -21,9 +21,11 @@ const navItems = [
   { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
+  { to: '/painel/equipamentos', icon: FolderOpen, label: 'Meus equipamentos' },
+  { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/parceiros', icon: Users, label: 'Programa de Parceiros' },
-  { to: '/painel/perfil', icon: User, label: 'Meu Perfil' },
+  { to: '/perfil', icon: User, label: 'Meu Perfil' },
   { to: '/painel/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 

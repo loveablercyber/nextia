@@ -15,13 +15,18 @@ interface SupportTicket {
   created_at: string;
   resolved_at?: string;
   user_id?: string;
+  assigned_technician_id?: string;
+  priority?: string;
 }
+
+interface Technician { id: string; name: string; email: string; }
 
 export default function AdminSupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [filteredTickets, setFilteredTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,12 +49,20 @@ export default function AdminSupportPage() {
 
       const data = await response.json();
       setTickets(data.tickets);
+      setTechnicians(data.technicians || []);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Ocorreu um erro ao carregar os chamados.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const assignTicket = async (ticketId: string, technicianId: string, priority: string) => {
+    const response = await fetch('/api/admin/assign-support-ticket', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticketId, technicianId: technicianId || null, priority }) });
+    const data = await response.json();
+    if (!response.ok) { setError(data.error || 'Falha ao atribuir chamado.'); return; }
+    setTickets((current) => current.map((ticket) => ticket.id === ticketId ? { ...ticket, ...data.ticket } : ticket));
   };
 
   useEffect(() => {
@@ -246,6 +259,8 @@ export default function AdminSupportPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <select value={t.priority || 'normal'} onChange={(e) => assignTicket(t.id, t.assigned_technician_id || '', e.target.value)} className="min-h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs" aria-label="Prioridade"><option value="baixa">Baixa</option><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select>
+                    <select value={t.assigned_technician_id || ''} onChange={(e) => assignTicket(t.id, e.target.value, t.priority || 'normal')} className="min-h-9 max-w-44 rounded-lg border border-gray-200 bg-white px-2 text-xs" aria-label="Técnico responsável"><option value="">Sem técnico</option>{technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.name || technician.email}</option>)}</select>
                     <span className="font-semibold text-gray-700">Mudar status:</span>
                     <select
                       value={t.status}

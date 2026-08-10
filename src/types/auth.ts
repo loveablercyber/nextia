@@ -9,7 +9,7 @@ export interface User {
   phone: string;
   avatarInitials: string;
   avatarUrl?: string;
-  role: 'client' | 'admin' | 'partner';
+  role: 'client' | 'admin' | 'partner' | 'technician';
   createdAt: string;
   lastLogin?: string;
 }

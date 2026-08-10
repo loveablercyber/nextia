@@ -1,5 +1,6 @@
 import Header from './Header';
 import Footer from './Footer';
+import PwaInstallPrompt from '../pwa/PwaInstallPrompt';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
       <Footer />
+      <PwaInstallPrompt />
     </div>
   );
 }

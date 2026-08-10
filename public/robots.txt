@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /painel
+Disallow: /parceiro
+Disallow: /tecnico
+Disallow: /checkout
+Disallow: /perfil
+Disallow: /login
+Disallow: /cadastro
+Disallow: /recuperar-senha
+Disallow: /redefinir-senha
+Disallow: /suporte/ticket
+
+Sitemap: https://nextia.dev.br/sitemap.xml

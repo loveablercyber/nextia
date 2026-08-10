@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
@@ -13,6 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
+import CheckoutPage from './pages/CheckoutPage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
 
 import AutomacaoIAPage from './pages/AutomacaoIAPage';
@@ -20,7 +21,9 @@ import TechCarePage from './pages/TechCarePage';
 import RedesWifiPage from './pages/RedesWifiPage';
 import CamerasSegurancaPage from './pages/CamerasSegurancaPage';
 import SolucoesPage from './pages/SolucoesPage';
+import ServicePage from './pages/ServicePage';
 import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
+import Seo from './components/seo/Seo';
 
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
@@ -36,6 +39,7 @@ import BriefingPage from './pages/dashboard/BriefingPage';
 import FilesPage from './pages/dashboard/FilesPage';
 import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
+import OrdersPage from './pages/dashboard/OrdersPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 
 import ProfilePage from './pages/ProfilePage';
@@ -50,6 +54,13 @@ import AdminClientsPage from './pages/admin/AdminClientsPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
 import AdminBackupPage from './pages/admin/AdminBackupPage';
 import AdminPartnerMaterialsPage from './pages/admin/AdminPartnerMaterialsPage';
+import TechnicianDashboardPage from './pages/technician/TechnicianDashboardPage';
+import TechnicianResourcesPage from './pages/technician/TechnicianResourcesPage';
+import EquipmentPage from './pages/dashboard/EquipmentPage';
+import AdminTechnicalResourcesPage from './pages/admin/AdminTechnicalResourcesPage';
+import AdminCatalogPage from './pages/admin/AdminCatalogPage';
+import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminPlansPage from './pages/admin/AdminPlansPage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -101,7 +112,7 @@ const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-se
 
 function DashboardContainer({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requireRole="client">
       <ProjectProvider>
         <DashboardLayout title={title}>
           {children}
@@ -139,16 +150,29 @@ function PartnerContainer() {
 
 function AppRoutes() {
   const { pathname } = useLocation();
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/parceiro');
+  const isPrivate = ['/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'].some((prefix) => pathname.startsWith(prefix));
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/parceiro') && !pathname.startsWith('/tecnico');
 
   const content = (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sites-prontos" element={<TemplatesPage />} />
+      <Route path="/sites" element={<ServicePage />} />
+      <Route path="/landing-pages" element={<ServicePage />} />
+      <Route path="/lojas-virtuais" element={<ServicePage />} />
+      <Route path="/sistemas" element={<ServicePage />} />
       <Route path="/automacao-ia" element={<AutomacaoIAPage />} />
+      <Route path="/chatbot" element={<ServicePage />} />
+      <Route path="/automacao-whatsapp" element={<ServicePage />} />
       <Route path="/techcare" element={<TechCarePage />} />
+      <Route path="/suporte-ti" element={<ServicePage />} />
+      <Route path="/suporte-remoto" element={<ServicePage />} />
+      <Route path="/manutencao-computadores" element={<ServicePage />} />
+      <Route path="/manutencao-notebooks" element={<ServicePage />} />
       <Route path="/redes-wifi" element={<RedesWifiPage />} />
+      <Route path="/cabeamento" element={<ServicePage />} />
       <Route path="/cameras-seguranca" element={<CamerasSegurancaPage />} />
+      <Route path="/backup" element={<ServicePage />} />
       <Route path="/solucoes" element={<SolucoesPage />} />
       <Route path="/termos" element={<TermosPage />} />
       <Route path="/privacidade" element={<PrivacidadePage />} />
@@ -160,6 +184,7 @@ function AppRoutes() {
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
+      <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
       <Route path="/parceiros" element={<PartnerLandingPage />} />
@@ -167,6 +192,8 @@ function AppRoutes() {
       <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
       <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route path="/suporte/ticket/:id" element={<TicketDetailPage />} />
+      <Route path="/tecnico" element={<ProtectedRoute requireRole="technician"><Link to="/tecnico/recursos" className="fixed right-24 top-2.5 z-[70] inline-flex min-h-11 items-center px-4 text-base font-bold text-[#1677FF]">Recursos técnicos</Link><TechnicianDashboardPage /></ProtectedRoute>} />
+      <Route path="/tecnico/recursos" element={<ProtectedRoute requireRole="technician"><TechnicianResourcesPage /></ProtectedRoute>} />
 
       {/* Dashboard Subroutes */}
       <Route
@@ -206,6 +233,22 @@ function AppRoutes() {
         element={
           <DashboardContainer title="Solicitações de alteração">
             <ChangeRequestsPage />
+          </DashboardContainer>
+        }
+      />
+      <Route
+        path="/painel/equipamentos"
+        element={
+          <DashboardContainer title="Meus equipamentos">
+            <EquipmentPage />
+          </DashboardContainer>
+        }
+      />
+      <Route
+        path="/painel/pedidos"
+        element={
+          <DashboardContainer title="Meus pedidos">
+            <OrdersPage />
           </DashboardContainer>
         }
       />
@@ -292,6 +335,38 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/recursos-tecnicos"
+        element={
+          <AdminContainer title="Recursos Técnicos">
+            <AdminTechnicalResourcesPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/planos"
+        element={
+          <AdminContainer title="Planos Digitais">
+            <AdminPlansPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/pedidos"
+        element={
+          <AdminContainer title="Pedidos e Assinaturas">
+            <AdminOrdersPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/catalogo"
+        element={
+          <AdminContainer title="Catálogo Comercial">
+            <AdminCatalogPage />
+          </AdminContainer>
+        }
+      />
+      <Route
         path="/admin/backup"
         element={
           <AdminContainer title="Central de Backup">
@@ -357,7 +432,8 @@ function AppRoutes() {
     </Routes>
   );
 
-  return hasLayout ? <Layout>{content}</Layout> : content;
+  const securedContent = <>{isPrivate && <Seo title="Área restrita" description="Área autenticada da plataforma Nextia." path={pathname} noindex />}{content}</>;
+  return hasLayout ? <Layout>{securedContent}</Layout> : securedContent;
 }
 
 export default function App() {

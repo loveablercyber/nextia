@@ -1,6 +1,6 @@
 let appSchemaPromise;
 
-async function ensureAppSchema(client) {
+export async function ensureAppSchema(client) {
   if (!appSchemaPromise) {
     appSchemaPromise = client.query(`
       CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -121,6 +121,9 @@ async function ensureAppSchema(client) {
       ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS briefing JSONB;
       ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
       ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS source_contract_id UUID;
+      CREATE UNIQUE INDEX IF NOT EXISTS projects_source_contract_id_idx
+        ON public.projects(source_contract_id) WHERE source_contract_id IS NOT NULL;
       ALTER TABLE public.milestones ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
       ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS provider_preference_id TEXT;

@@ -332,9 +332,11 @@ export default function AdminClientsPage() {
                             ? 'bg-pink-100 text-pink-700'
                             : p.role === 'partner'
                               ? 'bg-amber-100 text-amber-800'
+                              : p.role === 'technician'
+                                ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {p.role === 'admin' ? 'Admin' : p.role === 'partner' ? 'Parceiro' : 'Cliente'}
+                          {p.role === 'admin' ? 'Admin' : p.role === 'partner' ? 'Parceiro' : p.role === 'technician' ? 'Técnico' : 'Cliente'}
                         </span>
                       </td>
                       <td className="py-4 text-right space-x-1">
@@ -456,6 +458,7 @@ export default function AdminClientsPage() {
                 >
                   <option value="client">Cliente</option>
                   <option value="partner" disabled>Parceiro (gerencie na área de parceiros)</option>
+                  <option value="technician">Técnico</option>
                   <option value="admin">Administrador (Acesso Total)</option>
                 </select>
               </div>

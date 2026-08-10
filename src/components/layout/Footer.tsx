@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Zap, Phone, MapPin } from 'lucide-react';
+import { AtSign, Zap, Phone, MapPin } from 'lucide-react';
 import { getWhatsAppLink } from '../../utils/whatsapp';
 
 export default function Footer() {
   return (
-    <footer className="bg-[#07111F] text-gray-400 text-sm border-t border-white/10">
+    <footer className="border-t border-white/10 bg-[#07162B] text-base text-slate-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
+        <div className="mb-12 grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-2">
@@ -15,10 +15,10 @@ export default function Footer() {
               </div>
               <span className="text-xl font-black tracking-tight text-white">Nextia</span>
             </Link>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+            <p className="max-w-sm text-base leading-7 text-slate-300">
               Tecnologia completa para empresas e profissionais. Estrutura digital, automação, suporte de TI, redes e segurança em um só lugar.
             </p>
-            <div className="space-y-2 pt-2 text-xs">
+            <div className="space-y-3 pt-2 text-base">
               <p className="flex items-center gap-2 text-gray-300">
                 <MapPin className="w-4 h-4 text-[#2086FF] flex-shrink-0" />
                 Atendimento em Bauru - SP e Região
@@ -33,10 +33,10 @@ export default function Footer() {
 
           {/* Soluções */}
           <div>
-            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Soluções</h3>
-            <ul className="space-y-2.5 text-xs">
+            <h3 className="mb-4 text-base font-bold text-white">Soluções</h3>
+            <ul className="space-y-3 text-base">
               <li>
-                <Link to="/sites-prontos" className="hover:text-[#2086FF] transition-colors">
+                <Link to="/sites" className="hover:text-[#35B7FF] transition-colors">
                   Sites Profissionais
                 </Link>
               </li>
@@ -70,8 +70,8 @@ export default function Footer() {
 
           {/* Navegação */}
           <div>
-            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Empresa</h3>
-            <ul className="space-y-2.5 text-xs">
+            <h3 className="mb-4 text-base font-bold text-white">Empresa</h3>
+            <ul className="space-y-3 text-base">
               <li>
                 <Link to="/planos" className="hover:text-white transition-colors">
                   Planos Mensais
@@ -102,15 +102,15 @@ export default function Footer() {
 
           {/* Redes Sociais e Atendimento */}
           <div>
-            <h3 className="text-white font-bold text-sm mb-4 tracking-wider uppercase">Atendimento</h3>
-            <p className="text-xs text-gray-400 mb-4">
+            <h3 className="mb-4 text-base font-bold text-white">Atendimento</h3>
+            <p className="mb-4 text-base leading-7 text-slate-300">
               Precisa de suporte urgente ou proposta rápida?
             </p>
             <a
               href={getWhatsAppLink('geral')}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#21C77A] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#1bb06b] transition-colors mb-4"
+              className="mb-4 inline-flex min-h-12 items-center gap-2 rounded-lg bg-[#16A36A] px-4 text-base font-bold text-white transition-colors hover:bg-[#128457]"
             >
               <Phone className="w-4 h-4" />
               Chamar no WhatsApp
@@ -120,13 +120,9 @@ export default function Footer() {
                 href="https://www.instagram.com/nextia.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-xs"
+                className="inline-flex min-h-11 items-center gap-2 text-base text-slate-300 transition-colors hover:text-white"
               >
-                <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                  <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                  <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-                </svg>
+                <AtSign className="h-5 w-5 text-pink-400" />
                 @nextia.dev
               </a>
             </div>
@@ -134,7 +130,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-base sm:flex-row">
           <p>© {new Date().getFullYear()} Nextia. Todos os direitos reservados.</p>
           <div className="flex items-center gap-6">
             <Link to="/termos" className="hover:text-white transition-colors">

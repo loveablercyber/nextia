@@ -19,13 +19,17 @@ const navItems = [
   { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
   { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
   { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
-  { to: '/admin/chamados', icon: MessageSquare, label: 'Solicitações' },
+  { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
-  { to: '/admin/cobrancas', icon: CreditCard, label: 'Financeiro / Faturas' },
+  { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas' },
+  { to: '/admin/pedidos', icon: Briefcase, label: 'Pedidos e Assinaturas' },
+  { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },
+  { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
   { to: '/admin/parceiros', icon: Users, label: 'Parceiros', exact: true },
   { to: '/admin/parceiros/comissoes', icon: DollarSign, label: 'Comissões Parceiros' },
   { to: '/admin/parceiros/materiais', icon: FolderOpen, label: 'Materiais Parceiros' },
   { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },
+  { to: '/admin/recursos-tecnicos', icon: FolderOpen, label: 'Recursos Técnicos' },
 ];
 
 export default function AdminLayout({ children, title }: AdminLayoutProps) {

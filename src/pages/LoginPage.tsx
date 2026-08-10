@@ -34,6 +34,8 @@ export default function LoginPage() {
         targetPath = '/admin';
       } else if (from === '/painel' && res.user?.role === 'partner') {
         targetPath = '/parceiro';
+      } else if (from === '/painel' && res.user?.role === 'technician') {
+        targetPath = '/tecnico';
       }
       navigate(targetPath, { replace: true });
     }
