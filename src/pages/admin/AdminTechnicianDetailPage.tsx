@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';

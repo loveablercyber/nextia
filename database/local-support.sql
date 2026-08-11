@@ -116,6 +116,73 @@ CREATE TABLE IF NOT EXISTS public.ticket_assignment_history (
 CREATE INDEX IF NOT EXISTS ticket_assignment_history_ticket_idx ON public.ticket_assignment_history(ticket_id,created_at DESC);
 UPDATE public.support_tickets SET assignment_status='ASSIGNED',assignment_source=COALESCE(assignment_source,'MANUAL'),assignment_reason=COALESCE(assignment_reason,'Atribuição anterior à evolução do módulo') WHERE assigned_technician_id IS NOT NULL AND assignment_status='AWAITING_MANUAL';
 
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS operational_status TEXT NOT NULL DEFAULT 'REQUESTED' CHECK (operational_status IN ('REQUESTED','ASSIGNED','ACCEPTED','SCHEDULED','ON_ROUTE','ON_SITE','IN_SERVICE','PAUSED','WAITING_CUSTOMER','FINISHED','CANCELLED'));
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS sla_accept_by TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS sla_response_by TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS departure_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS arrival_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS service_finished_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS public.ticket_events (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
+ actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, event_type TEXT NOT NULL, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+); CREATE INDEX IF NOT EXISTS ticket_events_ticket_idx ON public.ticket_events(ticket_id,created_at);
+CREATE TABLE IF NOT EXISTS public.technician_notifications (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), technician_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+ ticket_id UUID REFERENCES public.support_tickets(id) ON DELETE CASCADE, type TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL,
+ read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+); CREATE INDEX IF NOT EXISTS technician_notifications_user_idx ON public.technician_notifications(technician_id,read_at,created_at DESC);
+CREATE TABLE IF NOT EXISTS public.technician_calendar_events (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), technician_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+ ticket_id UUID REFERENCES public.support_tickets(id) ON DELETE CASCADE, event_type TEXT NOT NULL CHECK(event_type IN ('ONSITE','REMOTE','MAINTENANCE','BLOCK')),
+ title TEXT NOT NULL, starts_at TIMESTAMPTZ NOT NULL, ends_at TIMESTAMPTZ NOT NULL, notes TEXT, created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CHECK(ends_at>starts_at)
+); CREATE INDEX IF NOT EXISTS technician_calendar_range_idx ON public.technician_calendar_events(technician_id,starts_at,ends_at);
+CREATE TABLE IF NOT EXISTS public.ticket_time_entries (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
+ technician_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT, started_at TIMESTAMPTZ NOT NULL, ended_at TIMESTAMPTZ,
+ duration_minutes INTEGER, billable BOOLEAN NOT NULL DEFAULT TRUE, entry_type TEXT NOT NULL DEFAULT 'SERVICE' CHECK(entry_type IN ('SERVICE','ADMIN','TRAVEL')),
+ notes TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+); CREATE INDEX IF NOT EXISTS ticket_time_entries_ticket_idx ON public.ticket_time_entries(ticket_id,started_at);
+CREATE TABLE IF NOT EXISTS public.techcare_balances (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+ plan_name TEXT NOT NULL, included_minutes INTEGER NOT NULL, period_start DATE NOT NULL, period_end DATE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(user_id,period_start,period_end)
+);
+CREATE TABLE IF NOT EXISTS public.service_orders (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), order_number BIGSERIAL UNIQUE, ticket_id UUID NOT NULL UNIQUE REFERENCES public.support_tickets(id) ON DELETE CASCADE,
+ customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, technician_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, equipment_id UUID,
+ problem TEXT NOT NULL DEFAULT '', diagnosis TEXT NOT NULL DEFAULT '', service_performed TEXT NOT NULL DEFAULT '', travel_km NUMERIC, travel_cost_cents INTEGER,
+ notes TEXT, status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT','AWAITING_APPROVAL','APPROVED','COMPLETED','CANCELLED')), customer_signature TEXT, completed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS public.service_order_parts (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), service_order_id UUID NOT NULL REFERENCES public.service_orders(id) ON DELETE CASCADE,
+ name TEXT NOT NULL, description TEXT, quantity NUMERIC NOT NULL DEFAULT 1, estimated_price_cents INTEGER NOT NULL DEFAULT 0,
+ approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('PENDING','APPROVED','REJECTED')), created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL, approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL, approved_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS public.ticket_reviews (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ticket_id UUID NOT NULL UNIQUE REFERENCES public.support_tickets(id) ON DELETE CASCADE,
+ technician_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+ rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5), comment TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS public.sla_rules (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), service_slug TEXT, priority TEXT NOT NULL, acceptance_minutes INTEGER NOT NULL, first_response_minutes INTEGER NOT NULL, resolution_minutes INTEGER, active BOOLEAN NOT NULL DEFAULT TRUE, UNIQUE(service_slug,priority)
+);
+INSERT INTO public.sla_rules(service_slug,priority,acceptance_minutes,first_response_minutes,resolution_minutes) VALUES
+ (NULL,'baixa',240,480,2880),(NULL,'normal',120,240,1440),(NULL,'alta',30,60,480),(NULL,'urgente',10,30,240) ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS public.technician_compensation_rules (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), technician_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+ service_slug TEXT, category TEXT, compensation_type TEXT NOT NULL CHECK(compensation_type IN ('FIXED','PERCENTAGE','HOURLY','NONE')),
+ value NUMERIC NOT NULL DEFAULT 0, active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS public.technician_permissions (
+ technician_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE, permission TEXT NOT NULL,
+ granted_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(technician_id,permission)
+);
+
 CREATE TABLE IF NOT EXISTS public.ticket_messages (
   id UUID PRIMARY KEY,
   ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
@@ -147,6 +214,12 @@ CREATE TABLE IF NOT EXISTS public.technical_resources (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS technical_resources_active_order_idx ON public.technical_resources(active, category, sort_order);
+ALTER TABLE public.technical_resources DROP CONSTRAINT IF EXISTS technical_resources_category_check;
+ALTER TABLE public.technical_resources ADD CONSTRAINT technical_resources_category_check CHECK(category IN ('tool','driver','document','script','knowledge'));
+ALTER TABLE public.technical_resources ADD COLUMN IF NOT EXISTS manufacturer TEXT;
+ALTER TABLE public.technical_resources ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE public.technical_resources ADD COLUMN IF NOT EXISTS official BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.technical_resources ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS public.customer_equipment (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -163,3 +236,4 @@ CREATE TABLE IF NOT EXISTS public.customer_equipment (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS customer_equipment_user_idx ON public.customer_equipment(user_id, status);
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS equipment_id UUID REFERENCES public.customer_equipment(id) ON DELETE SET NULL;

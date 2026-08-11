@@ -41,6 +41,7 @@ import FilesPage from './pages/dashboard/FilesPage';
 import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
 import OrdersPage from './pages/dashboard/OrdersPage';
+import TechnicalOverviewPage from './pages/dashboard/TechnicalOverviewPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 
 import ProfilePage from './pages/ProfilePage';
@@ -57,6 +58,8 @@ import AdminBackupPage from './pages/admin/AdminBackupPage';
 import AdminPartnerMaterialsPage from './pages/admin/AdminPartnerMaterialsPage';
 import TechnicianDashboardPage from './pages/technician/TechnicianDashboardPage';
 import TechnicianResourcesPage from './pages/technician/TechnicianResourcesPage';
+import TechnicianAgendaPage from './pages/technician/TechnicianAgendaPage';
+import TechnicianServiceOrderPage from './pages/technician/TechnicianServiceOrderPage';
 import EquipmentPage from './pages/dashboard/EquipmentPage';
 import AdminTechnicalResourcesPage from './pages/admin/AdminTechnicalResourcesPage';
 import AdminCatalogPage from './pages/admin/AdminCatalogPage';
@@ -64,6 +67,8 @@ import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminPlansPage from './pages/admin/AdminPlansPage';
 import AdminTechniciansPage from './pages/admin/AdminTechniciansPage';
 import AdminTechnicianDetailPage from './pages/admin/AdminTechnicianDetailPage';
+import AdminTechnicalAnalyticsPage from './pages/admin/AdminTechnicalAnalyticsPage';
+import AdminTechnicianGovernancePage from './pages/admin/AdminTechnicianGovernancePage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -198,6 +203,8 @@ function AppRoutes() {
       <Route path="/suporte/ticket/:id" element={<TicketDetailPage />} />
       <Route path="/tecnico" element={<ProtectedRoute requireRole="technician"><Link to="/tecnico/recursos" className="fixed right-24 top-2.5 z-[70] inline-flex min-h-11 items-center px-4 text-base font-bold text-[#1677FF]">Recursos técnicos</Link><TechnicianDashboardPage /></ProtectedRoute>} />
       <Route path="/tecnico/recursos" element={<ProtectedRoute requireRole="technician"><TechnicianResourcesPage /></ProtectedRoute>} />
+      <Route path="/tecnico/agenda" element={<ProtectedRoute requireRole="technician"><TechnicianAgendaPage /></ProtectedRoute>} />
+      <Route path="/tecnico/os/:ticketId" element={<ProtectedRoute requireRole="technician"><TechnicianServiceOrderPage /></ProtectedRoute>} />
 
       {/* Dashboard Subroutes */}
       <Route
@@ -247,6 +254,10 @@ function AppRoutes() {
             <EquipmentPage />
           </DashboardContainer>
         }
+      />
+      <Route
+        path="/painel/tecnologia"
+        element={<DashboardContainer title="Tecnologia e Atendimentos"><TechnicalOverviewPage /></DashboardContainer>}
       />
       <Route
         path="/painel/pedidos"
@@ -342,6 +353,8 @@ function AppRoutes() {
         path="/admin/tecnicos/:userId"
         element={<AdminContainer title="Detalhe do Técnico"><AdminTechnicianDetailPage /></AdminContainer>}
       />
+      <Route path="/admin/tecnicos/:userId/governanca" element={<AdminContainer title="Governança"><AdminTechnicianGovernancePage /></AdminContainer>}/>
+      <Route path="/admin/indicadores-tecnicos" element={<AdminContainer title="Indicadores Técnicos"><AdminTechnicalAnalyticsPage /></AdminContainer>}/>
       <Route
         path="/admin/tecnicos"
         element={<AdminContainer title="Gestão de Técnicos"><AdminTechniciansPage /></AdminContainer>}

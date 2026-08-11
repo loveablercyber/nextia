@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   LogOut, Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +31,7 @@ const navItems = [
   { to: '/admin/parceiros/materiais', icon: FolderOpen, label: 'Materiais Parceiros' },
   { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },
   { to: '/admin/recursos-tecnicos', icon: FolderOpen, label: 'Recursos Técnicos' },
+  { to: '/admin/indicadores-tecnicos', icon: BarChart3, label: 'Indicadores Técnicos' },
 ];
 
 export default function AdminLayout({ children, title }: AdminLayoutProps) {

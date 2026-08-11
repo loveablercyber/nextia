@@ -21,6 +21,7 @@ const navItems = [
   { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
+  { to: '/painel/tecnologia', icon: ClipboardList, label: 'Tecnologia e OS' },
   { to: '/painel/equipamentos', icon: FolderOpen, label: 'Meus equipamentos' },
   { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
