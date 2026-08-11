@@ -494,6 +494,23 @@ async function ensureSupportSchema(client) {
   }
 }
 
+const TECHNICIAN_ASSIGNMENT_WEIGHTS = Object.freeze({ specialty:30, sameCity:20, available:20, relativeLoad:15, schedule:10, level:5 });
+const SERVICE_SPECIALTY_MAP = Object.freeze({ techcare:'hardware', 'suporte-ti':'windows', 'suporte-remoto':'windows', 'manutencao-computadores':'desktop', 'manutencao-notebooks':'notebook', 'redes-wifi':'wifi', cabeamento:'cabling', 'cameras-seguranca':'cameras', backup:'backup' });
+
+async function rankTechnicians(client, request) {
+  const result = await client.query(`SELECT p.id,p.name,tp.id AS profile_id,tp.technical_level,tp.employment_status,tp.availability_status,tp.accepts_remote,tp.accepts_onsite,tp.max_simultaneous_tickets,tp.home_city,tp.home_state,tp.service_cities,
+    COALESCE((SELECT array_agg(s.specialty_id) FROM public.technician_profile_specialties s WHERE s.technician_profile_id=tp.id),'{}') specialties,
+    COALESCE((SELECT array_agg(a.service_slug) FROM public.technician_authorized_services a WHERE a.technician_profile_id=tp.id),'{}') authorized_services,
+    (SELECT COUNT(*)::int FROM public.support_tickets t WHERE t.assigned_technician_id=p.id AND t.status<>'fechado') active_tickets,
+    EXISTS(SELECT 1 FROM public.technician_working_hours h WHERE h.technician_profile_id=tp.id AND h.weekday=EXTRACT(DOW FROM NOW() AT TIME ZONE 'America/Sao_Paulo')::int AND (NOW() AT TIME ZONE 'America/Sao_Paulo')::time BETWEEN h.start_time AND h.end_time) in_schedule,
+    EXISTS(SELECT 1 FROM public.technician_time_off o WHERE o.technician_profile_id=tp.id AND NOW() BETWEEN o.starts_at AND o.ends_at) blocked
+    FROM public.profiles p LEFT JOIN public.technician_profiles tp ON tp.user_id=p.id WHERE p.role='technician' ORDER BY p.name`);
+  const requiredSpecialty=request.requiredSpecialty||SERVICE_SPECIALTY_MAP[request.serviceSlug]||null;
+  return result.rows.map(t=>{const reasons=[];const failures=[];if(!t.profile_id)failures.push('Perfil profissional não configurado');if(t.employment_status!=='ACTIVE')failures.push('Vínculo não está ativo');if(['INACTIVE','ABSENT','OFFLINE'].includes(t.availability_status))failures.push(`Status ${t.availability_status||'não informado'}`);if(!t.authorized_services.includes(request.serviceSlug))failures.push('Serviço não autorizado');if(request.mode==='REMOTE'&&!t.accepts_remote)failures.push('Não aceita atendimento remoto');if(request.mode==='ONSITE'&&!t.accepts_onsite)failures.push('Não aceita atendimento presencial');if(!t.in_schedule)failures.push('Fora do horário configurado');if(t.blocked)failures.push('Possui bloqueio ativo');if(t.active_tickets>=t.max_simultaneous_tickets)failures.push('Capacidade máxima atingida');if(requiredSpecialty&&!t.specialties.includes(requiredSpecialty))failures.push(`Sem especialidade ${requiredSpecialty}`);if(request.mode==='ONSITE'&&request.city){const same=String(t.home_city||'').toLowerCase()===String(request.city).toLowerCase();const allowed=(t.service_cities||[]).some(c=>String(c).toLowerCase().includes(String(request.city).toLowerCase()));if(!same&&!allowed)failures.push('Cidade fora da área autorizada');}
+    let score=0;if(requiredSpecialty&&t.specialties.includes(requiredSpecialty)){score+=TECHNICIAN_ASSIGNMENT_WEIGHTS.specialty;reasons.push('Especialidade compatível');}const sameCity=request.city&&String(t.home_city||'').toLowerCase()===String(request.city).toLowerCase();if(sameCity){score+=TECHNICIAN_ASSIGNMENT_WEIGHTS.sameCity;reasons.push('Mesma cidade');}if(t.availability_status==='AVAILABLE'){score+=TECHNICIAN_ASSIGNMENT_WEIGHTS.available;reasons.push('Disponível agora');}score+=Math.round(Math.max(0,1-(t.active_tickets/t.max_simultaneous_tickets))*TECHNICIAN_ASSIGNMENT_WEIGHTS.relativeLoad);if(t.in_schedule){score+=TECHNICIAN_ASSIGNMENT_WEIGHTS.schedule;reasons.push('Dentro do horário');}if(['SENIOR','SPECIALIST'].includes(t.technical_level))score+=TECHNICIAN_ASSIGNMENT_WEIGHTS.level;
+    return {...t,eligible:failures.length===0,score,reasons,failures,required_specialty:requiredSpecialty};}).sort((a,b)=>Number(b.eligible)-Number(a.eligible)||b.score-a.score||a.active_tickets-b.active_tickets);
+}
+
 async function ensureCommercialCatalogSchema(client) {
   if (!commercialCatalogSchemaPromise) {
     commercialCatalogSchemaPromise = readFile(join(process.cwd(), 'database', 'commercial-catalog.sql'), 'utf8')
@@ -971,6 +988,11 @@ async function sendPasswordResetEmail({ email, name, resetLink }) {
 }
 
 const supportApiMethods = new Map([
+  ['/api/admin/technicians', 'GET'],
+  ['/api/admin/technicians/detail', 'GET'],
+  ['/api/admin/technicians/save', 'POST'],
+  ['/api/technician/profile', 'GET'],
+  ['/api/technician/availability', 'POST'],
   ['/api/service-requests', 'POST'],
   ['/api/support/create-ticket', 'POST'],
   ['/api/support/list-tickets', 'GET'],
@@ -979,6 +1001,7 @@ const supportApiMethods = new Map([
   ['/api/admin/list-support-tickets', 'GET'],
   ['/api/admin/update-ticket-status', 'POST'],
   ['/api/admin/assign-support-ticket', 'POST'],
+  ['/api/admin/ticket-assignment-options', 'GET'],
   ['/api/technician/tickets', 'GET'],
   ['/api/technician/update-ticket', 'POST'],
   ['/api/technician/resources', 'GET'],
@@ -1012,7 +1035,84 @@ async function handleSupportApi(req, res, url) {
   const client = dbClient();
   await client.connect();
   try {
+    await ensureCommercialCatalogSchema(client);
     await ensureSupportSchema(client);
+
+    if (url.pathname === '/api/admin/technicians') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const [technicians, specialties, services] = await Promise.all([
+        client.query(`SELECT p.id AS user_id,p.name,p.email,p.phone,p.company,tp.*,
+          COALESCE((SELECT json_agg(s.specialty_id) FROM public.technician_profile_specialties s WHERE s.technician_profile_id=tp.id),'[]') AS specialties,
+          COALESCE((SELECT json_agg(a.service_slug) FROM public.technician_authorized_services a WHERE a.technician_profile_id=tp.id),'[]') AS authorized_services,
+          COALESCE((SELECT json_agg(json_build_object('id',h.id,'weekday',h.weekday,'start_time',h.start_time,'end_time',h.end_time) ORDER BY h.weekday,h.start_time) FROM public.technician_working_hours h WHERE h.technician_profile_id=tp.id),'[]') AS working_hours,
+          COALESCE((SELECT json_agg(json_build_object('id',o.id,'starts_at',o.starts_at,'ends_at',o.ends_at,'reason',o.reason) ORDER BY o.starts_at) FROM public.technician_time_off o WHERE o.technician_profile_id=tp.id AND o.ends_at>=NOW()),'[]') AS time_off,
+          (SELECT COUNT(*)::int FROM public.support_tickets t WHERE t.assigned_technician_id=p.id AND t.status<>'fechado') AS active_tickets
+          FROM public.profiles p LEFT JOIN public.technician_profiles tp ON tp.user_id=p.id WHERE p.role='technician' ORDER BY p.name`),
+        client.query(`SELECT id,name FROM public.technician_specialties WHERE active=TRUE ORDER BY sort_order,name`),
+        client.query(`SELECT slug,name,category FROM public.commercial_services WHERE active=TRUE ORDER BY sort_order,name`),
+      ]);
+      return json(res,200,{technicians:technicians.rows,specialties:specialties.rows,services:services.rows});
+    }
+
+    if (url.pathname === '/api/admin/technicians/detail') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const userId = String(url.searchParams.get('userId') || '');
+      const [technician, specialties, services, tickets] = await Promise.all([
+        client.query(`SELECT p.id AS user_id,p.name,p.email,p.phone,p.company,tp.*,
+          COALESCE((SELECT json_agg(s.specialty_id) FROM public.technician_profile_specialties s WHERE s.technician_profile_id=tp.id),'[]') AS specialties,
+          COALESCE((SELECT json_agg(a.service_slug) FROM public.technician_authorized_services a WHERE a.technician_profile_id=tp.id),'[]') AS authorized_services,
+          COALESCE((SELECT json_agg(json_build_object('id',h.id,'weekday',h.weekday,'start_time',h.start_time,'end_time',h.end_time) ORDER BY h.weekday,h.start_time) FROM public.technician_working_hours h WHERE h.technician_profile_id=tp.id),'[]') AS working_hours,
+          COALESCE((SELECT json_agg(json_build_object('id',o.id,'starts_at',o.starts_at,'ends_at',o.ends_at,'reason',o.reason) ORDER BY o.starts_at) FROM public.technician_time_off o WHERE o.technician_profile_id=tp.id AND o.ends_at>=NOW()),'[]') AS time_off,
+          (SELECT COUNT(*)::int FROM public.support_tickets t WHERE t.assigned_technician_id=p.id AND t.status<>'fechado') AS active_tickets
+          FROM public.profiles p LEFT JOIN public.technician_profiles tp ON tp.user_id=p.id WHERE p.id=$1 AND p.role='technician'`,[userId]),
+        client.query(`SELECT id,name FROM public.technician_specialties WHERE active=TRUE ORDER BY sort_order,name`),
+        client.query(`SELECT slug,name,category FROM public.commercial_services WHERE active=TRUE ORDER BY sort_order,name`),
+        client.query(`SELECT id,subject,name,company,priority,status,created_at,started_at,resolved_at FROM public.support_tickets WHERE assigned_technician_id=$1 ORDER BY created_at DESC LIMIT 100`,[userId]),
+      ]);
+      if(!technician.rows[0]) return json(res,404,{error:'Técnico não encontrado.'});
+      return json(res,200,{technician:technician.rows[0],specialties:specialties.rows,services:services.rows,tickets:tickets.rows});
+    }
+
+    if (url.pathname === '/api/admin/technicians/save') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const body=await readJson(req); const userId=String(body.userId||'');
+      const user=await client.query(`SELECT id FROM public.profiles WHERE id=$1 AND role='technician'`,[userId]);
+      if(!user.rows[0]) return json(res,400,{error:'Usuário técnico inválido.'});
+      const levels=['JUNIOR','PLENO','SENIOR','SPECIALIST']; const employment=['ACTIVE','INACTIVE','ON_LEAVE'];
+      const availability=['AVAILABLE','BUSY','ON_ROUTE','IN_SERVICE','BREAK','ABSENT','OFFLINE','INACTIVE'];
+      const maxTickets=Number(body.maxSimultaneousTickets||4);
+      if(!Number.isInteger(maxTickets)||maxTickets<1||maxTickets>100) return json(res,400,{error:'Capacidade de chamados inválida.'});
+      await client.query('BEGIN');
+      try {
+        const saved=await client.query(`INSERT INTO public.technician_profiles(user_id,phone_secondary,avatar,professional_title,bio,technical_level,employment_status,availability_status,accepts_remote,accepts_onsite,max_simultaneous_tickets,home_city,home_state,service_radius_km,service_cities,notes)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          ON CONFLICT(user_id) DO UPDATE SET phone_secondary=EXCLUDED.phone_secondary,avatar=EXCLUDED.avatar,professional_title=EXCLUDED.professional_title,bio=EXCLUDED.bio,technical_level=EXCLUDED.technical_level,employment_status=EXCLUDED.employment_status,availability_status=EXCLUDED.availability_status,accepts_remote=EXCLUDED.accepts_remote,accepts_onsite=EXCLUDED.accepts_onsite,max_simultaneous_tickets=EXCLUDED.max_simultaneous_tickets,home_city=EXCLUDED.home_city,home_state=EXCLUDED.home_state,service_radius_km=EXCLUDED.service_radius_km,service_cities=EXCLUDED.service_cities,notes=EXCLUDED.notes,updated_at=NOW() RETURNING *`,
+          [userId,String(body.phoneSecondary||'').trim()||null,String(body.avatar||'').trim()||null,String(body.professionalTitle||'').trim()||null,String(body.bio||'').trim()||null,levels.includes(body.technicalLevel)?body.technicalLevel:'JUNIOR',employment.includes(body.employmentStatus)?body.employmentStatus:'ACTIVE',availability.includes(body.availabilityStatus)?body.availabilityStatus:'OFFLINE',body.acceptsRemote!==false,body.acceptsOnsite===true,maxTickets,String(body.homeCity||'').trim()||null,String(body.homeState||'').trim().toUpperCase().slice(0,2)||null,body.serviceRadiusKm===''||body.serviceRadiusKm==null?null:Number(body.serviceRadiusKm),(Array.isArray(body.serviceCities)?body.serviceCities:[]).map(String),String(body.notes||'').trim()||null]);
+        const profileId=saved.rows[0].id;
+        await Promise.all([client.query('DELETE FROM public.technician_profile_specialties WHERE technician_profile_id=$1',[profileId]),client.query('DELETE FROM public.technician_authorized_services WHERE technician_profile_id=$1',[profileId]),client.query('DELETE FROM public.technician_working_hours WHERE technician_profile_id=$1',[profileId]),client.query('DELETE FROM public.technician_time_off WHERE technician_profile_id=$1',[profileId])]);
+        for(const id of Array.isArray(body.specialties)?body.specialties:[]) await client.query('INSERT INTO public.technician_profile_specialties VALUES($1,$2) ON CONFLICT DO NOTHING',[profileId,id]);
+        for(const slug of Array.isArray(body.authorizedServices)?body.authorizedServices:[]) await client.query('INSERT INTO public.technician_authorized_services VALUES($1,$2) ON CONFLICT DO NOTHING',[profileId,slug]);
+        for(const h of Array.isArray(body.workingHours)?body.workingHours:[]) if(Number.isInteger(Number(h.weekday))&&h.startTime&&h.endTime) await client.query('INSERT INTO public.technician_working_hours(technician_profile_id,weekday,start_time,end_time) VALUES($1,$2,$3,$4)',[profileId,Number(h.weekday),h.startTime,h.endTime]);
+        for(const o of Array.isArray(body.timeOff)?body.timeOff:[]) if(o.startsAt&&o.endsAt) await client.query('INSERT INTO public.technician_time_off(technician_profile_id,starts_at,ends_at,reason) VALUES($1,$2,$3,$4)',[profileId,o.startsAt,o.endsAt,String(o.reason||'').trim()||null]);
+        await client.query('COMMIT'); return json(res,200,{profile:saved.rows[0]});
+      } catch(error){await client.query('ROLLBACK');throw error;}
+    }
+
+    if (url.pathname === '/api/technician/profile') {
+      const sessionProfile=await getSessionProfile(req,client); if(sessionProfile?.role!=='technician') return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para técnicos.'});
+      const result=await client.query('SELECT * FROM public.technician_profiles WHERE user_id=$1',[sessionProfile.id]); return json(res,200,{profile:result.rows[0]||null});
+    }
+
+    if (url.pathname === '/api/technician/availability') {
+      const sessionProfile=await getSessionProfile(req,client); if(sessionProfile?.role!=='technician') return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para técnicos.'});
+      const body=await readJson(req); const allowed=['AVAILABLE','BUSY','ON_ROUTE','IN_SERVICE','BREAK','ABSENT','OFFLINE'];
+      if(!allowed.includes(body.status)) return json(res,400,{error:'Status inválido.'});
+      const result=await client.query(`UPDATE public.technician_profiles SET availability_status=$1,updated_at=NOW() WHERE user_id=$2 AND employment_status='ACTIVE' RETURNING *`,[body.status,sessionProfile.id]);
+      if(!result.rows[0]) return json(res,409,{error:'Perfil profissional ativo ainda não configurado pelo administrador.'}); return json(res,200,{profile:result.rows[0]});
+    }
 
     if (url.pathname === '/api/service-requests') {
       const body = await readJson(req);
@@ -1022,6 +1122,8 @@ async function handleSupportApi(req, res, url) {
       const phone = String(body.phone || '').trim();
       const company = String(body.company || '').trim();
       const city = String(body.city || '').trim();
+      const state = String(body.state || '').trim().toUpperCase().slice(0,2);
+      const serviceMode = ['REMOTE','ONSITE','FLEXIBLE'].includes(body.serviceMode) ? body.serviceMode : 'FLEXIBLE';
       const details = String(body.details || '').trim();
       const requestedItem = String(body.requestedItem || '').trim();
       if (!serviceSlug || !name || !email || !phone || !details) return json(res, 400, { error: 'Preencha nome, e-mail, telefone e detalhes da solicitação.' });
@@ -1030,9 +1132,11 @@ async function handleSupportApi(req, res, url) {
       if (!service) return json(res, 404, { error: 'Serviço não encontrado ou indisponível.' });
       const technicalCategories = new Set(['techcare', 'infrastructure', 'security']);
       let technicianId = null;
+      let assignment = null;
       if (technicalCategories.has(service.category)) {
-        const technician = await client.query(`SELECT p.id FROM public.profiles p WHERE p.role = 'technician' ORDER BY (SELECT COUNT(*) FROM public.support_tickets t WHERE t.assigned_technician_id = p.id AND t.status <> 'fechado'), p.name NULLS LAST LIMIT 1`);
-        technicianId = technician.rows[0]?.id || null;
+        const ranked = await rankTechnicians(client,{serviceSlug:service.slug,mode:serviceMode,city,state});
+        assignment = ranked.find(item=>item.eligible) || null;
+        technicianId = assignment?.id || null;
       }
       const sessionProfile = await getSessionProfile(req, client);
       const linkedProfile = sessionProfile || (await client.query('SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1', [email])).rows[0];
@@ -1041,8 +1145,9 @@ async function handleSupportApi(req, res, url) {
       const message = [`Serviço: ${service.name}`, requestedItem && requestedItem !== service.name ? `Item solicitado: ${requestedItem}` : '', city ? `Cidade: ${city}` : '', '', details].filter(Boolean).join('\n').slice(0, 10000);
       await client.query('BEGIN');
       try {
-        await client.query(`INSERT INTO public.support_tickets (id,name,email,phone,company,subject,message,user_id,guest_token,assigned_technician_id,priority,started_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'normal',CASE WHEN $10::uuid IS NOT NULL THEN NOW() ELSE NULL END)`, [ticketId,name,email,phone,company || null,subject,message,linkedProfile?.id || null,guestToken,technicianId]);
+        await client.query(`INSERT INTO public.support_tickets (id,name,email,phone,company,subject,message,user_id,guest_token,assigned_technician_id,priority,service_slug,service_category,service_mode,service_city,service_state,required_specialty,assignment_status,assignment_score,assignment_reason,assignment_source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'normal',$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`, [ticketId,name,email,phone,company || null,subject,message,linkedProfile?.id || null,guestToken,technicianId,service.slug,service.category,serviceMode,city||null,state||null,SERVICE_SPECIALTY_MAP[service.slug]||null,technicianId?'ASSIGNED':'AWAITING_MANUAL',assignment?.score||null,assignment?assignment.reasons.join(', '):'Nenhum técnico elegível',technicianId?'AUTOMATIC':null]);
         await client.query(`INSERT INTO public.ticket_messages (id,ticket_id,sender_role,message,sender_name) VALUES ($1,$2,'client',$3,$4)`, [messageId,ticketId,message,name]);
+        if(technicianId) await client.query(`INSERT INTO public.ticket_assignment_history(ticket_id,new_technician_id,source,score,reason) VALUES($1,$2,'AUTOMATIC',$3,$4)`,[ticketId,technicianId,assignment.score,assignment.reasons.join(', ')]);
         await client.query('COMMIT');
       } catch (error) { await client.query('ROLLBACK'); throw error; }
       return json(res, 201, { ticketId, trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin' });
@@ -1144,7 +1249,8 @@ async function handleSupportApi(req, res, url) {
       const [result, technicians] = await Promise.all([client.query(
         `SELECT id, name, email, phone, company, subject, message, status,
                 created_at, resolved_at, user_id, assigned_technician_id, priority,
-                technical_notes, started_at
+                technical_notes, started_at,service_slug,service_category,service_mode,service_city,service_state,
+                assignment_status,assignment_score,assignment_reason,assignment_source
          FROM public.support_tickets
          ORDER BY created_at DESC`,
       ), client.query(`SELECT id, name, email FROM public.profiles WHERE role = 'technician' ORDER BY name`)]);
@@ -1182,14 +1288,23 @@ async function handleSupportApi(req, res, url) {
         const technician = await client.query(`SELECT 1 FROM public.profiles WHERE id = $1 AND role = 'technician'`, [technicianId]);
         if (!technician.rows[0]) return json(res, 400, { error: 'Técnico inválido.' });
       }
+      const previous=await client.query('SELECT assigned_technician_id FROM public.support_tickets WHERE id=$1',[body.ticketId]);
       const result = await client.query(
-        `UPDATE public.support_tickets SET assigned_technician_id = $1, priority = $2,
-           started_at = CASE WHEN $1::uuid IS NOT NULL THEN COALESCE(started_at, NOW()) ELSE started_at END
-         WHERE id = $3 RETURNING id, assigned_technician_id, priority, started_at`,
-        [technicianId, ['baixa','normal','alta','urgente'].includes(body.priority) ? body.priority : 'normal', body.ticketId],
+        `UPDATE public.support_tickets SET assigned_technician_id = $1, priority = $2, assignment_status=$3,assignment_source='MANUAL',assignment_reason=$4
+         WHERE id = $5 RETURNING id, assigned_technician_id, priority, assignment_status`,
+        [technicianId, ['baixa','normal','alta','urgente'].includes(body.priority) ? body.priority : 'normal',technicianId?'ASSIGNED':'AWAITING_MANUAL',String(body.reason||'Atribuição manual pelo administrador').slice(0,1000),body.ticketId],
       );
       if (!result.rows[0]) return json(res, 404, { error: 'Chamado não encontrado.' });
+      await client.query(`INSERT INTO public.ticket_assignment_history(ticket_id,previous_technician_id,new_technician_id,source,reason,changed_by) VALUES($1,$2,$3,'MANUAL',$4,$5)`,[body.ticketId,previous.rows[0]?.assigned_technician_id||null,technicianId,String(body.reason||'Atribuição manual pelo administrador').slice(0,1000),sessionProfile.id]);
       return json(res, 200, { ticket: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/ticket-assignment-options') {
+      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});
+      const ticket=(await client.query(`SELECT id,service_slug,service_mode,service_city,service_state,required_specialty FROM public.support_tickets WHERE id=$1`,[url.searchParams.get('ticketId')])).rows[0];
+      if(!ticket)return json(res,404,{error:'Chamado não encontrado.'});
+      const candidates=await rankTechnicians(client,{serviceSlug:ticket.service_slug,mode:ticket.service_mode||'FLEXIBLE',city:ticket.service_city,state:ticket.service_state,requiredSpecialty:ticket.required_specialty});
+      return json(res,200,{candidates:candidates.map(c=>({id:c.id,name:c.name,eligible:c.eligible,score:c.score,reasons:c.reasons,failures:c.failures,availability_status:c.availability_status,active_tickets:c.active_tickets,max_simultaneous_tickets:c.max_simultaneous_tickets,home_city:c.home_city,technical_level:c.technical_level}))});
     }
 
     if (url.pathname === '/api/technician/tickets') {

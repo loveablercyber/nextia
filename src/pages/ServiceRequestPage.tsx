@@ -9,7 +9,7 @@ export default function ServiceRequestPage() {
   const services = useServiceCatalog();
   const service = useMemo(() => services.find((item) => item.slug === params.get('service')), [params, services]);
   const requestedItem = params.get('item') || service?.name || '';
-  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', city: '', details: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', city: '', state: '', serviceMode: 'FLEXIBLE', details: '' });
   const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const [result, setResult] = useState<{ trackingLink: string; routedToTechnician: boolean } | null>(null);
   if (!service) return <Navigate to="/solucoes" replace />;

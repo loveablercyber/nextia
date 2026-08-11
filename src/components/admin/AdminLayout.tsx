@@ -21,6 +21,7 @@ const navItems = [
   { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
   { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
+  { to: '/admin/tecnicos', icon: UserCog, label: 'Técnicos' },
   { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas' },
   { to: '/admin/pedidos', icon: Briefcase, label: 'Pedidos e Assinaturas' },
   { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },

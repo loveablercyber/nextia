@@ -62,6 +62,8 @@ import AdminTechnicalResourcesPage from './pages/admin/AdminTechnicalResourcesPa
 import AdminCatalogPage from './pages/admin/AdminCatalogPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminPlansPage from './pages/admin/AdminPlansPage';
+import AdminTechniciansPage from './pages/admin/AdminTechniciansPage';
+import AdminTechnicianDetailPage from './pages/admin/AdminTechnicianDetailPage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -335,6 +337,14 @@ function AppRoutes() {
             <AdminClientsPage />
           </AdminContainer>
         }
+      />
+      <Route
+        path="/admin/tecnicos/:userId"
+        element={<AdminContainer title="Detalhe do Técnico"><AdminTechnicianDetailPage /></AdminContainer>}
+      />
+      <Route
+        path="/admin/tecnicos"
+        element={<AdminContainer title="Gestão de Técnicos"><AdminTechniciansPage /></AdminContainer>}
       />
       <Route
         path="/admin/recursos-tecnicos"
