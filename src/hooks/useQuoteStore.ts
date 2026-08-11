@@ -2,9 +2,9 @@ import { useState, useCallback } from 'react';
 import { type QuoteFormData, initialFormData, calculateQuote } from '../data/quoteCalculator';
 
 // State store for the wizard backed by the local PostgreSQL API.
-export function useQuoteStore() {
-  const [formData, setFormData] = useState<QuoteFormData>(initialFormData);
-  const [currentStep, setCurrentStep] = useState(1);
+export function useQuoteStore(prefill: Partial<QuoteFormData> = {}, initialStep = 1) {
+  const [formData, setFormData] = useState<QuoteFormData>(() => ({ ...initialFormData, ...prefill }));
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 

@@ -11,8 +11,19 @@ import QuoteSummary from './QuoteSummary';
 import { useQuoteStore } from '../../hooks/useQuoteStore';
 import { calculateQuote } from '../../data/quoteCalculator';
 import type { ProjectType, SegmentType, UrgencyType, BudgetRange } from '../../data/quoteConfig';
+import { useSearchParams } from 'react-router-dom';
+
+const planPrefills = {
+  start: { projectType: 'site-institucional' as const, pagesCount: 3, selectedFeatures: ['whatsapp', 'dominio-hospedagem', 'formularios'] },
+  pro: { projectType: 'site-institucional' as const, pagesCount: 6, selectedFeatures: ['whatsapp', 'dominio-hospedagem', 'formularios', 'seo', 'integracoes'] },
+  business: { projectType: 'agendamento' as const, pagesCount: 6, selectedFeatures: ['whatsapp', 'dominio-hospedagem', 'formularios', 'seo', 'integracoes', 'agendamento', 'catalogo'] },
+  custom: { projectType: 'personalizado' as const, pagesCount: 3, selectedFeatures: [] },
+};
 
 export default function QuoteWizard() {
+  const [searchParams] = useSearchParams();
+  const selectedPlan = searchParams.get('plan') as keyof typeof planPrefills | null;
+  const prefill = selectedPlan && planPrefills[selectedPlan] ? planPrefills[selectedPlan] : {};
   const {
     formData,
     currentStep,
@@ -27,7 +38,7 @@ export default function QuoteWizard() {
     handleSubmit,
     reset,
     canProceed,
-  } = useQuoteStore();
+  } = useQuoteStore(prefill, selectedPlan ? 2 : 1);
 
   const isSummary = currentStep > totalSteps;
   const result = calculateQuote(formData);
@@ -40,7 +51,7 @@ export default function QuoteWizard() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-[#eef2ff] border border-[#c7d2fe] rounded-full px-4 py-1.5 mb-3">
               <span className="w-2 h-2 rounded-full bg-[#5B4FE9] animate-pulse" />
-              <span className="text-[#5B4FE9] text-xs font-semibold">Orçamento automático gratuito</span>
+              <span className="text-[#5B4FE9] text-xs font-semibold">{selectedPlan ? `Plano ${selectedPlan === 'pro' ? 'Pro' : selectedPlan === 'business' ? 'Business' : selectedPlan === 'start' ? 'Start' : 'Personalizado'} pré-selecionado` : 'Orçamento automático gratuito'}</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-900">
               Monte seu orçamento em minutos

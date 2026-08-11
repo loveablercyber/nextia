@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import { getWhatsAppLink } from '../utils/whatsapp';
 import Seo from '../components/seo/Seo';
+import DigitalServiceLanding, { isDigitalShowcase } from '../components/services/DigitalServiceLanding';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
@@ -15,6 +16,8 @@ export default function ServicePage() {
 
   const related = services.filter((item) => item.category === service.category && item.slug !== service.slug).slice(0, 3);
   const price = service.price ? `${money.format(service.price)}${service.recurring ? '/mês' : ''}` : 'Solicite uma análise';
+
+  if (isDigitalShowcase(service.slug)) return <main className="bg-white text-[#10152B]"><Seo title={service.name} description={service.summary} path={`/${service.slug}`} /><DigitalServiceLanding service={service} /></main>;
 
   return (
     <main className="bg-white text-[#07162B]">

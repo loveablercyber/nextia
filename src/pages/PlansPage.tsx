@@ -96,7 +96,7 @@ export default function PlansPage() {
                 {/* CTA */}
                 {plan.id === 'custom' ? (
                   <div className="space-y-2">
-                    <Link to="/projeto-personalizado">
+                    <Link to="/orcamento?plan=custom">
                       <Button variant="gradient" size="md" fullWidth>{plan.ctaLabel}</Button>
                     </Link>
                     <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
@@ -107,7 +107,7 @@ export default function PlansPage() {
                     </a>
                   </div>
                 ) : (
-                  <Link to={`/checkout?plan=${plan.id}`}>
+                  <Link to={`/orcamento?plan=${plan.id}`}>
                     <Button
                       variant={plan.highlight ? 'gradient' : 'outline'}
                       size="md"
