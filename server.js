@@ -971,6 +971,7 @@ async function sendPasswordResetEmail({ email, name, resetLink }) {
 }
 
 const supportApiMethods = new Map([
+  ['/api/service-requests', 'POST'],
   ['/api/support/create-ticket', 'POST'],
   ['/api/support/list-tickets', 'GET'],
   ['/api/support/get-ticket', 'GET'],
@@ -1012,6 +1013,40 @@ async function handleSupportApi(req, res, url) {
   await client.connect();
   try {
     await ensureSupportSchema(client);
+
+    if (url.pathname === '/api/service-requests') {
+      const body = await readJson(req);
+      const serviceSlug = String(body.serviceSlug || '').trim();
+      const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim();
+      const phone = String(body.phone || '').trim();
+      const company = String(body.company || '').trim();
+      const city = String(body.city || '').trim();
+      const details = String(body.details || '').trim();
+      const requestedItem = String(body.requestedItem || '').trim();
+      if (!serviceSlug || !name || !email || !phone || !details) return json(res, 400, { error: 'Preencha nome, e-mail, telefone e detalhes da solicitação.' });
+      const serviceResult = await client.query('SELECT slug, name, category FROM public.commercial_services WHERE slug = $1 AND active = TRUE', [serviceSlug]);
+      const service = serviceResult.rows[0];
+      if (!service) return json(res, 404, { error: 'Serviço não encontrado ou indisponível.' });
+      const technicalCategories = new Set(['techcare', 'infrastructure', 'security']);
+      let technicianId = null;
+      if (technicalCategories.has(service.category)) {
+        const technician = await client.query(`SELECT p.id FROM public.profiles p WHERE p.role = 'technician' ORDER BY (SELECT COUNT(*) FROM public.support_tickets t WHERE t.assigned_technician_id = p.id AND t.status <> 'fechado'), p.name NULLS LAST LIMIT 1`);
+        technicianId = technician.rows[0]?.id || null;
+      }
+      const sessionProfile = await getSessionProfile(req, client);
+      const linkedProfile = sessionProfile || (await client.query('SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1', [email])).rows[0];
+      const ticketId = randomUUID(); const messageId = randomUUID(); const guestToken = randomBytes(32).toString('hex');
+      const subject = `Solicitação de serviço: ${requestedItem || service.name}`.slice(0, 300);
+      const message = [`Serviço: ${service.name}`, requestedItem && requestedItem !== service.name ? `Item solicitado: ${requestedItem}` : '', city ? `Cidade: ${city}` : '', '', details].filter(Boolean).join('\n').slice(0, 10000);
+      await client.query('BEGIN');
+      try {
+        await client.query(`INSERT INTO public.support_tickets (id,name,email,phone,company,subject,message,user_id,guest_token,assigned_technician_id,priority,started_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'normal',CASE WHEN $10::uuid IS NOT NULL THEN NOW() ELSE NULL END)`, [ticketId,name,email,phone,company || null,subject,message,linkedProfile?.id || null,guestToken,technicianId]);
+        await client.query(`INSERT INTO public.ticket_messages (id,ticket_id,sender_role,message,sender_name) VALUES ($1,$2,'client',$3,$4)`, [messageId,ticketId,message,name]);
+        await client.query('COMMIT');
+      } catch (error) { await client.query('ROLLBACK'); throw error; }
+      return json(res, 201, { ticketId, trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin' });
+    }
 
     if (url.pathname === '/api/support/create-ticket') {
       const body = await readJson(req);

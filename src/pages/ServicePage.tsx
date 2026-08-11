@@ -30,8 +30,8 @@ export default function ServicePage() {
             <h1 className="max-w-4xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">{service.name}</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">{service.summary}</p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link to={service.price ? `/checkout?service=${service.slug}` : `/orcamento?servico=${service.slug}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-6 text-base font-bold text-white hover:bg-[#0F63D8]">
-                {service.price ? 'Contratar serviço' : 'Solicitar orçamento'} <ArrowRight className="h-5 w-5" />
+              <Link to={`/solicitar-servico?service=${service.slug}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-6 text-base font-bold text-white hover:bg-[#0F63D8]">
+                Solicitar serviço <ArrowRight className="h-5 w-5" />
               </Link>
               <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white/30 px-6 text-base font-bold hover:bg-white/10">
                 <MessageCircle className="h-5 w-5" /> Falar com especialista

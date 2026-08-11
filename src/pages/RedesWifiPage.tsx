@@ -1,5 +1,5 @@
 import { Wifi, CheckCircle } from 'lucide-react';
-import { getWhatsAppLink, trackEvent } from '../utils/whatsapp';
+import { Link } from 'react-router-dom';
 
 export default function RedesWifiPage() {
   return (
@@ -16,16 +16,13 @@ export default function RedesWifiPage() {
             Elimine zonas mortas, quedas de conexão e lentidão na sua empresa com redes estruturadas, roteadores de alta capacidade e Wi-Fi corporativo.
           </p>
 
-          <a
-            href={getWhatsAppLink('redes')}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackEvent('click_whatsapp', { origem: 'redes_hero' })}
+          <Link
+            to="/solicitar-servico?service=redes-wifi"
             className="inline-flex items-center gap-2 bg-[#21C77A] text-white px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#1bb06b] transition-colors"
           >
             <Wifi className="w-4 h-4" />
             Solicitar avaliação de rede
-          </a>
+          </Link>
         </div>
       </section>
 

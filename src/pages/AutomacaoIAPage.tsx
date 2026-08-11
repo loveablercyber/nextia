@@ -1,5 +1,5 @@
 import { Bot, Zap } from 'lucide-react';
-import { getWhatsAppLink, trackEvent } from '../utils/whatsapp';
+import { Link } from 'react-router-dom';
 
 export default function AutomacaoIAPage() {
   const features = [
@@ -25,16 +25,13 @@ export default function AutomacaoIAPage() {
             Economize tempo, automatize o atendimento no WhatsApp e elimine processos manuais com soluções inteligentes sob medida.
           </p>
 
-          <a
-            href={getWhatsAppLink('automacao')}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackEvent('click_whatsapp', { origem: 'automacao_hero' })}
+          <Link
+            to="/solicitar-servico?service=automacao-ia"
             className="inline-flex items-center gap-2 bg-[#7C5CFF] text-white px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#6846f0] transition-colors"
           >
             <Zap className="w-4 h-4" />
             Quero automatizar minha empresa
-          </a>
+          </Link>
         </div>
       </section>
 

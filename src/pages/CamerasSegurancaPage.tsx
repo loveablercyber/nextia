@@ -1,5 +1,5 @@
 import { ShieldCheck, Video, AlertCircle } from 'lucide-react';
-import { getWhatsAppLink, trackEvent } from '../utils/whatsapp';
+import { Link } from 'react-router-dom';
 
 export default function CamerasSegurancaPage() {
   return (
@@ -16,16 +16,13 @@ export default function CamerasSegurancaPage() {
             Instalação e manutenção de sistemas de câmeras (CFTV e IP) com monitoramento ao vivo no celular e gravação segura.
           </p>
 
-          <a
-            href={getWhatsAppLink('cameras')}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => trackEvent('click_whatsapp', { origem: 'cameras_hero' })}
+          <Link
+            to="/solicitar-servico?service=cameras-seguranca"
             className="inline-flex items-center gap-2 bg-[#21C77A] text-white px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#1bb06b] transition-colors"
           >
             <Video className="w-4 h-4" />
             Solicitar orçamento de câmeras
-          </a>
+          </Link>
         </div>
       </section>
 

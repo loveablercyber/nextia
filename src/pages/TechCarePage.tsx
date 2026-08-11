@@ -1,5 +1,5 @@
 import { AlertTriangle, Phone } from 'lucide-react';
-import { getWhatsAppLink, trackEvent } from '../utils/whatsapp';
+import { Link } from 'react-router-dom';
 
 export default function TechCarePage() {
   const avulsos = [
@@ -32,16 +32,13 @@ export default function TechCarePage() {
           </p>
 
           <div className="flex flex-wrap gap-4">
-            <a
-              href={getWhatsAppLink('suporte')}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => trackEvent('click_whatsapp', { origem: 'techcare_hero' })}
+            <Link
+              to="/solicitar-servico?service=techcare"
               className="inline-flex items-center gap-2 bg-[#FF9D2E] text-slate-950 px-6 py-3.5 rounded-xl font-bold text-sm hover:bg-[#e08924] transition-colors"
             >
               <Phone className="w-4 h-4" />
               Solicitar Suporte Técnico
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -69,14 +66,12 @@ export default function TechCarePage() {
                   {item.desc}
                 </p>
               </div>
-              <a
-                href={getWhatsAppLink('suporte', `Olá! Gostaria de orçamento para o serviço: ${item.title}`)}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={`/solicitar-servico?service=techcare&item=${encodeURIComponent(item.title)}`}
                 className="text-xs font-bold text-[#FF9D2E] hover:underline"
               >
                 Solicitar este serviço →
-              </a>
+              </Link>
             </div>
           ))}
         </div>
@@ -101,14 +96,12 @@ export default function TechCarePage() {
               <li>✓ Verificação de backups</li>
               <li>✓ Atendimento em horário comercial</li>
             </ul>
-            <a
-              href={getWhatsAppLink('planoMensal', 'Olá! Tenho interesse no plano TechCare Essencial.')}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/solicitar-servico?service=suporte-ti&item=TechCare%20Essencial"
               className="block text-center bg-white/10 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-white/20"
             >
               Quero contratar
-            </a>
+            </Link>
           </div>
 
           <div className="bg-[#101C2C] border-2 border-[#FF9D2E] rounded-2xl p-6 relative">
@@ -124,14 +117,12 @@ export default function TechCarePage() {
               <li>✓ Manutenção preventiva & Wi-Fi</li>
               <li>✓ Atendimento prioritário</li>
             </ul>
-            <a
-              href={getWhatsAppLink('planoMensal', 'Olá! Tenho interesse no plano TechCare Profissional.')}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/solicitar-servico?service=suporte-ti&item=TechCare%20Profissional"
               className="block text-center bg-[#FF9D2E] text-slate-950 font-bold py-2.5 rounded-xl text-xs hover:bg-[#e08924]"
             >
               Quero contratar
-            </a>
+            </Link>
           </div>
 
           <div className="bg-[#101C2C] border border-white/10 rounded-2xl p-6">
@@ -144,14 +135,12 @@ export default function TechCarePage() {
               <li>✓ Inventário de ativos</li>
               <li>✓ SLA diferenciado</li>
             </ul>
-            <a
-              href={getWhatsAppLink('planoMensal', 'Olá! Gostaria de contratar o plano TechCare Empresa.')}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/solicitar-servico?service=suporte-ti&item=TechCare%20Empresa"
               className="block text-center bg-white/10 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-white/20"
             >
               Falar com especialista
-            </a>
+            </Link>
           </div>
         </div>
       </section>
