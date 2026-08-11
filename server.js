@@ -3254,7 +3254,7 @@ createServer(async (req, res) => {
     ) {
       return await handlePartnerApi(req, res, url);
     }
-    if (url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/') || url.pathname.startsWith('/api/technician/') || url.pathname.startsWith('/api/client/')) {
+    if (url.pathname === '/api/service-requests' || url.pathname.startsWith('/api/support/') || url.pathname.startsWith('/api/admin/') || url.pathname.startsWith('/api/technician/') || url.pathname.startsWith('/api/client/')) {
       return await handleSupportApi(req, res, url);
     }
     if (url.pathname.startsWith('/api/')) {
