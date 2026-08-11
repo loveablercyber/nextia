@@ -48,7 +48,7 @@ export const PartnerLayout: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/');
+    navigate('/login', { replace: true });
   };
 
   const closeMobileMenu = () => {

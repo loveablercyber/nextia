@@ -23,6 +23,23 @@ CREATE TABLE IF NOT EXISTS public.technician_profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS phone_secondary TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS avatar TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS professional_title TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS technical_level TEXT NOT NULL DEFAULT 'JUNIOR';
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS employment_status TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS availability_status TEXT NOT NULL DEFAULT 'OFFLINE';
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS accepts_remote BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS accepts_onsite BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS max_simultaneous_tickets INTEGER NOT NULL DEFAULT 4;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS home_city TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS home_state TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS service_radius_km INTEGER;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS service_cities TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.technician_profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS public.technician_specialties (
   id TEXT PRIMARY KEY,

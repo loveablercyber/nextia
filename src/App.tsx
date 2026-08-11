@@ -69,6 +69,8 @@ import AdminTechniciansPage from './pages/admin/AdminTechniciansPage';
 import AdminTechnicianDetailPage from './pages/admin/AdminTechnicianDetailPage';
 import AdminTechnicalAnalyticsPage from './pages/admin/AdminTechnicalAnalyticsPage';
 import AdminTechnicianGovernancePage from './pages/admin/AdminTechnicianGovernancePage';
+import AdminUserCreatePage from './pages/admin/AdminUserCreatePage';
+import AdminTechnicalServicesPage from './pages/admin/AdminTechnicalServicesPage';
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -355,6 +357,8 @@ function AppRoutes() {
       />
       <Route path="/admin/tecnicos/:userId/governanca" element={<AdminContainer title="Governança"><AdminTechnicianGovernancePage /></AdminContainer>}/>
       <Route path="/admin/indicadores-tecnicos" element={<AdminContainer title="Indicadores Técnicos"><AdminTechnicalAnalyticsPage /></AdminContainer>}/>
+      <Route path="/admin/usuarios/novo" element={<AdminContainer title="Cadastrar Usuário"><AdminUserCreatePage /></AdminContainer>}/>
+      <Route path="/admin/servicos-tecnicos" element={<AdminContainer title="Serviços Técnicos"><AdminTechnicalServicesPage /></AdminContainer>}/>
       <Route
         path="/admin/tecnicos"
         element={<AdminContainer title="Gestão de Técnicos"><AdminTechniciansPage /></AdminContainer>}

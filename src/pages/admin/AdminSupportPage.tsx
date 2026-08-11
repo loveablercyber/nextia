@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 
 interface SupportTicket {
@@ -126,6 +126,14 @@ export default function AdminSupportPage() {
     }
   };
 
+  const handleDeleteTicket = async (ticket: SupportTicket) => {
+    if (!confirm(`Remover permanentemente o ticket "${ticket.subject}"?`)) return;
+    const response = await fetch('/api/admin/support-ticket/delete', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticketId: ticket.id }) });
+    const data = await response.json();
+    if (!response.ok) { setError(data.error || 'Falha ao remover ticket.'); return; }
+    setTickets((current) => current.filter((item) => item.id !== ticket.id));
+  };
+
   const getStatusBadge = (status: SupportTicket['status']) => {
     switch (status) {
       case 'aberto':
@@ -242,6 +250,7 @@ export default function AdminSupportPage() {
                         <ChevronRight className="w-3 h-3" />
                       </Button>
                     </Link>
+                    <button onClick={() => handleDeleteTicket(t)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-600" title="Remover ticket"><Trash2 className="h-3.5 w-3.5"/>Remover</button>
                   </div>
                 </div>
 

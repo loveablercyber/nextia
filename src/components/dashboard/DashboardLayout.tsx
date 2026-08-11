@@ -38,9 +38,9 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const isActive = (to: string, exact?: boolean) => {

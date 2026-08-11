@@ -991,6 +991,10 @@ const supportApiMethods = new Map([
   ['/api/admin/technicians', 'GET'],
   ['/api/admin/technicians/detail', 'GET'],
   ['/api/admin/technicians/save', 'POST'],
+  ['/api/admin/users/create', 'POST'],
+  ['/api/admin/technical-services/create', 'POST'],
+  ['/api/admin/technical-tickets/create', 'POST'],
+  ['/api/admin/support-ticket/delete', 'POST'],
   ['/api/technician/profile', 'GET'],
   ['/api/technician/availability', 'POST'],
   ['/api/technician/operations', 'GET'],
@@ -1109,7 +1113,34 @@ async function handleSupportApi(req, res, url) {
         for(const h of Array.isArray(body.workingHours)?body.workingHours:[]) if(Number.isInteger(Number(h.weekday))&&h.startTime&&h.endTime) await client.query('INSERT INTO public.technician_working_hours(technician_profile_id,weekday,start_time,end_time) VALUES($1,$2,$3,$4)',[profileId,Number(h.weekday),h.startTime,h.endTime]);
         for(const o of Array.isArray(body.timeOff)?body.timeOff:[]) if(o.startsAt&&o.endsAt) await client.query('INSERT INTO public.technician_time_off(technician_profile_id,starts_at,ends_at,reason) VALUES($1,$2,$3,$4)',[profileId,o.startsAt,o.endsAt,String(o.reason||'').trim()||null]);
         await client.query('COMMIT'); return json(res,200,{profile:saved.rows[0]});
-      } catch(error){await client.query('ROLLBACK');throw error;}
+      } catch(error){await client.query('ROLLBACK');const incidentId=randomUUID();console.error('[ADMIN_TECHNICIAN_SAVE]',incidentId,error);return json(res,500,{error:'Não foi possível salvar o técnico. Informe o código ao suporte.',incidentId});}
+    }
+
+    if (url.pathname === '/api/admin/users/create') {
+      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);
+      const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||''),role=String(body.role||'client');
+      if(!name||!/^\S+@\S+\.\S+$/.test(email)||password.length<6||!['client','partner','technician','admin'].includes(role))return json(res,400,{error:'Informe nome, e-mail válido, perfil e senha com ao menos 6 caracteres.'});
+      const id=randomUUID(),initials=name.split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();await client.query('BEGIN');try{
+        await client.query(`INSERT INTO public.profiles(id,email,name,company,phone,role,avatar_initials) VALUES($1,$2,$3,$4,$5,$6,$7)`,[id,email,name,String(body.company||'').trim(),String(body.phone||'').trim(),role==='partner'?'client':role,initials]);
+        await client.query(`INSERT INTO public.local_auth_users(id,password_hash) VALUES($1,$2)`,[id,hashPassword(password)]);
+        if(role==='partner'){await ensurePartnerSchema(client);const referral=`${name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20)||'partner'}-${Math.random().toString(36).slice(2,6)}`;await client.query(`INSERT INTO public.partner_profiles(user_id,referral_code,cpf_cnpj,status) VALUES($1,$2,$3,$4)`,[id,referral,String(body.cpfCnpj||''),body.partnerStatus==='ativo'?'ativo':'pendente']);}
+        await client.query('COMMIT');return json(res,201,{status:'success',user:{id,name,email,role}});
+      }catch(error){await client.query('ROLLBACK');if(String(error.message||'').includes('duplicate'))return json(res,409,{error:'Este e-mail já está cadastrado.'});throw error;}
+    }
+
+    if (url.pathname === '/api/admin/technical-services/create') {
+      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);const slug=String(body.slug||'').trim().toLowerCase().replace(/[^a-z0-9-]/g,'');const categories=['digital','automation','techcare','infrastructure','security'];
+      if(!slug||!String(body.name||'').trim()||!categories.includes(body.category))return json(res,400,{error:'Nome, identificador e categoria são obrigatórios.'});const result=await client.query(`INSERT INTO public.commercial_services(slug,name,category,price_cents,price_label,recurring,active,sort_order,updated_by) VALUES($1,$2,$3,$4,$5,$6,TRUE,$7,$8) ON CONFLICT(slug) DO UPDATE SET name=EXCLUDED.name,category=EXCLUDED.category,price_cents=EXCLUDED.price_cents,price_label=EXCLUDED.price_label,recurring=EXCLUDED.recurring,active=TRUE,updated_at=NOW(),updated_by=EXCLUDED.updated_by RETURNING *`,[slug,String(body.name).trim(),body.category,body.priceCents===''||body.priceCents==null?null:Number(body.priceCents),String(body.priceLabel||'sob orçamento'),body.recurring===true,Number(body.sortOrder||0),sessionProfile.id]);return json(res,201,{service:result.rows[0]});
+    }
+
+    if (url.pathname === '/api/admin/technical-tickets/create') {
+      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);const customer=(await client.query(`SELECT * FROM public.profiles WHERE id=$1`,[body.customerId])).rows[0];const service=(await client.query(`SELECT * FROM public.commercial_services WHERE slug=$1`,[body.serviceSlug])).rows[0];
+      if(!customer||!service||!String(body.details||'').trim())return json(res,400,{error:'Cliente, serviço e descrição são obrigatórios.'});if(body.technicianId){const valid=(await client.query(`SELECT 1 FROM public.profiles WHERE id=$1 AND role='technician'`,[body.technicianId])).rows[0];if(!valid)return json(res,400,{error:'Técnico inválido.'});}
+      const id=randomUUID(),assigned=body.technicianId||null;const result=await client.query(`INSERT INTO public.support_tickets(id,name,email,phone,company,subject,message,user_id,guest_token,service_slug,service_category,service_mode,service_city,service_state,assigned_technician_id,priority,assignment_status,assignment_source,assignment_reason,operational_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,[id,customer.name,customer.email,customer.phone,customer.company,String(body.subject||service.name).trim(),String(body.details).trim(),customer.id,randomUUID(),service.slug,service.category,body.serviceMode||'FLEXIBLE',String(body.city||'').trim()||null,String(body.state||'').trim().toUpperCase().slice(0,2)||null,assigned,['baixa','normal','alta','urgente'].includes(body.priority)?body.priority:'normal',assigned?'ASSIGNED':'AWAITING_MANUAL',assigned?'MANUAL':null,'Cadastro manual pelo administrador',assigned?'ASSIGNED':'REQUESTED']);if(assigned){await client.query(`INSERT INTO public.ticket_assignment_history(ticket_id,new_technician_id,source,reason,changed_by) VALUES($1,$2,'MANUAL',$3,$4)`,[id,assigned,'Cadastro manual pelo administrador',sessionProfile.id]);await client.query(`INSERT INTO public.technician_notifications(technician_id,ticket_id,type,title,message) VALUES($1,$2,'NEW_TICKET','Novo atendimento',$3)`,[assigned,id,result.rows[0].subject]);}return json(res,201,{ticket:result.rows[0]});
+    }
+
+    if (url.pathname === '/api/admin/support-ticket/delete') {
+      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);const result=await client.query(`DELETE FROM public.support_tickets WHERE id=$1 RETURNING id`,[body.ticketId]);if(!result.rows[0])return json(res,404,{error:'Ticket não encontrado.'});return json(res,200,{status:'success'});
     }
 
     if (url.pathname === '/api/technician/profile') {

@@ -1,8 +1,229 @@
 // @ts-nocheck
-import { useEffect,useState } from 'react'; import { CheckCircle2,Clock3,HardDrive,Loader2,Star,Wrench } from 'lucide-react';
-type Data={tickets:any[];orders:any[];equipment:any[];balances:any[]};
-export default function TechnicalOverviewPage(){const [data,setData]=useState<Data>({tickets:[],orders:[],equipment:[],balances:[]}),[loading,setLoading]=useState(true),[error,setError]=useState(''),[tab,setTab]=useState('Chamados');const load=()=>fetch('/api/client/technical-overview',{credentials:'include',cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setData(d)}).catch(e=>setError(e.message)).finally(()=>setLoading(false));useEffect(load,[]);const approve=async(id:string,approved:boolean)=>{await fetch('/api/client/part-approval',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({partId:id,approved})});load()};const review=async(ticketId:string)=>{const rating=Number(prompt('Nota de 1 a 5:'));if(rating<1||rating>5)return;const comment=prompt('Comentário opcional:')||'';await fetch('/api/client/ticket-review',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticketId,rating,comment})});alert('Avaliação registrada.')};if(loading)return <div className="flex min-h-64 items-center justify-center"><Loader2 className="animate-spin"/></div>;return <div className="space-y-6"><header><p className="font-bold text-[#1677FF]">Operação técnica</p><h1 className="text-3xl font-black">Tecnologia e atendimentos</h1><p className="text-slate-600">Acompanhe chamados, equipamentos, ordens de serviço e seu plano TechCare.</p></header>{error&&<div className="border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}<nav className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2">{['Chamados','Equipamentos','Ordens de Serviço','TechCare'].map(x=><button key={x} onClick={()=>setTab(x)} className={`min-h-11 shrink-0 rounded-xl px-4 font-bold ${tab===x?'bg-[#1677FF] text-white':''}`}>{x}</button>)}</nav>
-{tab==='Chamados'&&<div className="grid gap-4 lg:grid-cols-2">{data.tickets.map(t=><article key={t.id} className="rounded-2xl border bg-white p-5"><div className="flex justify-between"><h2 className="font-black">{t.subject}</h2><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold">{t.operational_status}</span></div><p className="mt-2 text-sm text-slate-500">Técnico: {t.technician_name||'Aguardando atribuição'}</p><div className="mt-4 space-y-2 border-l-2 border-[#1677FF] pl-4">{(t.timeline||[]).map((e:any,i:number)=><p key={i} className="text-sm"><b>{new Date(e.at).toLocaleString('pt-BR')}</b> · {e.type}</p>)}</div>{t.status==='fechado'&&<button onClick={()=>review(t.id)} className="mt-4 flex items-center gap-2 font-bold text-amber-600"><Star className="h-4 w-4"/>Avaliar atendimento</button>}</article>)}</div>}
-{tab==='Equipamentos'&&<div className="grid gap-4 md:grid-cols-2">{data.equipment.map(e=><article key={e.id} className="rounded-2xl border bg-white p-5"><HardDrive className="text-[#1677FF]"/><h2 className="mt-3 font-black">{e.name}</h2><p>{[e.manufacturer,e.model].filter(Boolean).join(' · ')}</p><p className="text-sm text-slate-500">{e.operating_system||'Sistema não informado'} · {e.status}</p></article>)}</div>}
-{tab==='Ordens de Serviço'&&<div className="space-y-4">{data.orders.map(o=><article key={o.id} className="rounded-2xl border bg-white p-5"><h2 className="text-lg font-black">OS #{o.order_number}</h2><p className="mt-2"><b>Diagnóstico:</b> {o.diagnosis||'Em elaboração'}</p><p><b>Serviço:</b> {o.service_performed||'Em elaboração'}</p>{(o.parts||[]).map((p:any)=><div key={p.id} className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 p-3"><span>{p.quantity}× {p.name} · {(p.estimated_price_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>{p.approval_status==='PENDING'?<div className="flex gap-2"><button onClick={()=>approve(p.id,true)} className="font-bold text-green-600">Aprovar</button><button onClick={()=>approve(p.id,false)} className="font-bold text-red-600">Recusar</button></div>:<b>{p.approval_status}</b>}</div>)}</article>)}</div>}
-{tab==='TechCare'&&<div className="grid gap-4 md:grid-cols-2">{data.balances.map(b=>{const remaining=Math.max(0,b.included_minutes-b.used_minutes);return <article key={b.id} className="rounded-2xl border bg-white p-6"><Wrench className="text-[#FF7A21]"/><h2 className="mt-3 text-xl font-black">{b.plan_name}</h2><p className="mt-3">Utilizado: <b>{Math.floor(b.used_minutes/60)}h {b.used_minutes%60}min</b></p><p>Restante: <b>{Math.floor(remaining/60)}h {remaining%60}min</b></p><div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-[#FF7A21]" style={{width:`${Math.min(100,b.used_minutes/b.included_minutes*100)}%`}}/></div></article>})}{!data.balances.length&&<p className="rounded-2xl border bg-white p-10 text-center text-slate-500">Nenhum saldo TechCare configurado.</p>}</div>}</div>}
+import { useEffect, useState } from "react";
+import {
+  CheckCircle2,
+  Clock3,
+  HardDrive,
+  Loader2,
+  Star,
+  Wrench,
+} from "lucide-react";
+type Data = {
+  tickets: any[];
+  orders: any[];
+  equipment: any[];
+  balances: any[];
+};
+export default function TechnicalOverviewPage() {
+  const [data, setData] = useState<Data>({
+      tickets: [],
+      orders: [],
+      equipment: [],
+      balances: [],
+    }),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [tab, setTab] = useState("Chamados");
+  const load = () =>
+    fetch("/api/client/technical-overview", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw Error(d.error);
+        setData(d);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  useEffect(() => { void load(); }, []);
+  const approve = async (id: string, approved: boolean) => {
+    await fetch("/api/client/part-approval", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ partId: id, approved }),
+    });
+    load();
+  };
+  const review = async (ticketId: string) => {
+    const rating = Number(prompt("Nota de 1 a 5:"));
+    if (rating < 1 || rating > 5) return;
+    const comment = prompt("Comentário opcional:") || "";
+    await fetch("/api/client/ticket-review", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId, rating, comment }),
+    });
+    alert("Avaliação registrada.");
+  };
+  if (loading)
+    return (
+      <div className="flex min-h-64 items-center justify-center">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="font-bold text-[#1677FF]">Operação técnica</p>
+        <h1 className="text-3xl font-black">Tecnologia e atendimentos</h1>
+        <p className="text-slate-600">
+          Acompanhe chamados, equipamentos, ordens de serviço e seu plano
+          TechCare.
+        </p>
+      </header>
+      {error && (
+        <div className="border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
+      <nav className="flex gap-2 overflow-x-auto rounded-2xl border bg-white p-2">
+        {["Chamados", "Equipamentos", "Ordens de Serviço", "TechCare"].map(
+          (x) => (
+            <button
+              key={x}
+              onClick={() => setTab(x)}
+              className={`min-h-11 shrink-0 rounded-xl px-4 font-bold ${tab === x ? "bg-[#1677FF] text-white" : ""}`}
+            >
+              {x}
+            </button>
+          ),
+        )}
+      </nav>
+      {tab === "Chamados" && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {data.tickets.map((t) => (
+            <article key={t.id} className="rounded-2xl border bg-white p-5">
+              <div className="flex justify-between">
+                <h2 className="font-black">{t.subject}</h2>
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold">
+                  {t.operational_status}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-500">
+                Técnico: {t.technician_name || "Aguardando atribuição"}
+              </p>
+              <div className="mt-4 space-y-2 border-l-2 border-[#1677FF] pl-4">
+                {(t.timeline || []).map((e: any, i: number) => (
+                  <p key={i} className="text-sm">
+                    <b>{new Date(e.at).toLocaleString("pt-BR")}</b> · {e.type}
+                  </p>
+                ))}
+              </div>
+              {t.status === "fechado" && (
+                <button
+                  onClick={() => review(t.id)}
+                  className="mt-4 flex items-center gap-2 font-bold text-amber-600"
+                >
+                  <Star className="h-4 w-4" />
+                  Avaliar atendimento
+                </button>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+      {tab === "Equipamentos" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {data.equipment.map((e) => (
+            <article key={e.id} className="rounded-2xl border bg-white p-5">
+              <HardDrive className="text-[#1677FF]" />
+              <h2 className="mt-3 font-black">{e.name}</h2>
+              <p>{[e.manufacturer, e.model].filter(Boolean).join(" · ")}</p>
+              <p className="text-sm text-slate-500">
+                {e.operating_system || "Sistema não informado"} · {e.status}
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+      {tab === "Ordens de Serviço" && (
+        <div className="space-y-4">
+          {data.orders.map((o) => (
+            <article key={o.id} className="rounded-2xl border bg-white p-5">
+              <h2 className="text-lg font-black">OS #{o.order_number}</h2>
+              <p className="mt-2">
+                <b>Diagnóstico:</b> {o.diagnosis || "Em elaboração"}
+              </p>
+              <p>
+                <b>Serviço:</b> {o.service_performed || "Em elaboração"}
+              </p>
+              {(o.parts || []).map((p: any) => (
+                <div
+                  key={p.id}
+                  className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 p-3"
+                >
+                  <span>
+                    {p.quantity}× {p.name} ·{" "}
+                    {(p.estimated_price_cents / 100).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </span>
+                  {p.approval_status === "PENDING" ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => approve(p.id, true)}
+                        className="font-bold text-green-600"
+                      >
+                        Aprovar
+                      </button>
+                      <button
+                        onClick={() => approve(p.id, false)}
+                        className="font-bold text-red-600"
+                      >
+                        Recusar
+                      </button>
+                    </div>
+                  ) : (
+                    <b>{p.approval_status}</b>
+                  )}
+                </div>
+              ))}
+            </article>
+          ))}
+        </div>
+      )}
+      {tab === "TechCare" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {data.balances.map((b) => {
+            const remaining = Math.max(0, b.included_minutes - b.used_minutes);
+            return (
+              <article key={b.id} className="rounded-2xl border bg-white p-6">
+                <Wrench className="text-[#FF7A21]" />
+                <h2 className="mt-3 text-xl font-black">{b.plan_name}</h2>
+                <p className="mt-3">
+                  Utilizado:{" "}
+                  <b>
+                    {Math.floor(b.used_minutes / 60)}h {b.used_minutes % 60}min
+                  </b>
+                </p>
+                <p>
+                  Restante:{" "}
+                  <b>
+                    {Math.floor(remaining / 60)}h {remaining % 60}min
+                  </b>
+                </p>
+                <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full bg-[#FF7A21]"
+                    style={{
+                      width: `${Math.min(100, (b.used_minutes / b.included_minutes) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </article>
+            );
+          })}
+          {!data.balances.length && (
+            <p className="rounded-2xl border bg-white p-10 text-center text-slate-500">
+              Nenhum saldo TechCare configurado.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

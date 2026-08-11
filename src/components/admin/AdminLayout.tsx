@@ -17,6 +17,8 @@ interface AdminLayoutProps {
 const navItems = [
   { to: '/admin', icon: LayoutDashboard, label: 'Visão Geral', exact: true },
   { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
+  { to: '/admin/usuarios/novo', icon: UserCog, label: 'Cadastrar Usuário' },
+  { to: '/admin/servicos-tecnicos', icon: Briefcase, label: 'Serviços Técnicos' },
   { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
   { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
   { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
@@ -42,9 +44,9 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const isActive = (to: string, exact?: boolean) => {

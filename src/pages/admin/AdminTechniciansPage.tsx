@@ -1,40 +1,632 @@
 // @ts-nocheck
-import { useEffect, useState } from 'react';
-import { Loader2, Plus, Save, Trash2, UserCog, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Loader2, Plus, Save, Trash2, UserCog, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type WorkHour = { weekday: number; start_time: string; end_time: string };
 type TimeOff = { starts_at: string; ends_at: string; reason?: string };
-type Tech = { user_id:string; name:string; email:string; professional_title?:string; technical_level?:string; employment_status?:string; availability_status?:string; accepts_remote?:boolean; accepts_onsite?:boolean; max_simultaneous_tickets?:number; home_city?:string; home_state?:string; service_radius_km?:number; service_cities?:string[]; specialties?:string[]; authorized_services?:string[]; working_hours?:WorkHour[]; time_off?:TimeOff[]; active_tickets:number };
-type Option = { id?:string; slug?:string; name:string };
-const statuses: Record<string,string> = { AVAILABLE:'Disponível', BUSY:'Ocupado', ON_ROUTE:'Em deslocamento', IN_SERVICE:'Em atendimento', BREAK:'Pausa', ABSENT:'Ausente', OFFLINE:'Offline', INACTIVE:'Inativo' };
-const days = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const toInputDate = (value:string) => value ? new Date(value).toISOString().slice(0,16) : '';
+type Tech = {
+  user_id: string;
+  name: string;
+  email: string;
+  professional_title?: string;
+  technical_level?: string;
+  employment_status?: string;
+  availability_status?: string;
+  accepts_remote?: boolean;
+  accepts_onsite?: boolean;
+  max_simultaneous_tickets?: number;
+  home_city?: string;
+  home_state?: string;
+  service_radius_km?: number;
+  service_cities?: string[];
+  specialties?: string[];
+  authorized_services?: string[];
+  working_hours?: WorkHour[];
+  time_off?: TimeOff[];
+  active_tickets: number;
+};
+type Option = { id?: string; slug?: string; name: string };
+const statuses: Record<string, string> = {
+  AVAILABLE: "Disponível",
+  BUSY: "Ocupado",
+  ON_ROUTE: "Em deslocamento",
+  IN_SERVICE: "Em atendimento",
+  BREAK: "Pausa",
+  ABSENT: "Ausente",
+  OFFLINE: "Offline",
+  INACTIVE: "Inativo",
+};
+const days = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+const toInputDate = (value: string) =>
+  value ? new Date(value).toISOString().slice(0, 16) : "";
 
 export default function AdminTechniciansPage() {
-  const [items,setItems]=useState<Tech[]>([]); const [specs,setSpecs]=useState<Option[]>([]); const [services,setServices]=useState<Option[]>([]);
-  const [edit,setEdit]=useState<Tech|null>(null); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
-  const load=()=>fetch('/api/admin/technicians',{credentials:'include',cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setItems(d.technicians);setSpecs(d.specialties);setServices(d.services)}).catch(e=>setError(e.message)).finally(()=>setLoading(false));
-  useEffect(load,[]);
-  const change=(values:Partial<Tech>)=>setEdit(current=>current?{...current,...values}:current);
-  const open=(t:Tech)=>setEdit({...t,technical_level:t.technical_level||'JUNIOR',employment_status:t.employment_status||'ACTIVE',availability_status:t.availability_status||'OFFLINE',accepts_remote:t.accepts_remote!==false,accepts_onsite:t.accepts_onsite===true,max_simultaneous_tickets:t.max_simultaneous_tickets||4,specialties:t.specialties||[],authorized_services:t.authorized_services||[],service_cities:t.service_cities||[],working_hours:t.working_hours||[],time_off:t.time_off||[]});
-  const toggle=(field:'specialties'|'authorized_services',value:string)=>change({[field]:edit?.[field]?.includes(value)?edit[field]!.filter(item=>item!==value):[...(edit?.[field]||[]),value]});
-  const save=async()=>{if(!edit)return;setSaving(true);setError('');try{const response=await fetch('/api/admin/technicians/save',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:edit.user_id,professionalTitle:edit.professional_title,technicalLevel:edit.technical_level,employmentStatus:edit.employment_status,availabilityStatus:edit.availability_status,acceptsRemote:edit.accepts_remote,acceptsOnsite:edit.accepts_onsite,maxSimultaneousTickets:edit.max_simultaneous_tickets,homeCity:edit.home_city,homeState:edit.home_state,serviceRadiusKm:edit.service_radius_km,serviceCities:edit.service_cities?.map(x=>x.trim()).filter(Boolean),specialties:edit.specialties,authorizedServices:edit.authorized_services,workingHours:edit.working_hours?.map(h=>({weekday:h.weekday,startTime:h.start_time.slice(0,5),endTime:h.end_time.slice(0,5)})),timeOff:edit.time_off?.map(o=>({startsAt:o.starts_at,endsAt:o.ends_at,reason:o.reason}))})});const data=await response.json();if(!response.ok)throw Error(data.error);setEdit(null);setLoading(true);load()}catch(e){setError(e instanceof Error?e.message:'Falha ao salvar')}finally{setSaving(false)}};
-  if(loading)return <div className="flex min-h-64 items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin"/>Carregando...</div>;
-  return <div className="space-y-6"><header><p className="font-bold text-[#1677FF]">Equipe técnica</p><h1 className="text-3xl font-black">Gestão profissional de técnicos</h1><p className="text-slate-600">Contas são gerenciadas em Clientes; atuação e disponibilidade ficam aqui.</p></header>{error&&<div className="border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{items.map(t=><article key={t.user_id} className="rounded-2xl border bg-white p-6"><div className="flex justify-between gap-3"><div><h2 className="text-xl font-black">{t.name}</h2><p className="text-sm text-slate-500">{t.professional_title||t.email}</p></div><span className="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statuses[t.availability_status||'OFFLINE']}</span></div><div className="mt-5 grid grid-cols-2 gap-3 text-sm"><p>Nível<br/><b>{t.technical_level||'Não configurado'}</b></p><p>Chamados ativos<br/><b>{t.active_tickets}</b></p><p>Modalidade<br/><b>{[t.accepts_remote&&'Remoto',t.accepts_onsite&&'Presencial'].filter(Boolean).join(' + ')||'—'}</b></p><p>Base<br/><b>{[t.home_city,t.home_state].filter(Boolean).join(' - ')||'—'}</b></p></div><div className="mt-6 grid grid-cols-2 gap-2"><button onClick={()=>open(t)} className="min-h-11 rounded-xl border font-bold text-[#1677FF]">Editar rápido</button><Link to={`/admin/tecnicos/${t.user_id}`} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1677FF] font-bold text-white"><UserCog className="h-4 w-4"/>Abrir perfil</Link></div></article>)}</div>
-    {!items.length&&<div className="rounded-2xl border bg-white p-10 text-center text-slate-500">Crie primeiro um usuário Técnico em Clientes.</div>}
-    {edit&&<div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-4"><div className="mx-auto my-8 max-w-5xl rounded-3xl bg-white p-7"><div className="flex justify-between"><div><h2 className="text-2xl font-black">{edit.name}</h2><p className="text-slate-500">Ficha profissional</p></div><button onClick={()=>setEdit(null)} aria-label="Fechar"><X/></button></div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Field label="Título"><input value={edit.professional_title||''} onChange={e=>change({professional_title:e.target.value})}/></Field><Field label="Nível"><select value={edit.technical_level} onChange={e=>change({technical_level:e.target.value})}><option>JUNIOR</option><option>PLENO</option><option>SENIOR</option><option>SPECIALIST</option></select></Field><Field label="Vínculo"><select value={edit.employment_status} onChange={e=>change({employment_status:e.target.value})}><option value="ACTIVE">Ativo</option><option value="ON_LEAVE">Afastado</option><option value="INACTIVE">Inativo</option></select></Field><Field label="Disponibilidade"><select value={edit.availability_status} onChange={e=>change({availability_status:e.target.value})}>{Object.entries(statuses).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></Field><Field label="Limite simultâneo"><input type="number" min="1" max="100" value={edit.max_simultaneous_tickets} onChange={e=>change({max_simultaneous_tickets:Number(e.target.value)})}/></Field><Field label="Cidade base"><input value={edit.home_city||''} onChange={e=>change({home_city:e.target.value})}/></Field><Field label="UF"><input maxLength={2} value={edit.home_state||''} onChange={e=>change({home_state:e.target.value})}/></Field><Field label="Raio (km)"><input type="number" min="0" value={edit.service_radius_km??''} onChange={e=>change({service_radius_km:e.target.value===''?undefined:Number(e.target.value)})}/></Field><div className="flex items-center gap-5"><label className="font-bold"><input type="checkbox" checked={edit.accepts_remote} onChange={e=>change({accepts_remote:e.target.checked})}/> Remoto</label><label className="font-bold"><input type="checkbox" checked={edit.accepts_onsite} onChange={e=>change({accepts_onsite:e.target.checked})}/> Presencial</label></div></div>
-      <Editor title="Cidades específicas" onAdd={()=>change({service_cities:[...(edit.service_cities||[]),'']})}>{edit.service_cities?.map((city,index)=><Row key={index} onDelete={()=>change({service_cities:edit.service_cities!.filter((_,i)=>i!==index)})}><input value={city} onChange={e=>change({service_cities:edit.service_cities!.map((item,i)=>i===index?e.target.value:item)})} placeholder="Ex.: Agudos - SP"/></Row>)}</Editor>
-      <h3 className="mt-7 text-lg font-black">Especialidades</h3><div className="mt-2 flex flex-wrap gap-2">{specs.map(s=><button key={s.id} onClick={()=>toggle('specialties',s.id!)} className={`rounded-full border px-3 py-2 text-sm font-bold ${edit.specialties?.includes(s.id!)?'bg-blue-50 text-[#1677FF]':''}`}>{s.name}</button>)}</div>
-      <h3 className="mt-7 text-lg font-black">Serviços autorizados</h3><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{services.map(s=><label key={s.slug} className="flex gap-2 rounded border p-3 text-sm font-bold"><input type="checkbox" checked={edit.authorized_services?.includes(s.slug!)} onChange={()=>toggle('authorized_services',s.slug!)}/>{s.name}</label>)}</div>
-      <Editor title="Horários semanais" onAdd={()=>change({working_hours:[...(edit.working_hours||[]),{weekday:1,start_time:'08:00',end_time:'18:00'}]})}>{edit.working_hours?.map((hour,index)=><Row key={index} onDelete={()=>change({working_hours:edit.working_hours!.filter((_,i)=>i!==index)})}><select value={hour.weekday} onChange={e=>change({working_hours:edit.working_hours!.map((item,i)=>i===index?{...item,weekday:Number(e.target.value)}:item)})}>{days.map((day,i)=><option key={day} value={i}>{day}</option>)}</select><input type="time" value={hour.start_time.slice(0,5)} onChange={e=>change({working_hours:edit.working_hours!.map((item,i)=>i===index?{...item,start_time:e.target.value}:item)})}/><input type="time" value={hour.end_time.slice(0,5)} onChange={e=>change({working_hours:edit.working_hours!.map((item,i)=>i===index?{...item,end_time:e.target.value}:item)})}/></Row>)}</Editor>
-      <Editor title="Bloqueios e indisponibilidades" onAdd={()=>change({time_off:[...(edit.time_off||[]),{starts_at:'',ends_at:'',reason:''}]})}>{edit.time_off?.map((off,index)=><Row key={index} onDelete={()=>change({time_off:edit.time_off!.filter((_,i)=>i!==index)})}><input type="datetime-local" value={toInputDate(off.starts_at)} onChange={e=>change({time_off:edit.time_off!.map((item,i)=>i===index?{...item,starts_at:e.target.value}:item)})}/><input type="datetime-local" value={toInputDate(off.ends_at)} onChange={e=>change({time_off:edit.time_off!.map((item,i)=>i===index?{...item,ends_at:e.target.value}:item)})}/><input value={off.reason||''} onChange={e=>change({time_off:edit.time_off!.map((item,i)=>i===index?{...item,reason:e.target.value}:item)})} placeholder="Motivo"/></Row>)}</Editor>
-      <button onClick={save} disabled={saving} className="mt-8 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1677FF] font-bold text-white">{saving?<Loader2 className="h-5 w-5 animate-spin"/>:<Save className="h-5 w-5"/>}Salvar perfil</button></div></div>}
-  </div>;
+  const [items, setItems] = useState<Tech[]>([]);
+  const [specs, setSpecs] = useState<Option[]>([]);
+  const [services, setServices] = useState<Option[]>([]);
+  const [edit, setEdit] = useState<Tech | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const load = () =>
+    fetch("/api/admin/technicians", {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw Error(d.error);
+        setItems(d.technicians);
+        setSpecs(d.specialties);
+        setServices(d.services);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  useEffect(() => { void load(); }, []);
+  const change = (values: Partial<Tech>) =>
+    setEdit((current) => (current ? { ...current, ...values } : current));
+  const open = (t: Tech) =>
+    setEdit({
+      ...t,
+      technical_level: t.technical_level || "JUNIOR",
+      employment_status: t.employment_status || "ACTIVE",
+      availability_status: t.availability_status || "OFFLINE",
+      accepts_remote: t.accepts_remote !== false,
+      accepts_onsite: t.accepts_onsite === true,
+      max_simultaneous_tickets: t.max_simultaneous_tickets || 4,
+      specialties: t.specialties || [],
+      authorized_services: t.authorized_services || [],
+      service_cities: t.service_cities || [],
+      working_hours: t.working_hours || [],
+      time_off: t.time_off || [],
+    });
+  const toggle = (
+    field: "specialties" | "authorized_services",
+    value: string,
+  ) =>
+    change({
+      [field]: edit?.[field]?.includes(value)
+        ? edit[field]!.filter((item) => item !== value)
+        : [...(edit?.[field] || []), value],
+    });
+  const save = async () => {
+    if (!edit) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/technicians/save", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: edit.user_id,
+          professionalTitle: edit.professional_title,
+          technicalLevel: edit.technical_level,
+          employmentStatus: edit.employment_status,
+          availabilityStatus: edit.availability_status,
+          acceptsRemote: edit.accepts_remote,
+          acceptsOnsite: edit.accepts_onsite,
+          maxSimultaneousTickets: edit.max_simultaneous_tickets,
+          homeCity: edit.home_city,
+          homeState: edit.home_state,
+          serviceRadiusKm: edit.service_radius_km,
+          serviceCities: edit.service_cities
+            ?.map((x) => x.trim())
+            .filter(Boolean),
+          specialties: edit.specialties,
+          authorizedServices: edit.authorized_services,
+          workingHours: edit.working_hours?.map((h) => ({
+            weekday: h.weekday,
+            startTime: h.start_time.slice(0, 5),
+            endTime: h.end_time.slice(0, 5),
+          })),
+          timeOff: edit.time_off?.map((o) => ({
+            startsAt: o.starts_at,
+            endsAt: o.ends_at,
+            reason: o.reason,
+          })),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error);
+      setEdit(null);
+      setLoading(true);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (loading)
+    return (
+      <div className="flex min-h-64 items-center justify-center gap-2">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        Carregando...
+      </div>
+    );
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="font-bold text-[#1677FF]">Equipe técnica</p>
+        <h1 className="text-3xl font-black">Gestão profissional de técnicos</h1>
+        <p className="text-slate-600">
+          Contas são gerenciadas em Clientes; atuação e disponibilidade ficam
+          aqui.
+        </p>
+      </header>
+      {error && (
+        <div className="border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {items.map((t) => (
+          <article key={t.user_id} className="rounded-2xl border bg-white p-6">
+            <div className="flex justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">{t.name}</h2>
+                <p className="text-sm text-slate-500">
+                  {t.professional_title || t.email}
+                </p>
+              </div>
+              <span className="h-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">
+                {statuses[t.availability_status || "OFFLINE"]}
+              </span>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <p>
+                Nível
+                <br />
+                <b>{t.technical_level || "Não configurado"}</b>
+              </p>
+              <p>
+                Chamados ativos
+                <br />
+                <b>{t.active_tickets}</b>
+              </p>
+              <p>
+                Modalidade
+                <br />
+                <b>
+                  {[
+                    t.accepts_remote && "Remoto",
+                    t.accepts_onsite && "Presencial",
+                  ]
+                    .filter(Boolean)
+                    .join(" + ") || "—"}
+                </b>
+              </p>
+              <p>
+                Base
+                <br />
+                <b>
+                  {[t.home_city, t.home_state].filter(Boolean).join(" - ") ||
+                    "—"}
+                </b>
+              </p>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => open(t)}
+                className="min-h-11 rounded-xl border font-bold text-[#1677FF]"
+              >
+                Editar rápido
+              </button>
+              <Link
+                to={`/admin/tecnicos/${t.user_id}`}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1677FF] font-bold text-white"
+              >
+                <UserCog className="h-4 w-4" />
+                Abrir perfil
+              </Link>
+            </div>
+          </article>
+        ))}
+      </div>
+      {!items.length && (
+        <div className="rounded-2xl border bg-white p-10 text-center text-slate-500">
+          Crie primeiro um usuário Técnico em Clientes.
+        </div>
+      )}
+      {edit && (
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-4">
+          <div className="mx-auto my-8 max-w-5xl rounded-3xl bg-white p-7">
+            <div className="flex justify-between">
+              <div>
+                <h2 className="text-2xl font-black">{edit.name}</h2>
+                <p className="text-slate-500">Ficha profissional</p>
+              </div>
+              <button onClick={() => setEdit(null)} aria-label="Fechar">
+                <X />
+              </button>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Título">
+                <input
+                  value={edit.professional_title || ""}
+                  onChange={(e) =>
+                    change({ professional_title: e.target.value })
+                  }
+                />
+              </Field>
+              <Field label="Nível">
+                <select
+                  value={edit.technical_level}
+                  onChange={(e) => change({ technical_level: e.target.value })}
+                >
+                  <option>JUNIOR</option>
+                  <option>PLENO</option>
+                  <option>SENIOR</option>
+                  <option>SPECIALIST</option>
+                </select>
+              </Field>
+              <Field label="Vínculo">
+                <select
+                  value={edit.employment_status}
+                  onChange={(e) =>
+                    change({ employment_status: e.target.value })
+                  }
+                >
+                  <option value="ACTIVE">Ativo</option>
+                  <option value="ON_LEAVE">Afastado</option>
+                  <option value="INACTIVE">Inativo</option>
+                </select>
+              </Field>
+              <Field label="Disponibilidade">
+                <select
+                  value={edit.availability_status}
+                  onChange={(e) =>
+                    change({ availability_status: e.target.value })
+                  }
+                >
+                  {Object.entries(statuses).map(([value, label]) => (
+                    <option value={value} key={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Limite simultâneo">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={edit.max_simultaneous_tickets}
+                  onChange={(e) =>
+                    change({ max_simultaneous_tickets: Number(e.target.value) })
+                  }
+                />
+              </Field>
+              <Field label="Cidade base">
+                <input
+                  value={edit.home_city || ""}
+                  onChange={(e) => change({ home_city: e.target.value })}
+                />
+              </Field>
+              <Field label="UF">
+                <input
+                  maxLength={2}
+                  value={edit.home_state || ""}
+                  onChange={(e) => change({ home_state: e.target.value })}
+                />
+              </Field>
+              <Field label="Raio (km)">
+                <input
+                  type="number"
+                  min="0"
+                  value={edit.service_radius_km ?? ""}
+                  onChange={(e) =>
+                    change({
+                      service_radius_km:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+              <div className="flex items-center gap-5">
+                <label className="font-bold">
+                  <input
+                    type="checkbox"
+                    checked={edit.accepts_remote}
+                    onChange={(e) =>
+                      change({ accepts_remote: e.target.checked })
+                    }
+                  />{" "}
+                  Remoto
+                </label>
+                <label className="font-bold">
+                  <input
+                    type="checkbox"
+                    checked={edit.accepts_onsite}
+                    onChange={(e) =>
+                      change({ accepts_onsite: e.target.checked })
+                    }
+                  />{" "}
+                  Presencial
+                </label>
+              </div>
+            </div>
+            <Editor
+              title="Cidades específicas"
+              onAdd={() =>
+                change({ service_cities: [...(edit.service_cities || []), ""] })
+              }
+            >
+              {edit.service_cities?.map((city, index) => (
+                <Row
+                  key={index}
+                  onDelete={() =>
+                    change({
+                      service_cities: edit.service_cities!.filter(
+                        (_, i) => i !== index,
+                      ),
+                    })
+                  }
+                >
+                  <input
+                    value={city}
+                    onChange={(e) =>
+                      change({
+                        service_cities: edit.service_cities!.map((item, i) =>
+                          i === index ? e.target.value : item,
+                        ),
+                      })
+                    }
+                    placeholder="Ex.: Agudos - SP"
+                  />
+                </Row>
+              ))}
+            </Editor>
+            <h3 className="mt-7 text-lg font-black">Especialidades</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {specs.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => toggle("specialties", s.id!)}
+                  className={`rounded-full border px-3 py-2 text-sm font-bold ${edit.specialties?.includes(s.id!) ? "bg-blue-50 text-[#1677FF]" : ""}`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+            <h3 className="mt-7 text-lg font-black">Serviços autorizados</h3>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {services.map((s) => (
+                <label
+                  key={s.slug}
+                  className="flex gap-2 rounded border p-3 text-sm font-bold"
+                >
+                  <input
+                    type="checkbox"
+                    checked={edit.authorized_services?.includes(s.slug!)}
+                    onChange={() => toggle("authorized_services", s.slug!)}
+                  />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+            <Editor
+              title="Horários semanais"
+              onAdd={() =>
+                change({
+                  working_hours: [
+                    ...(edit.working_hours || []),
+                    { weekday: 1, start_time: "08:00", end_time: "18:00" },
+                  ],
+                })
+              }
+            >
+              {edit.working_hours?.map((hour, index) => (
+                <Row
+                  key={index}
+                  onDelete={() =>
+                    change({
+                      working_hours: edit.working_hours!.filter(
+                        (_, i) => i !== index,
+                      ),
+                    })
+                  }
+                >
+                  <select
+                    value={hour.weekday}
+                    onChange={(e) =>
+                      change({
+                        working_hours: edit.working_hours!.map((item, i) =>
+                          i === index
+                            ? { ...item, weekday: Number(e.target.value) }
+                            : item,
+                        ),
+                      })
+                    }
+                  >
+                    {days.map((day, i) => (
+                      <option key={day} value={i}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="time"
+                    value={hour.start_time.slice(0, 5)}
+                    onChange={(e) =>
+                      change({
+                        working_hours: edit.working_hours!.map((item, i) =>
+                          i === index
+                            ? { ...item, start_time: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                  />
+                  <input
+                    type="time"
+                    value={hour.end_time.slice(0, 5)}
+                    onChange={(e) =>
+                      change({
+                        working_hours: edit.working_hours!.map((item, i) =>
+                          i === index
+                            ? { ...item, end_time: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                  />
+                </Row>
+              ))}
+            </Editor>
+            <Editor
+              title="Bloqueios e indisponibilidades"
+              onAdd={() =>
+                change({
+                  time_off: [
+                    ...(edit.time_off || []),
+                    { starts_at: "", ends_at: "", reason: "" },
+                  ],
+                })
+              }
+            >
+              {edit.time_off?.map((off, index) => (
+                <Row
+                  key={index}
+                  onDelete={() =>
+                    change({
+                      time_off: edit.time_off!.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  <input
+                    type="datetime-local"
+                    value={toInputDate(off.starts_at)}
+                    onChange={(e) =>
+                      change({
+                        time_off: edit.time_off!.map((item, i) =>
+                          i === index
+                            ? { ...item, starts_at: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                  />
+                  <input
+                    type="datetime-local"
+                    value={toInputDate(off.ends_at)}
+                    onChange={(e) =>
+                      change({
+                        time_off: edit.time_off!.map((item, i) =>
+                          i === index
+                            ? { ...item, ends_at: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                  />
+                  <input
+                    value={off.reason || ""}
+                    onChange={(e) =>
+                      change({
+                        time_off: edit.time_off!.map((item, i) =>
+                          i === index
+                            ? { ...item, reason: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                    placeholder="Motivo"
+                  />
+                </Row>
+              ))}
+            </Editor>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="mt-8 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1677FF] font-bold text-white"
+            >
+              {saving ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Save className="h-5 w-5" />
+              )}
+              Salvar perfil
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="font-bold">{label}<span className="mt-2 block [&>*]:min-h-11 [&>*]:w-full [&>*]:rounded [&>*]:border [&>*]:p-3 [&>*]:font-normal">{children}</span></label>}
-function Editor({title,onAdd,children}:{title:string;onAdd:()=>void;children:React.ReactNode}){return <section className="mt-7"><div className="flex items-center justify-between"><h3 className="text-lg font-black">{title}</h3><button type="button" onClick={onAdd} className="inline-flex items-center gap-1 font-bold text-[#1677FF]"><Plus className="h-4 w-4"/>Adicionar</button></div><div className="mt-3 space-y-2">{children}</div></section>}
-function Row({onDelete,children}:{onDelete:()=>void;children:React.ReactNode}){return <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))_44px] [&_input]:min-h-11 [&_input]:rounded [&_input]:border [&_input]:px-3 [&_select]:min-h-11 [&_select]:rounded [&_select]:border [&_select]:px-3">{children}<button type="button" onClick={onDelete} className="flex h-11 w-11 items-center justify-center text-red-600" aria-label="Remover"><Trash2 className="h-4 w-4"/></button></div>}
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="font-bold">
+      {label}
+      <span className="mt-2 block [&>*]:min-h-11 [&>*]:w-full [&>*]:rounded [&>*]:border [&>*]:p-3 [&>*]:font-normal">
+        {children}
+      </span>
+    </label>
+  );
+}
+function Editor({
+  title,
+  onAdd,
+  children,
+}: {
+  title: string;
+  onAdd: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-7">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-black">{title}</h3>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-1 font-bold text-[#1677FF]"
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar
+        </button>
+      </div>
+      <div className="mt-3 space-y-2">{children}</div>
+    </section>
+  );
+}
+function Row({
+  onDelete,
+  children,
+}: {
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))_44px] [&_input]:min-h-11 [&_input]:rounded [&_input]:border [&_input]:px-3 [&_select]:min-h-11 [&_select]:rounded [&_select]:border [&_select]:px-3">
+      {children}
+      <button
+        type="button"
+        onClick={onDelete}
+        className="flex h-11 w-11 items-center justify-center text-red-600"
+        aria-label="Remover"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}

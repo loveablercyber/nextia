@@ -3,7 +3,7 @@ import type { AuthState, User } from '../types/auth';
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<{ error: string | null; user?: User }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ error: string | null; user?: User }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
@@ -66,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     setState({ user: null, loading: false, error: null });
+    window.location.replace('/login');
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<User>) => {

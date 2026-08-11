@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nextia-public-v1';
+const CACHE_NAME = 'nextia-public-v2';
 const CORE = ['/offline.html', '/manifest.webmanifest', '/favicon.svg', '/pwa/icon-192.png'];
 const PRIVATE_PREFIXES = ['/api/', '/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'];
 
@@ -22,7 +22,10 @@ self.addEventListener('fetch', (event) => {
 
   if (/\.(?:js|css|png|webp|svg|woff2?)$/i.test(url.pathname)) {
     event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+      if (response.ok) {
+        const cacheCopy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, cacheCopy)));
+      }
       return response;
     })));
   }
