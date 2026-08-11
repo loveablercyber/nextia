@@ -1,78 +1,75 @@
-import { ArrowRight, Bot, Check, ChevronRight, CloudCog, Code2, Headphones, MessageCircle, Network, ShieldCheck, Star } from 'lucide-react';
+import { ArrowRight, Bot, Check, ChevronRight, CloudUpload, Code2, Headphones, MessageCircle, Network, ShieldCheck, Sparkles, Video, Wifi, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import heroImage from '../assets/nextia-hero-v2.png';
 import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import { useCommercialPlans } from '../hooks/useCommercialPlans';
 import { getWhatsAppLink } from '../utils/whatsapp';
+import { templates } from '../data/templates';
+import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 import Seo from '../components/seo/Seo';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-const icons = [Code2, Bot, Headphones, Network, ShieldCheck];
-const proof = [
-  ['Um único parceiro', 'Projetos digitais, suporte e infraestrutura coordenados pela mesma equipe.'],
-  ['Escopo transparente', 'Você aprova preço, prazo e entregáveis antes de qualquer execução.'],
-  ['Acompanhamento real', 'Pedidos, arquivos, pagamentos e suporte reunidos no painel do cliente.'],
+const steps = ['Entendemos seu negócio', 'Planejamos a solução', 'Desenvolvemos e configuramos', 'Entregamos e treinamos', 'Acompanhamos e evoluímos'];
+const serviceSpecs = [
+  { slug: 'sites', title: 'Sites Profissionais', text: 'Sites rápidos, responsivos e estratégicos que geram confiança e resultados.', cta: 'Conhecer sites', color: '#3568FF', soft: '#EEF3FF', icon: Code2, primary: true },
+  { slug: 'automacao-ia', title: 'Automação & IA', text: 'Automatize processos, economize tempo e use inteligência artificial na sua operação.', cta: 'Conhecer automação', color: '#9147FF', soft: '#F6EFFF', icon: Bot },
+  { slug: 'techcare', title: 'TechCare', text: 'Suporte técnico para manter computadores, sistemas e operações funcionando.', cta: 'Conhecer TechCare', color: '#FF7A21', soft: '#FFF2E9', icon: Headphones },
+  { slug: 'redes-wifi', title: 'Redes & Wi-Fi', text: 'Redes corporativas, Wi-Fi estável e infraestrutura preparada para sua empresa.', cta: 'Conhecer redes', color: '#13BBD4', soft: '#EAFBFE', icon: Wifi },
+  { slug: 'cameras-seguranca', title: 'Câmeras & Segurança', text: 'Monitoramento, câmeras, acesso remoto e soluções de segurança.', cta: 'Conhecer segurança', color: '#E5A91F', soft: '#FFF9E8', icon: Video },
+  { slug: 'backup', title: 'Backup & Proteção', text: 'Backup, proteção e disponibilidade dos arquivos importantes da sua empresa.', cta: 'Conhecer backup', color: '#22B96B', soft: '#ECFBF3', icon: CloudUpload },
 ];
+
+function SectionHeader({ eyebrow, title, text }: { eyebrow?: string; title: string; text: string }) {
+  return <div className="mx-auto max-w-3xl text-center">{eyebrow && <p className="mb-2 text-sm font-extrabold uppercase tracking-[.18em] text-[#753AFF]">{eyebrow}</p>}<h2 className="text-3xl font-black tracking-[-.035em] text-[#10152B] sm:text-4xl lg:text-[42px]">{title}</h2><p className="mx-auto mt-3 max-w-2xl text-[17px] leading-7 text-[#59627A]">{text}</p></div>;
+}
+
+function ServiceCard({ item }: { item: typeof serviceSpecs[number] }) {
+  const Icon = item.icon;
+  return <Link to={`/${item.slug}`} className={`group relative flex min-h-72 flex-col overflow-hidden rounded-2xl border bg-white p-6 shadow-[0_12px_35px_rgba(28,35,72,.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(28,35,72,.13)] ${item.primary ? 'md:-translate-y-2 md:shadow-[0_18px_48px_rgba(53,104,255,.16)]' : ''}`} style={{ borderColor: item.color }}>
+    <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg,${item.color},#9147FF,${item.color})`, backgroundSize: '200% 100%' }} />
+    {item.primary && <span className="absolute right-4 top-4 rounded-full bg-[#3568FF] px-3 py-1 text-xs font-extrabold text-white">Solução principal</span>}
+    <span className="flex h-13 w-13 items-center justify-center rounded-2xl" style={{ color: item.color, background: item.soft }}><Icon className="h-7 w-7" /></span>
+    <h3 className="mt-6 text-[22px] font-black" style={{ color: item.color }}>{item.title}</h3><p className="mt-3 flex-1 text-[16px] leading-7 text-[#59627A]">{item.text}</p>
+    <span className="mt-5 inline-flex items-center gap-1 text-[15px] font-extrabold" style={{ color: item.color }}>{item.cta} <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+  </Link>;
+}
 
 export default function HomePage() {
   const services = useServiceCatalog();
-  const plans = useCommercialPlans();
-  const highlights = ['sites', 'automacao-ia', 'techcare', 'redes-wifi', 'cameras-seguranca']
-    .map((slug) => services.find((service) => service.slug === slug))
-    .filter((service): service is NonNullable<typeof service> => Boolean(service));
-  return <main className="bg-white text-[#07162B]">
-    <Seo title="Nextia - Tecnologia completa para empresas" description="Sites, automação, suporte de TI, redes, câmeras e backup empresarial com atendimento integrado em Bauru e em todo o Brasil." />
-    <section className="relative flex min-h-[720px] items-center overflow-hidden bg-[#07162B] pt-20 text-white">
-      <img src={heroImage} alt="Especialista Nextia orientando uma empresa sobre tecnologia, rede e segurança" className="absolute inset-0 h-full w-full object-cover object-[68%_center]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,22,43,.98)_0%,rgba(7,22,43,.92)_38%,rgba(7,22,43,.28)_72%,rgba(7,22,43,.12)_100%)]" />
-      <div className="relative mx-auto w-full max-w-7xl px-5 py-20 sm:px-8">
-        <div className="max-w-3xl">
-          <p className="mb-5 inline-flex items-center gap-2 text-base font-bold text-[#F1CC76]"><Star className="h-5 w-5 fill-current" /> Tecnologia completa para sua empresa</p>
-          <h1 className="text-4xl font-black leading-[1.08] sm:text-5xl lg:text-7xl">Tudo o que seu negócio precisa para crescer com tecnologia.</h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">Sites, automação, suporte de TI, redes, câmeras e backup em uma operação integrada, com atendimento humano e acompanhamento claro.</p>
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link to="/solucoes" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-7 text-lg font-bold hover:bg-[#0F63D8]">Conhecer soluções <ArrowRight className="h-5 w-5" /></Link>
-            <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-lg border border-white/40 bg-[#07162B]/40 px-7 text-lg font-bold backdrop-blur-sm hover:bg-white/10"><MessageCircle className="h-5 w-5" /> Falar com especialista</a>
-          </div>
-          <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-base text-slate-200"><span className="flex items-center gap-2"><Check className="h-5 w-5 text-[#35B7FF]" /> Atendimento em Bauru e região</span><span className="flex items-center gap-2"><Check className="h-5 w-5 text-[#35B7FF]" /> Projetos em todo o Brasil</span></div>
+  const plans = useCommercialPlans().filter((plan) => plan.price > 0);
+  const featuredTemplates = templates.filter((item) => item.featured).slice(0, 4);
+  const techCare = services.find((item) => item.slug === 'techcare');
+  return <main className="bg-white text-[#10152B]">
+    <Seo title="Sites profissionais e tecnologia para empresas | Nextia" description="Criação de sites profissionais, automação, suporte de TI, redes, Wi-Fi, câmeras e backup para empresas em Bauru e todo o Brasil." />
+
+    <section className="relative overflow-hidden bg-[linear-gradient(135deg,#fff_12%,#f8f7ff_58%,#eef2ff)] pb-16 pt-32 lg:pb-20 lg:pt-40">
+      <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_78%_25%,rgba(117,58,255,.16),transparent_25%),radial-gradient(circle_at_18%_80%,rgba(37,99,255,.10),transparent_28%)]" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[.95fr_1.05fr]">
+        <div><p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#753AFF]/15 bg-white/80 px-4 py-2 text-sm font-bold text-[#753AFF] shadow-sm"><Sparkles className="h-4 w-4" /> Sites profissionais + tecnologia completa</p>
+          <h1 className="text-[40px] font-black leading-[1.06] tracking-[-.045em] sm:text-5xl lg:text-[62px]">Sites profissionais e tecnologia que fazem <span className="bg-gradient-to-r from-[#2563FF] to-[#9147FF] bg-clip-text text-transparent">sua empresa crescer.</span></h1>
+          <p className="mt-6 max-w-2xl text-[18px] leading-8 text-[#59627A]">Criamos sites rápidos, modernos e estratégicos que geram confiança e resultados. E vamos além: oferecemos tecnologia completa para sua empresa funcionar melhor todos os dias.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link to="/sites" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-7 text-[17px] font-extrabold text-white shadow-lg shadow-[#753AFF]/20 transition hover:-translate-y-0.5">Quero um site profissional <ArrowRight className="h-5 w-5" /></Link><a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-[#753AFF]/30 bg-white px-7 text-[17px] font-extrabold text-[#5530C9] transition hover:bg-[#F6F2FF]"><MessageCircle className="h-5 w-5" /> Falar com especialista</a></div>
+        </div>
+        <div className="relative mx-auto w-full max-w-[650px]">
+          <div className="absolute -inset-8 rounded-full bg-gradient-to-r from-[#2563FF]/15 to-[#9147FF]/20 blur-3xl" />
+          <div className="relative rotate-[-1deg] rounded-[28px] border border-white/80 bg-white/65 p-5 shadow-[0_30px_80px_rgba(72,54,160,.22)] backdrop-blur"><div className="rounded-[18px] bg-[#0D1020] p-2 shadow-inner"><div className="overflow-hidden rounded-xl"><TemplateIllustration category="restaurante" slug="restaurante-premium" /></div></div><div className="mx-auto h-4 w-[94%] rounded-b-full bg-gradient-to-b from-slate-200 to-slate-400" /></div>
+          <span className="absolute -left-4 top-16 flex h-14 w-14 items-center justify-center rounded-2xl border border-white bg-white text-[#753AFF] shadow-xl"><Code2 /></span><span className="absolute -right-3 top-24 flex h-14 w-14 items-center justify-center rounded-2xl border border-white bg-white text-[#13BBD4] shadow-xl"><Network /></span><span className="absolute bottom-5 right-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-white bg-white text-[#9147FF] shadow-xl"><ShieldCheck /></span>
         </div>
       </div>
+      <div className="relative mx-auto mt-16 grid max-w-6xl gap-0 overflow-hidden rounded-2xl border border-[#E5E7F0] bg-white/90 px-4 py-5 shadow-[0_12px_40px_rgba(51,45,100,.08)] sm:grid-cols-2 lg:grid-cols-4">{['Atendimento em Bauru e região','Projetos digitais em todo o Brasil','Suporte remoto e presencial','Soluções integradas'].map((item) => <div key={item} className="flex items-center justify-center gap-2 border-[#E8E9F2] px-4 py-3 text-center text-[15px] font-bold lg:not-first:border-l"><Check className="h-5 w-5 shrink-0 text-[#753AFF]" />{item}</div>)}</div>
     </section>
 
-    <section className="border-b border-slate-200 bg-white py-16 lg:py-20">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="max-w-3xl"><p className="text-base font-bold text-[#1677FF]">Encontre o que precisa</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Cinco frentes, uma só Nextia</h2><p className="mt-4 text-lg leading-8 text-slate-600">Comece por uma necessidade específica ou combine serviços em uma solução completa.</p></div>
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {highlights.map((service, index) => { const Icon = icons[index]; return <Link key={service.slug} to={`/${service.slug}`} className="group flex min-h-72 flex-col border-t-4 bg-white p-6 shadow-[0_10px_35px_rgba(7,22,43,.10)] transition-transform hover:-translate-y-1" style={{ borderColor: service.accent }}>
-            <span className="flex h-12 w-12 items-center justify-center rounded-lg" style={{ color: service.accent, backgroundColor: service.soft }}><Icon className="h-6 w-6" /></span>
-            <h3 className="mt-6 text-xl font-black">{service.name}</h3><p className="mt-3 flex-1 text-base leading-7 text-slate-600">{service.summary}</p>
-            <span className="mt-5 inline-flex items-center gap-1 text-base font-bold" style={{ color: service.accent }}>Conhecer <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" /></span>
-          </Link>; })}
-        </div>
-      </div>
-    </section>
+    <section className="bg-[#F8F9FD] py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader title="Tudo que sua empresa precisa, em um só lugar" text="Soluções integradas para sua empresa vender mais, operar melhor e crescer com segurança." /><div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{serviceSpecs.map((item) => <ServiceCard key={item.slug} item={item} />)}</div></div></section>
 
-    <section className="bg-[#F4F8FC] py-20 lg:py-24">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-end"><div><p className="text-base font-bold text-[#7C5CFF]">Do problema à solução</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Tecnologia sem fornecedores desconectados</h2></div><p className="text-lg leading-8 text-slate-600">A Nextia conecta estratégia digital e operação técnica. Assim, o site, as automações e a infraestrutura evoluem com decisões coerentes e responsabilidade definida.</p></div>
-        <div className="mt-12 grid gap-px bg-slate-200 lg:grid-cols-3">{proof.map(([title, text], index) => <article key={title} className="bg-white p-8"><span className="text-4xl font-black text-slate-200">0{index + 1}</span><h3 className="mt-6 text-xl font-black">{title}</h3><p className="mt-3 text-base leading-7 text-slate-600">{text}</p></article>)}</div>
-      </div>
-    </section>
+    <section className="py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader eyebrow="Como funciona" title="Simples, rápido e sem complicação" text="Cuidamos de cada etapa para você focar no que realmente importa: o seu negócio." /><div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-5">{steps.map((step, index) => <article key={step} className="relative rounded-2xl border border-[#E5E7F0] bg-white p-5 shadow-sm"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F0EBFF] text-base font-black text-[#753AFF]">0{index + 1}</span><h3 className="mt-5 text-[17px] font-black leading-6">{step}</h3>{index < steps.length - 1 && <ChevronRight className="absolute -right-4 top-1/2 z-10 hidden h-6 w-6 rounded-full bg-white text-[#753AFF] lg:block" />}</article>)}</div></div></section>
 
-    <section className="py-20 lg:py-24">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="text-center"><p className="text-base font-bold text-[#1677FF]">Contratação simples</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Serviços com preço de entrada claro</h2><p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">Os valores abaixo representam o escopo padrão. Projetos personalizados recebem orçamento antes da execução.</p></div>
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">{services.filter((item) => item.price).slice(0, 8).map((service) => <article key={service.slug} className="flex flex-col border border-slate-200 bg-white p-6 shadow-sm"><p className="text-base font-bold" style={{ color: service.accent }}>{service.eyebrow}</p><h3 className="mt-2 text-xl font-black">{service.name}</h3><p className="mt-5 text-base text-slate-500">{service.priceLabel}</p><p className="mt-1 text-3xl font-black">{money.format(service.price!)}{service.recurring && <span className="text-base font-semibold text-slate-500">/mês</span>}</p><Link to={`/${service.slug}`} className="mt-6 inline-flex min-h-11 items-center justify-between border-t border-slate-200 pt-4 text-base font-bold">Ver detalhes <ArrowRight className="h-5 w-5" /></Link></article>)}</div>
-      </div>
-    </section>
+    <section className="bg-[#F8F9FD] py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader title="Escolha o plano ideal para sua presença digital" text="Planos completos com os recursos reais cadastrados para o seu site profissional." /><div className="mt-12 grid gap-5 lg:grid-cols-3">{plans.map((plan) => <article id={plan.id} key={plan.id} className={`relative flex flex-col rounded-2xl border bg-white p-7 shadow-sm ${plan.highlight ? 'border-[#753AFF] shadow-[0_16px_45px_rgba(117,58,255,.15)]' : 'border-[#E2E5EF]'}`}>{plan.highlight && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-4 py-1 text-xs font-extrabold text-white">Mais escolhido</span>}<h3 className="text-2xl font-black text-[#3021B8]">{plan.name}</h3><p className="mt-2 min-h-14 text-[15px] leading-6 text-[#59627A]">{plan.subtitle}</p><p className="mt-5 text-4xl font-black">{money.format(plan.price)}<span className="text-sm font-semibold text-[#59627A]">/mês</span></p><ul className="mt-6 flex-1 space-y-3">{plan.features.slice(0, 6).map((feature) => <li key={feature} className="flex gap-2 text-[15px]"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#753AFF]" />{feature}</li>)}</ul><Link to={`/planos#${plan.id}`} className="mt-7 flex min-h-12 items-center justify-center rounded-xl border border-[#753AFF]/35 font-extrabold text-[#6332E8] transition hover:bg-[#753AFF] hover:text-white">Ver detalhes</Link></article>)}</div><div className="mt-6 text-center"><Link to="/solucoes" className="inline-flex items-center gap-2 text-[16px] font-extrabold text-[#753AFF]">Também oferecemos serviços avulsos <ArrowRight className="h-4 w-4" /></Link></div></div></section>
 
-    <section className="bg-[#07162B] py-20 text-white lg:py-24">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><p className="text-base font-bold text-[#F1CC76]">Planos digitais</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Presença digital que continua evoluindo</h2></div><Link to="/planos" className="inline-flex min-h-12 items-center gap-2 text-lg font-bold text-[#35B7FF]">Comparar todos os planos <ArrowRight className="h-5 w-5" /></Link></div>
-        <div className="mt-12 grid gap-5 lg:grid-cols-3">{plans.filter((plan) => plan.price > 0).map((plan) => <article key={plan.id} className={`border p-7 ${plan.highlight ? 'border-[#D6A84B] bg-white text-[#07162B]' : 'border-white/20 bg-white/5'}`}><p className="text-xl font-black">{plan.name}</p><p className={`mt-2 text-base leading-7 ${plan.highlight ? 'text-slate-600' : 'text-slate-300'}`}>{plan.subtitle}</p><p className="mt-6 text-4xl font-black">{money.format(plan.price)}<span className="text-base font-semibold opacity-70">/mês</span></p><ul className="mt-6 space-y-3">{plan.features.slice(0, 5).map((feature) => <li key={feature} className="flex gap-2 text-base"><Check className="mt-0.5 h-5 w-5 shrink-0 text-[#35B7FF]" />{feature}</li>)}</ul><Link to={`/planos#${plan.id}`} className="mt-8 flex min-h-12 items-center justify-center rounded-lg bg-[#1677FF] px-5 text-base font-bold text-white">{plan.ctaLabel}</Link></article>)}</div>
-      </div>
-    </section>
+    <section className="py-16"><div className="mx-auto max-w-7xl px-5 sm:px-8"><div className="relative overflow-hidden rounded-3xl border border-[#FFB26F] bg-[linear-gradient(105deg,#fff8f1,#fff,#fff4e8)] p-7 shadow-[0_16px_50px_rgba(255,122,33,.10)] lg:p-10"><div className="grid items-center gap-8 lg:grid-cols-[1.4fr_.6fr]"><div><p className="font-extrabold text-[#FF7A21]">TechCare</p><h2 className="mt-2 text-3xl font-black tracking-tight lg:text-4xl">Suporte de TI que sua empresa pode confiar</h2><p className="mt-3 max-w-3xl text-[17px] leading-7 text-[#59627A]">Atendimento remoto ou presencial, manutenção preventiva, acompanhamento e suporte empresarial com histórico organizado.</p><div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-[15px] font-bold">{['Suporte remoto','Atendimento presencial','Manutenção preventiva','Planos mensais'].map((item)=><span key={item} className="flex items-center gap-2"><Wrench className="h-4 w-4 text-[#FF7A21]" />{item}</span>)}</div></div><div className="rounded-2xl border border-[#FFD9B7] bg-white p-6 text-center"><p className="text-sm text-[#59627A]">{techCare?.priceLabel}</p>{techCare?.price && <p className="mt-1 text-4xl font-black">{money.format(techCare.price)}</p>}<Link to="/techcare" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-[#FF7A21] px-5 font-extrabold text-white">Conhecer TechCare</Link></div></div></div></div></section>
 
-    <section className="bg-white py-20 lg:py-24"><div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center"><div><CloudCog className="h-10 w-10 text-[#D6A84B]" /><h2 className="mt-5 text-3xl font-black sm:text-4xl">Pronto para organizar a tecnologia da sua empresa?</h2><p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">Conte o que precisa resolver. A equipe avalia o cenário e indica o caminho mais direto.</p></div><a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-13 items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-7 text-lg font-bold text-white hover:bg-[#0F63D8]">Solicitar atendimento <ArrowRight className="h-5 w-5" /></a></div></section>
+    <section className="bg-[#F8F9FD] py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader title="Modelos de sites para começar mais rápido" text="Escolha uma base visual profissional e personalizamos para a sua marca." /><div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{featuredTemplates.map((template) => <article key={template.id} className="overflow-hidden rounded-2xl border border-[#DDE0EB] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><div className="aspect-[16/10] overflow-hidden border-b border-[#E5E7F0]"><TemplateIllustration category={template.categorySlug} slug={template.slug} /></div><div className="p-5"><p className="text-sm font-bold text-[#753AFF]">{template.category}</p><h3 className="mt-1 text-xl font-black">{template.name}</h3><p className="mt-2 min-h-12 text-[15px] leading-6 text-[#59627A]">{template.shortDescription}</p><Link to={`/templates/${template.slug}`} className="mt-5 flex min-h-11 items-center justify-center rounded-xl border border-[#753AFF]/30 font-extrabold text-[#6535D9] hover:bg-[#F5F1FF]">Escolher modelo</Link></div></article>)}</div><div className="mt-8 flex justify-center"><Link to="/sites-prontos" className="inline-flex min-h-13 w-full max-w-md items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-8 text-[17px] font-extrabold text-white shadow-lg shadow-[#753AFF]/20">Veja mais modelos <ArrowRight className="h-5 w-5" /></Link></div></div></section>
+
+    <section className="py-16"><div className="mx-auto max-w-7xl px-5 sm:px-8"><div className="rounded-3xl border border-[#E2E5EF] bg-white p-7 lg:p-10"><div className="grid items-center gap-8 lg:grid-cols-[.8fr_1.2fr]"><div><h2 className="text-3xl font-black">Sua empresa conectada, produtiva e segura</h2><p className="mt-3 text-[17px] leading-7 text-[#59627A]">Soluções completas que podem funcionar separadamente ou conectadas em um único ecossistema.</p></div><div className="flex flex-wrap items-center justify-center gap-3">{['Sites','Software','WhatsApp','IA','Redes','Backup','TechCare'].map((item, i)=><span key={item} className="contents"><span className="rounded-xl bg-[#F2EEFF] px-4 py-3 text-sm font-extrabold text-[#6332E8]">{item}</span>{i < 6 && <span className="font-black text-[#753AFF]">+</span>}</span>)}<span className="font-black text-[#753AFF]">=</span><span className="rounded-xl bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-5 py-3 font-black text-white">Nextia 360</span></div></div></div></div></section>
+
+    <section className="px-5 pb-0 sm:px-8"><div className="mx-auto max-w-7xl rounded-t-3xl bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-6 py-10 text-white lg:px-12"><div className="flex flex-col items-center justify-between gap-7 text-center lg:flex-row lg:text-left"><div><h2 className="max-w-3xl text-3xl font-black">Pronto para transformar sua presença digital e levar sua empresa para o próximo nível?</h2><p className="mt-2 text-[17px] text-white/80">Comece por um site profissional e conecte novas soluções conforme o seu negócio crescer.</p></div><div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row"><Link to="/sites" className="flex min-h-12 items-center justify-center rounded-xl bg-white px-6 font-extrabold text-[#6535D9]">Quero um site agora</Link><a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="flex min-h-12 items-center justify-center rounded-xl border border-white/50 px-6 font-extrabold">Falar com especialista</a></div></div></div></section>
   </main>;
 }

@@ -27,7 +27,7 @@ export default function Header() {
   }, []);
 
   return <>
-    <header className={clsx('fixed inset-x-0 top-0 z-50 border-b transition-colors', transparent ? 'border-white/10 bg-[#07162B]/70 text-white backdrop-blur-md' : 'border-slate-200 bg-white/95 text-[#07162B] backdrop-blur-md')}>
+    <header className={clsx('fixed inset-x-0 top-0 z-50 border-b transition-colors', transparent ? 'border-white/60 bg-white/75 text-[#10152B] backdrop-blur-xl' : 'border-slate-200 bg-white/95 text-[#10152B] backdrop-blur-md')}>
       <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link to="/" className="flex min-h-11 items-center gap-2" aria-label="Nextia - início"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1677FF]"><Zap className="h-5 w-5 text-white" /></span><span className="text-2xl font-black">Nextia</span></Link>
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Navegação principal">
@@ -42,7 +42,7 @@ export default function Header() {
         </nav>
         <div className="hidden items-center gap-2 xl:flex">
           <Link to={user ? '/painel' : '/login'} className="inline-flex min-h-11 items-center px-4 text-base font-bold">{user ? 'Meu painel' : 'Entrar'}</Link>
-          <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-lg bg-[#1677FF] px-5 text-base font-bold text-white hover:bg-[#0F63D8]">Solicitar atendimento</a>
+          <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-lg bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-5 text-base font-bold text-white hover:opacity-90">Quero meu site</a>
         </div>
         <button onClick={() => setMobileOpen(true)} className="flex h-11 w-11 items-center justify-center xl:hidden" aria-label="Abrir menu"><Menu className="h-7 w-7" /></button>
       </div>
