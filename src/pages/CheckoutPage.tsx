@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Check, CreditCard, Globe, Loader2, Lock, UserCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, CreditCard, Globe, Loader2, Lock, Sparkles, UserCheck } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Seo from '../components/seo/Seo';
 import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import { useCommercialPlans } from '../hooks/useCommercialPlans';
 import { useAuth } from '../context/AuthContext';
+import { ALL_OPTIONAL_FEATURES, type OptionalFeature } from '../data/templates';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -14,6 +15,7 @@ interface StoreDraftData {
   model_name?: string;
   model_cover?: string;
   plan_id?: string;
+  optional_items?: string[] | string;
   snapshot_monthly_cents: number;
   snapshot_activation_cents: number;
 }
@@ -36,7 +38,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!draftId) return;
     fetch(`/api/commerce/store-drafts/${draftId}`)
-      .then((res) => res.ok ? res.json() : Promise.reject())
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => {
         if (data.draft) setDraft(data.draft);
       })
@@ -49,6 +51,19 @@ export default function CheckoutPage() {
 
   const selection = useMemo(() => {
     if (draft) {
+      let optionIds: string[] = [];
+      try {
+        if (Array.isArray(draft.optional_items)) {
+          optionIds = draft.optional_items;
+        } else if (typeof draft.optional_items === 'string') {
+          optionIds = JSON.parse(draft.optional_items);
+        }
+      } catch {
+        optionIds = [];
+      }
+
+      const selectedOptionals = ALL_OPTIONAL_FEATURES.filter((opt) => optionIds.includes(opt.id));
+
       return {
         id: draft.id,
         slug: 'lojas-virtuais',
@@ -57,6 +72,7 @@ export default function CheckoutPage() {
         price: draft.snapshot_monthly_cents / 100,
         activationFee: draft.snapshot_activation_cents / 100,
         recurring: draft.snapshot_monthly_cents > 0,
+        optionals: selectedOptionals,
         benefits: [
           `Modelo: ${draft.model_name || 'Selecionado'}`,
           'Configuração inicial e personalização',
@@ -76,6 +92,7 @@ export default function CheckoutPage() {
         price: service.price || 0,
         activationFee: 0,
         recurring: service.recurring === true,
+        optionals: [] as OptionalFeature[],
         benefits: service.benefits,
         path: `/${service.slug}`,
         kind: 'service' as const,
@@ -90,6 +107,7 @@ export default function CheckoutPage() {
         price: plan.price,
         activationFee: plan.activationFee,
         recurring: true,
+        optionals: [] as OptionalFeature[],
         benefits: plan.features,
         path: '/planos',
         kind: 'plan' as const,
@@ -150,7 +168,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Se o usuário não está logado, encaminha para cadastro/login preservando a URL de checkout
+    // Se o usuário não está logado, encaminha para cadastro preservando a URL de checkout
     if (!user) {
       const currentFullUrl = `${location.pathname}${location.search}`;
       navigate(`/cadastro?redirect=${encodeURIComponent(currentFullUrl)}${draftId ? `&draft=${draftId}` : ''}`);
@@ -204,7 +222,7 @@ export default function CheckoutPage() {
                 <div className="text-sm">
                   <p className="font-bold">Identificação necessária para concluir o pedido</p>
                   <p className="mt-1 text-amber-800">
-                    Você ainda não está conectado. Ao avançar, iremos solicitar sua conta para vinculação do pedido e liberação do painel.
+                    Você ainda não está conectado. Ao avançar, sua conta será criada/autenticada automaticamente para vincular o pedido.
                   </p>
                   <div className="mt-3 flex gap-3">
                     <Link
@@ -224,9 +242,32 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            {/* Optional Items Section if draft has optionals */}
+            {selection!.kind === 'draft' && selection!.optionals.length > 0 && (
+              <div className="mt-6 rounded-lg border border-[#1677FF]/20 bg-[#EAF3FF]/40 p-5">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-[#1677FF]" />
+                  Recursos Opcionais Selecionados ({selection!.optionals.length})
+                </h3>
+                <ul className="mt-3 divide-y divide-slate-200/80">
+                  {selection!.optionals.map((opt) => (
+                    <li key={opt.id} className="py-2.5 flex justify-between items-center text-sm gap-2">
+                      <div>
+                        <p className="font-bold text-slate-800">{opt.name}</p>
+                        <p className="text-xs text-slate-500">{opt.description}</p>
+                      </div>
+                      <div className="font-bold text-[#1677FF] text-right whitespace-nowrap ml-3">
+                        {opt.monthlyPrice > 0 ? `+ ${money.format(opt.monthlyPrice)}/mês` : `+ ${money.format(opt.oneTimePrice)} taxa única`}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Field for Domain on Digital Services */}
             {isDigital && (
-              <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-5">
+              <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <label htmlFor="checkout-domain" className="flex items-center gap-2 text-base font-bold text-slate-900">
                   <Globe className="h-5 w-5 text-[#1677FF]" />
                   Domínio para configuração <span className="text-xs text-red-500 font-normal">(obrigatório)</span>
@@ -289,23 +330,24 @@ export default function CheckoutPage() {
           </section>
 
           <aside className="h-max border-t-4 border-[#D6A84B] bg-[#07162B] p-6 text-white sm:p-8">
-            <h2 className="text-xl font-black">Resumo</h2>
-            <div className="mt-6 border-y border-white/15 py-5">
+            <h2 className="text-xl font-black">Resumo do Pedido</h2>
+
+            <div className="mt-6 border-y border-white/15 py-5 space-y-4">
               {selection!.activationFee > 0 && (
-                <div className="mb-4">
-                  <p className="text-base text-slate-300">Taxa de ativação / Projeto</p>
-                  <p className="text-2xl font-black">{money.format(selection!.activationFee)}</p>
+                <div>
+                  <p className="text-sm text-slate-300">Taxa de ativação / Projeto total</p>
+                  <p className="text-2xl font-black text-[#D6A84B]">{money.format(selection!.activationFee)}</p>
                 </div>
               )}
-              {selection!.price > 0 ? (
+              {selection!.price > 0 && (
                 <div>
-                  <p className="text-base text-slate-300">{selection!.recurring ? 'Mensalidade' : 'Pagamento único'}</p>
-                  <p className="mt-2 text-4xl font-black">
+                  <p className="text-sm text-slate-300">{selection!.recurring ? 'Mensalidade total' : 'Pagamento único total'}</p>
+                  <p className="mt-1 text-3xl font-black">
                     {money.format(selection!.price)}
                     {selection!.recurring && <span className="text-base font-semibold text-slate-300">/mês</span>}
                   </p>
                 </div>
-              ) : null}
+              )}
             </div>
 
             <ul className="mt-6 space-y-3">

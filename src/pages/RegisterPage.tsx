@@ -4,6 +4,7 @@ import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { templates, ALL_OPTIONAL_FEATURES, getTemplateOptionalFeatures } from '../data/templates';
 import { plans } from '../data/plans';
+import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage() {
   useEffect(() => {
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   }, []);
 
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
   const planoParam = searchParams.get('plano') || 'pro';
@@ -73,36 +75,31 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          company: form.company,
-          password: form.password,
-          template: selectedTemplate ? selectedTemplate.name : '',
-          plan: selectedPlanObj.name,
-          segment: selectedTemplate ? selectedTemplate.category : '',
-          monthlyFee,
-          activationFee,
-        }),
+      const regRes = await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        company: form.company,
+        password: form.password,
+        template: selectedTemplate ? selectedTemplate.name : '',
+        plan: selectedPlanObj.name,
+        segment: selectedTemplate ? selectedTemplate.category : '',
+        monthlyFee,
+        activationFee,
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || 'Ocorreu um erro ao criar sua conta.');
+
+      if (regRes.error) {
+        throw new Error(regRes.error);
       }
 
       setSuccess(true);
       setLoading(false);
       const draftParam = searchParams.get('draft');
       const redirectParam = searchParams.get('redirect');
-      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/login');
+      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/painel');
       setTimeout(() => {
-        navigate(targetCheckout);
-      }, 1500);
+        navigate(targetCheckout, { replace: true });
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao criar sua conta.');
       setLoading(false);

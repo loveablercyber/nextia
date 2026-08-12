@@ -614,6 +614,73 @@ async function handleCatalogApi(req, res, url) {
         }
       }
 
+      const OPTIONAL_PRICES = {
+        'opt-checkout-integrado': { monthly: 7900, activation: 0 },
+        'opt-calculo-frete': { monthly: 3900, activation: 0 },
+        'opt-cupons-whatsapp': { monthly: 1900, activation: 0 },
+        'opt-estoque-real': { monthly: 4900, activation: 0 },
+        'opt-moedas-idiomas': { monthly: 0, activation: 19900 },
+        'opt-chatbot': { monthly: 4900, activation: 0 },
+        'opt-reservas': { monthly: 2900, activation: 0 },
+        'opt-delivery': { monthly: 8900, activation: 0 },
+        'opt-pdv': { monthly: 9900, activation: 0 },
+        'opt-fidelidade': { monthly: 3900, activation: 0 },
+        'opt-idiomas': { monthly: 0, activation: 19900 },
+        'opt-fotos': { monthly: 0, activation: 29900 },
+        'opt-agendamento-salao': { monthly: 2900, activation: 0 },
+        'opt-lembrete-whatsapp': { monthly: 3900, activation: 0 },
+        'opt-fidelidade-salao': { monthly: 3900, activation: 0 },
+        'opt-galeria-trabalhos': { monthly: 1900, activation: 0 },
+        'opt-fotos-salao': { monthly: 0, activation: 29900 },
+        'opt-portal-cliente': { monthly: 5900, activation: 0 },
+        'opt-consulta-processual': { monthly: 4900, activation: 0 },
+        'opt-assinatura-digital': { monthly: 2900, activation: 0 },
+        'opt-upload-seguro': { monthly: 1900, activation: 0 },
+        'opt-agendamento-consultas': { monthly: 2900, activation: 0 },
+        'opt-agendamento-clinica': { monthly: 2900, activation: 0 },
+        'opt-prontuario-eletronico': { monthly: 4900, activation: 0 },
+        'opt-teleconsulta': { monthly: 6900, activation: 0 },
+        'opt-area-paciente': { monthly: 3900, activation: 0 },
+        'opt-receitas-digitais': { monthly: 2900, activation: 0 },
+        'opt-portal-contabil': { monthly: 5900, activation: 0 },
+        'opt-armazenamento-xml': { monthly: 3900, activation: 0 },
+        'opt-assinatura-contabil': { monthly: 2900, activation: 0 },
+        'opt-upload-contabil': { monthly: 1900, activation: 0 },
+        'opt-integracao-dominio': { monthly: 8900, activation: 0 },
+        'opt-area-restrita-contabil': { monthly: 4900, activation: 0 },
+        'opt-backup-nuvem': { monthly: 2900, activation: 0 },
+        'opt-orcamento-whatsapp': { monthly: 1900, activation: 0 },
+        'opt-acompanhamento-os': { monthly: 3900, activation: 0 },
+        'opt-historico-veiculo': { monthly: 2900, activation: 0 },
+        'opt-portal-corretor': { monthly: 6900, activation: 0 },
+        'opt-crm-imobiliario': { monthly: 9900, activation: 0 },
+        'opt-tour-360-premium': { monthly: 0, activation: 29900 },
+        'opt-zap-vivareal': { monthly: 8900, activation: 0 },
+        'opt-olx-imoveis': { monthly: 4900, activation: 0 },
+        'opt-captacao-auto': { monthly: 5900, activation: 0 },
+        'opt-avaliacao-online': { monthly: 3900, activation: 0 },
+        'opt-simulador-avancado': { monthly: 2900, activation: 0 },
+        'opt-assinatura-propostas': { monthly: 3900, activation: 0 },
+        'opt-area-cliente-proprietario': { monthly: 6900, activation: 0 },
+        'opt-comparador-favoritos': { monthly: 1900, activation: 0 },
+        'opt-alertas-imoveis': { monthly: 2900, activation: 0 },
+        'opt-rd-meta-google': { monthly: 7900, activation: 0 },
+        'opt-chatbot-imobiliario': { monthly: 4900, activation: 0 },
+      };
+
+      let optionalMonthlyCents = 0;
+      let optionalActivationCents = 0;
+      for (const item of optionalItems) {
+        const itemPrices = OPTIONAL_PRICES[item];
+        if (itemPrices) {
+          optionalMonthlyCents += itemPrices.monthly;
+          optionalActivationCents += itemPrices.activation;
+        }
+      }
+
+      const totalMonthlyCents = planMonthlyCents + optionalMonthlyCents;
+      const totalActivationCents = planActivationCents + optionalActivationCents;
+
       const draftId = randomUUID();
       const result = await client.query(
         `INSERT INTO public.commercial_store_drafts
@@ -628,8 +695,8 @@ async function handleCatalogApi(req, res, url) {
           JSON.stringify(body.store || {}),
           JSON.stringify(body.needs || {}),
           JSON.stringify(optionalItems),
-          planMonthlyCents,
-          planActivationCents,
+          totalMonthlyCents,
+          totalActivationCents,
         ],
       );
       return json(res, 201, { draftId, draft: result.rows[0], template });
@@ -3323,7 +3390,23 @@ async function handleAuth(req, res, pathname) {
         );
       }
       await client.query('COMMIT');
-      return json(res, 200, { ok: true });
+      const userProfile = {
+        id,
+        email: String(body.email).toLowerCase().trim(),
+        name: body.name,
+        company: body.company || '',
+        phone: body.phone || '',
+        role: 'client',
+        avatarInitials: initials,
+        isPartner,
+      };
+      const token = signToken({ sub: id, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 });
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Set-Cookie': sessionCookie(token),
+        'Cache-Control': 'no-store',
+      });
+      return res.end(JSON.stringify({ ok: true, user: userProfile }));
     } catch (err) {
       await client.query('ROLLBACK');
       if (String(err.message || '').includes('duplicate')) {

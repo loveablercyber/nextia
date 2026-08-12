@@ -3,6 +3,7 @@ import type { AuthState, User } from '../types/auth';
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<{ error: string | null; user?: User }>;
+  register: (bodyData: any) => Promise<{ error: string | null; user?: User }>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<{ error: string | null; user?: User }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
@@ -63,6 +64,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const register = useCallback(async (bodyData: any) => {
+    setState((current) => ({ ...current, loading: true, error: null }));
+
+    try {
+      const data = await parseAuthResponse(
+        await fetch('/api/auth/register', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyData),
+        }),
+      );
+
+      const user = data.user as User;
+      if (user) {
+        setState({ user, loading: false, error: null });
+      } else {
+        setState((current) => ({ ...current, loading: false }));
+      }
+      return { error: null, user };
+    } catch (err: any) {
+      const message = err.message || 'Ocorreu um erro ao criar sua conta.';
+      setState((current) => ({ ...current, loading: false, error: message }));
+      return { error: message };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     setState({ user: null, loading: false, error: null });
@@ -89,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null, user: updatedUser };
     } catch (err: any) {
       const message = err.message || 'Erro ao atualizar perfil.';
-      // Fallback local state update se API indisponivel
       setState((current) => {
         if (!current.user) return current;
         return { ...current, user: { ...current.user, ...data } };
@@ -100,30 +127,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     try {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      await parseAuthResponse(response);
+      await parseAuthResponse(
+        await fetch('/api/auth/change-password', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword }),
+        }),
+      );
       return { error: null };
     } catch (err: any) {
-      const message = err.message || 'Erro ao alterar a senha.';
-      return { error: message };
+      return { error: err.message || 'Erro ao alterar senha.' };
     }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, updateProfile, changePassword }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        login,
+        register,
+        logout,
+        updateProfile,
+        changePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+  return context;
 }
