@@ -98,7 +98,8 @@ export default function RegisterPage() {
       setSuccess(true);
       setLoading(false);
       const draftParam = searchParams.get('draft');
-      const targetCheckout = draftParam ? `/checkout?draft=${draftParam}` : '/login';
+      const redirectParam = searchParams.get('redirect');
+      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/login');
       setTimeout(() => {
         navigate(targetCheckout);
       }, 1500);

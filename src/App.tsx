@@ -196,7 +196,7 @@ function AppRoutes() {
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
-      <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+      <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />
       <Route path="/parceiros" element={<PartnerLandingPage />} />

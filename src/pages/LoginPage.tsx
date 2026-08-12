@@ -19,7 +19,9 @@ export default function LoginPage() {
   const location = useLocation();
 
   const redirectFrom = (location.state as any)?.from;
-  const from = typeof redirectFrom === 'object' ? `${redirectFrom.pathname || ''}${redirectFrom.search || ''}${redirectFrom.hash || ''}` : String(redirectFrom || '/painel');
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const from = redirectParam || (typeof redirectFrom === 'object' ? `${redirectFrom.pathname || ''}${redirectFrom.search || ''}${redirectFrom.hash || ''}` : String(redirectFrom || '/painel'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

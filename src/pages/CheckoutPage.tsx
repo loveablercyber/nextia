@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Check, CreditCard, Globe, Loader2, Lock } from 'lucide-react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, Check, CreditCard, Globe, Loader2, Lock, UserCheck } from 'lucide-react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Seo from '../components/seo/Seo';
 import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import { useCommercialPlans } from '../hooks/useCommercialPlans';
+import { useAuth } from '../context/AuthContext';
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -21,6 +22,10 @@ const DIGITAL_SLUGS = ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuai
 
 export default function CheckoutPage() {
   const [params] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const services = useServiceCatalog();
   const plans = useCommercialPlans();
 
@@ -144,6 +149,14 @@ export default function CheckoutPage() {
       setError('Confirme os termos da contratação para continuar.');
       return;
     }
+
+    // Se o usuário não está logado, encaminha para cadastro/login preservando a URL de checkout
+    if (!user) {
+      const currentFullUrl = `${location.pathname}${location.search}`;
+      navigate(`/cadastro?redirect=${encodeURIComponent(currentFullUrl)}${draftId ? `&draft=${draftId}` : ''}`);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -169,6 +182,8 @@ export default function CheckoutPage() {
     }
   };
 
+  const currentFullUrl = `${location.pathname}${location.search}`;
+
   return (
     <main className="min-h-screen bg-[#F4F8FC] px-5 pb-20 pt-28 sm:px-8">
       <Seo title={`Contratar ${selection!.name}`} description={`Checkout seguro para contratar ${selection!.name} com a Nextia.`} path={`/checkout?${selection!.kind}=${selection!.id}`} noindex />
@@ -181,6 +196,33 @@ export default function CheckoutPage() {
             <p className="text-base font-bold text-[#1677FF]">Finalizar contratação</p>
             <h1 className="mt-2 text-3xl font-black">{selection!.name}</h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">{selection!.summary}</p>
+
+            {/* User Login/Registration Banner if unauthenticated */}
+            {!user && (
+              <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 flex items-start gap-3">
+                <UserCheck className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-bold">Identificação necessária para concluir o pedido</p>
+                  <p className="mt-1 text-amber-800">
+                    Você ainda não está conectado. Ao avançar, iremos solicitar sua conta para vinculação do pedido e liberação do painel.
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <Link
+                      to={`/cadastro?redirect=${encodeURIComponent(currentFullUrl)}${draftId ? `&draft=${draftId}` : ''}`}
+                      className="font-bold text-[#1677FF] hover:underline"
+                    >
+                      Criar conta →
+                    </Link>
+                    <Link
+                      to={`/login?redirect=${encodeURIComponent(currentFullUrl)}`}
+                      className="font-bold text-slate-700 hover:underline"
+                    >
+                      Já tenho conta (Entrar)
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Field for Domain on Digital Services */}
             {isDigital && (
@@ -283,11 +325,13 @@ export default function CheckoutPage() {
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
               {loading
                 ? 'Preparando pagamento...'
-                : selection!.kind === 'plan'
-                  ? 'Pagar ativação'
-                  : selection!.recurring
-                    ? 'Continuar para assinatura'
-                    : 'Continuar para pagamento'}
+                : !user
+                  ? 'Entrar / Cadastrar para pagar'
+                  : selection!.kind === 'plan'
+                    ? 'Pagar ativação'
+                    : selection!.recurring
+                      ? 'Continuar para assinatura'
+                      : 'Continuar para pagamento'}
             </button>
             <p className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-300">
               <Lock className="h-4 w-4" /> Pagamento processado pelo Mercado Pago
