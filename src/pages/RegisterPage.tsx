@@ -97,9 +97,11 @@ export default function RegisterPage() {
 
       setSuccess(true);
       setLoading(false);
+      const draftParam = searchParams.get('draft');
+      const targetCheckout = draftParam ? `/checkout?draft=${draftParam}` : '/login';
       setTimeout(() => {
-        navigate('/login');
-      }, 2500);
+        navigate(targetCheckout);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao criar sua conta.');
       setLoading(false);

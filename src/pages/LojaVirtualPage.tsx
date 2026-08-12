@@ -142,11 +142,11 @@ export default function LojaVirtualPage() {
         });
       }
 
-      navigate(`/checkout?draft=${data.draftId}`);
+      navigate(`/cadastro?draft=${data.draftId}`);
     } catch (err) {
       console.error('Falha ao processar rascunho:', err);
       // Fallback seguro caso falhe a API de rascunho
-      navigate(`/checkout?service=lojas-virtuais&model=${selectedTemplate.id}&plan=${selectedPlanId}`);
+      navigate(`/cadastro?service=lojas-virtuais&model=${selectedTemplate.id}&plan=${selectedPlanId}`);
     } finally {
       setCreatingDraft(false);
     }
