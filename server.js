@@ -921,6 +921,20 @@ async function handleCatalogApi(req, res, url) {
       return json(res, 200, { contract: result.rows[0] });
     }
 
+    if (url.pathname.startsWith('/api/admin/commerce/orders/') && req.method === 'DELETE') {
+      const orderId = url.pathname.replace('/api/admin/commerce/orders/', '').trim();
+      const result = await client.query('DELETE FROM public.commercial_orders WHERE id = $1 RETURNING id', [orderId]);
+      if (!result.rows[0]) return json(res, 404, { error: 'Pedido não encontrado.' });
+      return json(res, 200, { success: true, deletedId: orderId });
+    }
+
+    if (url.pathname.startsWith('/api/admin/commerce/contracts/') && req.method === 'DELETE') {
+      const contractId = url.pathname.replace('/api/admin/commerce/contracts/', '').trim();
+      const result = await client.query('DELETE FROM public.commercial_plan_contracts WHERE id = $1 RETURNING id', [contractId]);
+      if (!result.rows[0]) return json(res, 404, { error: 'Contrato não encontrado.' });
+      return json(res, 200, { success: true, deletedId: contractId });
+    }
+
     if (url.pathname === '/api/commerce/webhook' && req.method === 'POST') {
       const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
       if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });

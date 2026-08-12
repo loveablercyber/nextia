@@ -16,15 +16,15 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { to: '/painel', icon: LayoutDashboard, label: 'Visão geral', exact: true },
+  { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
   { to: '/painel/projeto', icon: FolderOpen, label: 'Meu projeto' },
   { to: '/painel/briefing', icon: ClipboardList, label: 'Briefing do Site' },
   { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
   { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
+  { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/painel/tecnologia', icon: ClipboardList, label: 'Tecnologia e OS' },
   { to: '/painel/equipamentos', icon: FolderOpen, label: 'Meus equipamentos' },
-  { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
-  { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/parceiros', icon: Users, label: 'Programa de Parceiros' },
   { to: '/perfil', icon: User, label: 'Meu Perfil' },
   { to: '/painel/configuracoes', icon: Settings, label: 'Configurações' },

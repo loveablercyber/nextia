@@ -1,14 +1,42 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, FolderKanban, MessageSquare, CreditCard,
-  TrendingUp, AlertTriangle, ArrowRight, CheckCircle2
+  TrendingUp, AlertTriangle, ArrowRight, CheckCircle2, ShoppingBag, Clock
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { requestStatusConfig } from '../../types/project';
 import Button from '../../components/ui/Button';
 
+interface PendingCommerceOrder {
+  id: string;
+  item_name: string;
+  amount_cents: number;
+  status: string;
+  created_at: string;
+  customer_name?: string;
+  customer_email?: string;
+}
+
 export default function AdminOverviewPage() {
   const { projects, loading } = useAdmin();
+  const [pendingOrders, setPendingOrders] = useState<PendingCommerceOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/commerce/orders')
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        if (Array.isArray(data.orders)) {
+          const pending = data.orders.filter(
+            (o: PendingCommerceOrder) => o.status === 'payment_pending' || o.status === 'pending'
+          );
+          setPendingOrders(pending);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingOrders(false));
+  }, []);
 
   if (loading) {
     return (
@@ -57,6 +85,53 @@ export default function AdminOverviewPage() {
         ))}
       </div>
 
+      {/* Section: Pending Commerce Orders */}
+      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-2">
+            <ShoppingBag className="w-4 h-4 text-pink-600" />
+            Pedidos Pendentes de Pagamento ({pendingOrders.length})
+          </h3>
+          <Link to="/admin/pedidos" className="text-xs text-pink-600 hover:underline font-bold flex items-center gap-1">
+            Gerenciar Pedidos <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {loadingOrders ? (
+          <p className="text-xs text-gray-400 py-4">Carregando pedidos...</p>
+        ) : pendingOrders.length === 0 ? (
+          <div className="py-6 text-center text-gray-400">
+            <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
+            <p className="text-xs font-medium">Nenhum pedido pendente de pagamento no momento.</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingOrders.slice(0, 6).map((order) => (
+              <div key={order.id} className="p-4 bg-amber-50/40 border border-amber-200/60 rounded-2xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold text-gray-900 truncate">
+                      {order.customer_name || order.customer_email || 'Cliente'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                      <Clock className="w-3 h-3" /> Aguardando
+                    </span>
+                  </div>
+                  <p className="text-sm font-black text-gray-900 truncate">{order.item_name}</p>
+                  <p className="text-xs text-gray-500 mt-1">{formatCurrency(order.amount_cents / 100)}</p>
+                </div>
+                <div className="mt-3 pt-3 border-t border-amber-200/40 flex justify-between items-center text-[11px] text-gray-500">
+                  <span>{new Date(order.created_at).toLocaleDateString('pt-BR')}</span>
+                  <Link to="/admin/pedidos" className="text-pink-600 font-bold hover:underline">
+                    Ver detalhes →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Grid: Tickets & Recent projects */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Active Change Requests */}
@@ -67,7 +142,7 @@ export default function AdminOverviewPage() {
                 <MessageSquare className="w-4 h-4 text-pink-600" />
                 Chamados pendentes ({openTickets.length})
               </h3>
-              <Link to="/admin/chamados" className="text-xs text-pink-600 hover:underline font-bold flex items-center gap-1">
+              <Link to="/admin/solicitacoes" className="text-xs text-pink-600 hover:underline font-bold flex items-center gap-1">
                 Ver todos <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -107,7 +182,7 @@ export default function AdminOverviewPage() {
                         >
                           {statusInfo.label}
                         </span>
-                        <Link to="/admin/chamados">
+                        <Link to="/admin/solicitacoes">
                           <Button variant="outline" size="sm">Responder</Button>
                         </Link>
                       </div>
@@ -149,9 +224,9 @@ export default function AdminOverviewPage() {
             </div>
           </div>
 
-          <Link to="/admin/cobrancas">
+          <Link to="/admin/pagamentos">
             <Button variant="outline" size="sm" className="w-full justify-center">
-              Criar nova cobrança
+              Ver histórico financeiro
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>

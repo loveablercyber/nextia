@@ -38,6 +38,7 @@ export default function Header() {
             </div>
           </div>)}
           <Link to="/planos" className="flex min-h-11 items-center px-3 text-base font-semibold">Planos</Link>
+          <Link to="/parceiros" className="flex min-h-11 items-center px-3 text-base font-semibold">Parceiros</Link>
           <Link to="/contato" className="flex min-h-11 items-center px-3 text-base font-semibold">Contato</Link>
         </nav>
         <div className="hidden items-center gap-2 xl:flex">
@@ -59,6 +60,7 @@ export default function Header() {
             {openGroup === group.label && <div className="mb-2 border-l-2 border-[#1677FF] pl-3">{group.links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center px-3 text-lg text-slate-700">{label}</Link>)}</div>}
           </div>)}
           <Link to="/planos" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Planos</Link>
+          <Link to="/parceiros" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Parceiros</Link>
           <Link to="/contato" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Contato</Link>
         </nav>
         <div className="grid gap-3 border-t border-slate-200 p-5"><Link to={user ? '/painel' : '/login'} className="flex min-h-12 items-center justify-center rounded-lg border border-slate-300 text-lg font-bold">{user ? 'Meu painel' : 'Entrar'}</Link><a href={getWhatsAppLink('geral')} className="flex min-h-12 items-center justify-center rounded-lg bg-[#1677FF] text-lg font-bold text-white">Solicitar atendimento</a></div>

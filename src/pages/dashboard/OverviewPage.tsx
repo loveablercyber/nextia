@@ -1,14 +1,62 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, ExternalLink, Calendar, AlertCircle,
-  Clock, Zap, CheckCircle2, ArrowUpRight
+  ArrowRight, ExternalLink, AlertCircle,
+  CheckCircle2, ArrowUpRight, ShoppingBag
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { statusConfig } from '../../types/project';
 import Button from '../../components/ui/Button';
 
+interface ClientOrder {
+  id: string;
+  item_name: string;
+  amount_cents: number;
+  status: string;
+  created_at: string;
+  checkout_url?: string;
+}
+
+interface ClientContract {
+  id: string;
+  plan_name: string;
+  activation_amount_cents: number;
+  monthly_amount_cents: number;
+  status: string;
+  created_at: string;
+  activation_checkout_url?: string;
+  subscription_checkout_url?: string;
+}
+
+const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: 'Criado', color: 'text-amber-800', bg: 'bg-amber-100' },
+  payment_pending: { label: 'Aguardando Pagamento', color: 'text-amber-800', bg: 'bg-amber-100' },
+  activation_pending: { label: 'Ativação Pendente', color: 'text-amber-800', bg: 'bg-amber-100' },
+  subscription_pending: { label: 'Assinatura Pendente', color: 'text-blue-800', bg: 'bg-blue-100' },
+  paid: { label: 'Pago', color: 'text-emerald-800', bg: 'bg-emerald-100' },
+  active: { label: 'Ativo / Em andamento', color: 'text-emerald-800', bg: 'bg-emerald-100' },
+  failed: { label: 'Falhou', color: 'text-red-800', bg: 'bg-red-100' },
+  cancelled: { label: 'Cancelado', color: 'text-gray-700', bg: 'bg-gray-200' },
+};
+
 export default function OverviewPage() {
   const { project, loading } = useProject();
+  const [orders, setOrders] = useState<ClientOrder[]>([]);
+  const [contracts, setContracts] = useState<ClientContract[]>([]);
+  const [loadingCommerce, setLoadingCommerce] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/commerce/orders').then((r) => (r.ok ? r.json() : { orders: [] })),
+      fetch('/api/commerce/plan-contracts').then((r) => (r.ok ? r.json() : { contracts: [] })),
+    ])
+      .then(([ordersRes, contractsRes]) => {
+        if (Array.isArray(ordersRes.orders)) setOrders(ordersRes.orders);
+        if (Array.isArray(contractsRes.contracts)) setContracts(contractsRes.contracts);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCommerce(false));
+  }, []);
 
   if (loading) {
     return (
@@ -18,24 +66,8 @@ export default function OverviewPage() {
     );
   }
 
-  if (!project) {
-    return (
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center max-w-md mx-auto my-12">
-        <div className="text-4xl mb-4">📂</div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum projeto ativo</h3>
-        <p className="text-gray-500 mb-6 text-sm">
-          Você ainda não tem um projeto em andamento. Inicie criando um orçamento automático.
-        </p>
-        <Link to="/orcamento">
-          <Button variant="primary">Criar orçamento agora</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  const currentStatus = statusConfig[project.status];
-  const pendingPayments = project.payments.filter(p => p.status !== 'pago');
-  const hasAwaitingAction = project.status === 'em-revisao' || project.status === 'aguardando-briefing';
+  const currentStatus = project ? statusConfig[project.status] : null;
+  const hasAwaitingAction = project && (project.status === 'em-revisao' || project.status === 'aguardando-briefing');
 
   // Format dates
   const formatDate = (isoString: string) => {
@@ -46,10 +78,14 @@ export default function OverviewPage() {
     });
   };
 
+  const formatCurrency = (cents: number) => {
+    return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Awaiting Action Banner */}
-      {hasAwaitingAction && (
+      {hasAwaitingAction && project && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-start gap-4 animate-pulse">
           <div className="p-2 bg-amber-100 rounded-xl text-amber-600 flex-shrink-0">
             <AlertCircle className="w-5 h-5" />
@@ -92,238 +128,161 @@ export default function OverviewPage() {
         </div>
       )}
 
-      {/* Main Stats and Status */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Project Header Card */}
-        <div className="md:col-span-2 bg-white rounded-3xl p-6 border border-gray-100 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#5B4FE9]/5 rounded-bl-full pointer-events-none" />
-          
-          <div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <span
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: currentStatus.dot }}
-              />
-              <span
-                className="text-xs font-bold px-2.5 py-0.5 rounded-full"
-                style={{ backgroundColor: currentStatus.bg, color: currentStatus.color }}
-              >
-                {currentStatus.label}
-              </span>
-            </div>
+      {/* Main Stats and Status (if active project exists) */}
+      {project && currentStatus && (
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Project Header Card */}
+          <div className="md:col-span-2 bg-white rounded-3xl p-6 border border-gray-100 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-[#5B4FE9]/5 rounded-bl-full pointer-events-none" />
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <span
+                  className="px-3 py-1 rounded-full text-xs font-bold"
+                  style={{ backgroundColor: currentStatus.bg, color: currentStatus.color }}
+                >
+                  {currentStatus.label}
+                </span>
+                <span className="text-xs text-gray-400 font-medium">
+                  Iniciado em: {formatDate(project.startedAt)}
+                </span>
+              </div>
+              <h1 className="text-2xl font-black text-gray-900 mb-1">{project.name}</h1>
+              <p className="text-xs text-[#5B4FE9] font-bold mb-4">Plano: {project.plan}</p>
 
-            <h2 className="text-2xl font-black text-gray-900 mb-1">{project.name}</h2>
-            <p className="text-gray-400 text-xs mb-4">
-              Plano: <span className="font-bold text-gray-600">Nextia {project.plan}</span>
-              {project.domain && ` · Domínio: ${project.domain}`}
-            </p>
+              {/* Progress bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-xs font-bold text-gray-700 mb-1.5">
+                  <span>Progresso do desenvolvimento</span>
+                  <span>{project.progressPercent}%</span>
+                </div>
+                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#5B4FE9] to-[#753AFF] rounded-full transition-all duration-500"
+                    style={{ width: `${project.progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {/* Progress bar */}
-            <div>
-              <div className="flex justify-between text-xs font-semibold mb-1.5">
-                <span className="text-gray-500">Progresso do projeto</span>
-                <span className="text-[#5B4FE9]">{project.progressPercent}%</span>
-              </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[#5B4FE9] to-[#7c3aed] rounded-full transition-all duration-500"
-                  style={{ width: `${project.progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Sub details */}
-            <div className="grid grid-cols-2 gap-4 pt-2 text-xs border-t border-gray-50">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <div>
-                  <span className="text-gray-400 block">Iniciado em</span>
-                  <span className="font-semibold text-gray-700">{formatDate(project.startedAt)}</span>
+          {/* Quick Actions */}
+          <div className="bg-white rounded-3xl p-6 border border-gray-100 flex flex-col justify-between">
+            <h3 className="font-bold text-gray-900 text-sm mb-3">Ações rápidas</h3>
+            <div className="space-y-2">
+              <Link to="/painel/arquivos">
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
+                  <span>📁 Enviar arquivos</span>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-400" />
-                <div>
-                  <span className="text-gray-400 block">Previsão de entrega</span>
-                  <span className="font-semibold text-gray-700">{formatDate(project.estimatedDelivery)}</span>
+              </Link>
+              <Link to="/painel/alteracoes">
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
+                  <span>✏️ Solicitar ajuste</span>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
                 </div>
-              </div>
+              </Link>
+              <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
+                  <span>💬 Suporte WhatsApp</span>
+                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
+                </div>
+              </a>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Change Request Usage Card */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 flex flex-col justify-between">
-          <div>
-            <h3 className="font-bold text-gray-900 text-sm mb-1">Ajustes inclusos</h3>
-            <p className="text-gray-400 text-xs leading-relaxed">
-              Quantidade de solicitações de alteração restantes em seu ciclo atual.
-            </p>
-          </div>
-
-          <div className="my-6 text-center">
-            <div className="inline-block relative">
-              <span className="text-5xl font-black text-gray-900">
-                {project.requestsRemaining}
-              </span>
-              <span className="text-gray-300 text-lg font-bold ml-1">
-                / {project.requestsTotal}
-              </span>
-            </div>
-            <div className="text-xs text-gray-400 mt-1">Solicitações disponíveis</div>
-          </div>
-
-          <Link to="/painel/alteracoes">
-            <Button variant="outline" size="sm" className="w-full justify-center">
-              Solicitar nova alteração
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+      {/* Requested Services Section */}
+      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-2">
+            <ShoppingBag className="w-4 h-4 text-[#5B4FE9]" />
+            Serviços e Planos Solicitados ({orders.length + contracts.length})
+          </h3>
+          <Link to="/painel/pedidos" className="text-xs text-[#5B4FE9] hover:underline font-bold flex items-center gap-1">
+            Ver meus pedidos <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-      </div>
 
-      {/* Grid: Milestones & Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Milestones / Roadmaps */}
-        <div className="md:col-span-2 bg-white rounded-3xl p-6 border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-6 text-sm uppercase tracking-wider flex items-center gap-2">
-            <Zap className="w-4 h-4 text-[#5B4FE9]" />
-            Etapas do projeto
-          </h3>
-
-          <div className="relative border-l border-gray-100 ml-3 space-y-6">
-            {project.milestones.map((m) => {
-              const isCompleted = m.status === 'concluido';
-              const isCurrent = m.status === 'em-andamento';
-
+        {loadingCommerce ? (
+          <p className="text-xs text-gray-400 py-4">Carregando serviços...</p>
+        ) : orders.length === 0 && contracts.length === 0 ? (
+          <div className="py-6 text-center text-gray-400">
+            <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
+            <p className="text-xs font-medium">Nenhum serviço solicitado até o momento.</p>
+            <Link to="/solucoes" className="mt-2 inline-block text-xs text-[#5B4FE9] font-bold hover:underline">
+              Conhecer soluções →
+            </Link>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {contracts.map((c) => {
+              const st = statusLabels[c.status] || { label: c.status, color: 'text-gray-700', bg: 'bg-gray-100' };
+              const checkoutUrl = c.status === 'activation_pending' ? c.activation_checkout_url : c.subscription_checkout_url;
               return (
-                <div key={m.id} className="relative pl-7">
-                  {/* Status node */}
-                  <div
-                    className={`absolute -left-3 top-0.5 w-6 h-6 rounded-full flex items-center justify-center border-4 border-white shadow-sm ${
-                      isCompleted
-                        ? 'bg-[#5B4FE9]'
-                        : isCurrent
-                        ? 'bg-amber-400 animate-pulse'
-                        : 'bg-gray-100'
-                    }`}
-                  >
-                    {isCompleted && (
-                      <CheckCircle2 className="w-3 h-3 text-white" />
+                <div key={c.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-slate-900 truncate">Plano {c.plan_name}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color} ${st.bg}`}>
+                        {st.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-black text-slate-900">
+                      {formatCurrency(c.activation_amount_cents)} <span className="text-xs font-normal text-slate-500">ativação</span>
+                    </p>
+                    {c.monthly_amount_cents > 0 && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        + {formatCurrency(c.monthly_amount_cents)}/mês
+                      </p>
                     )}
                   </div>
-
-                  <div>
-                    <div className="flex items-center gap-2.5">
-                      <h4
-                        className={`text-sm font-bold ${
-                          isCompleted
-                            ? 'text-gray-500 line-through'
-                            : isCurrent
-                            ? 'text-[#5B4FE9]'
-                            : 'text-gray-800'
-                        }`}
-                      >
-                        {m.title}
-                      </h4>
-                      {isCurrent && (
-                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                          Etapa atual
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{m.description}</p>
-                    {m.completedAt && (
-                      <span className="text-[10px] text-gray-400 mt-1 block">
-                        Concluído em: {formatDate(m.completedAt)}
-                      </span>
+                  <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px]">
+                    <span className="text-slate-500">{formatDate(c.created_at)}</span>
+                    {checkoutUrl && (c.status === 'activation_pending' || c.status === 'subscription_pending') ? (
+                      <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-[#5B4FE9] hover:underline">
+                        Pagar agora <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <Link to="/painel/pedidos" className="text-slate-600 font-semibold hover:underline">
+                        Ver pedido →
+                      </Link>
                     )}
-                    {m.estimatedAt && !m.completedAt && (
-                      <span className="text-[10px] text-gray-400 mt-1 block">
-                        Previsão: {formatDate(m.estimatedAt)}
+                  </div>
+                </div>
+              );
+            })}
+
+            {orders.map((o) => {
+              const st = statusLabels[o.status] || { label: o.status, color: 'text-gray-700', bg: 'bg-gray-100' };
+              return (
+                <div key={o.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-slate-900 truncate">{o.item_name}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color} ${st.bg}`}>
+                        {st.label}
                       </span>
+                    </div>
+                    <p className="text-sm font-black text-slate-900">{formatCurrency(o.amount_cents)}</p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px]">
+                    <span className="text-slate-500">{formatDate(o.created_at)}</span>
+                    {o.checkout_url && o.status === 'payment_pending' ? (
+                      <a href={o.checkout_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-[#5B4FE9] hover:underline">
+                        Pagar agora <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <Link to="/painel/pedidos" className="text-slate-600 font-semibold hover:underline">
+                        Ver pedido →
+                      </Link>
                     )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-
-        {/* Right Side: Quick Actions & Invoices */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-100">
-            <h3 className="font-bold text-gray-900 text-sm mb-4">Ações rápidas</h3>
-            <div className="grid grid-cols-1 gap-2">
-              <Link to="/painel/arquivos">
-                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
-                  <span className="flex items-center gap-2.5">
-                    📁 Enviar arquivos do site
-                  </span>
-                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </Link>
-              <Link to="/painel/alteracoes">
-                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
-                  <span className="flex items-center gap-2.5">
-                    ✏️ Solicitar ajuste de texto/foto
-                  </span>
-                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </Link>
-              <a href="https://wa.me/5514996405496" target="_blank" rel="noopener noreferrer">
-                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-50 transition-all text-xs font-semibold text-gray-700">
-                  <span className="flex items-center gap-2.5">
-                    💬 Falar com suporte técnico
-                  </span>
-                  <ArrowUpRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </a>
-            </div>
-          </div>
-
-          {/* Pending Invoices / Alerts */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-100">
-            <h3 className="font-bold text-gray-900 text-sm mb-4">Financeiro</h3>
-            
-            {pendingPayments.length === 0 ? (
-              <div className="text-center py-4">
-                <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                <p className="text-xs text-gray-500 font-medium">Nenhuma fatura pendente</p>
-                <Link to="/painel/pagamentos" className="text-[10px] text-[#5B4FE9] hover:underline font-semibold mt-1 block">
-                  Ver histórico de pagamentos
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pendingPayments.map((p) => (
-                  <div
-                    key={p.id}
-                    className="p-3 bg-red-50/50 border border-red-100 rounded-xl flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-gray-800 truncate">{p.description}</div>
-                      <div className="text-[10px] text-red-500 font-semibold mt-0.5">
-                        Vence em: {formatDate(p.dueDate)}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs font-bold text-gray-800">
-                        R$ {p.amount.toLocaleString('pt-BR')}
-                      </div>
-                      <Link to="/painel/pagamentos" className="text-[10px] text-[#5B4FE9] hover:underline font-bold mt-1 block">
-                        Pagar fatura
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

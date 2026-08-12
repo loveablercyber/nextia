@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
-  LogOut, Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3
+  Zap, Menu, ChevronRight, Bell, ExternalLink,
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -14,35 +14,91 @@ interface AdminLayoutProps {
   title?: string;
 }
 
-const navItems = [
-  { to: '/admin', icon: LayoutDashboard, label: 'Visão Geral', exact: true },
-  { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
-  { to: '/admin/usuarios/novo', icon: UserCog, label: 'Cadastrar Usuário' },
-  { to: '/admin/servicos-tecnicos', icon: Briefcase, label: 'Serviços Técnicos' },
-  { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
-  { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
-  { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
-  { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
-  { to: '/admin/tecnicos', icon: UserCog, label: 'Técnicos' },
-  { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas' },
-  { to: '/admin/pedidos', icon: Briefcase, label: 'Pedidos e Assinaturas' },
-  { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },
-  { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
-  { to: '/admin/parceiros', icon: Users, label: 'Parceiros', exact: true },
-  { to: '/admin/parceiros/comissoes', icon: DollarSign, label: 'Comissões Parceiros' },
-  { to: '/admin/parceiros/materiais', icon: FolderOpen, label: 'Materiais Parceiros' },
-  { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },
-  { to: '/admin/recursos-tecnicos', icon: FolderOpen, label: 'Recursos Técnicos' },
-  { to: '/admin/indicadores-tecnicos', icon: BarChart3, label: 'Indicadores Técnicos' },
+interface NavGroup {
+  title?: string;
+  items: {
+    to: string;
+    icon: React.ElementType;
+    label: string;
+    exact?: boolean;
+  }[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    items: [
+      { to: '/admin', icon: LayoutDashboard, label: 'Visão Geral', exact: true },
+    ],
+  },
+  {
+    title: 'Comercial',
+    items: [
+      { to: '/admin/pedidos', icon: Briefcase, label: 'Pedidos e Assinaturas' },
+      { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
+      { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },
+      { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
+    ],
+  },
+  {
+    title: 'Projetos & Clientes',
+    items: [
+      { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
+      { to: '/admin/usuarios/novo', icon: UserCog, label: 'Cadastrar Usuário' },
+      { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
+      { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
+    ],
+  },
+  {
+    title: 'Técnico',
+    items: [
+      { to: '/admin/servicos-tecnicos', icon: Briefcase, label: 'Serviços Técnicos' },
+      { to: '/admin/tecnicos', icon: UserCog, label: 'Técnicos' },
+      { to: '/admin/recursos-tecnicos', icon: FolderOpen, label: 'Recursos Técnicos' },
+      { to: '/admin/indicadores-tecnicos', icon: BarChart3, label: 'Indicadores Técnicos' },
+    ],
+  },
+  {
+    title: 'Suporte',
+    items: [
+      { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
+    ],
+  },
+  {
+    title: 'Financeiro',
+    items: [
+      { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas' },
+    ],
+  },
+  {
+    title: 'Parceiros',
+    items: [
+      { to: '/admin/parceiros', icon: Users, label: 'Parceiros', exact: true },
+      { to: '/admin/parceiros/comissoes', icon: DollarSign, label: 'Comissões Parceiros' },
+      { to: '/admin/parceiros/materiais', icon: FolderOpen, label: 'Materiais Parceiros' },
+    ],
+  },
+  {
+    title: 'Sistema',
+    items: [
+      { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const { user, logout } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
+  const { notifications, unreadCount, markAllAsRead, deleteNotification } = useNotification();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Track collapsed state for groups
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupTitle: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupTitle]: !prev[groupTitle] }));
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -51,7 +107,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
   const isActive = (to: string, exact?: boolean) => {
     if (exact) return location.pathname === to;
-    return location.pathname.startsWith(to);
+    return location.pathname === to || (to !== '/admin' && location.pathname.startsWith(to));
   };
 
   const sidebar = (
@@ -80,208 +136,156 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ to, icon: Icon, label, exact }) => (
-          <Link
-            key={to}
-            to={to}
-            onClick={() => setMobileOpen(false)}
-            className={clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
-              isActive(to, exact)
-                ? 'bg-gradient-to-r from-[#7c3aed]/20 to-[#db2777]/20 border-l-4 border-pink-500 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            )}
-          >
-            <Icon className="w-4 h-4 flex-shrink-0" />
-            <span>{label}</span>
-            {isActive(to, exact) && <ChevronRight className="w-3.5 h-3.5 ml-auto text-pink-500" />}
-          </Link>
-        ))}
+      {/* Grouped Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+        {navGroups.map((group, idx) => {
+          const isCollapsed = group.title ? Boolean(collapsedGroups[group.title]) : false;
+          return (
+            <div key={group.title || idx} className="space-y-1">
+              {group.title && (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.title!)}
+                  className="flex items-center justify-between w-full px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  <span>{group.title}</span>
+                  <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform duration-200', isCollapsed && '-rotate-90')} />
+                </button>
+              )}
+              {!isCollapsed && (
+                <div className="space-y-1">
+                  {group.items.map(({ to, icon: Icon, label, exact }) => {
+                    const active = isActive(to, exact);
+                    return (
+                      <Link
+                        key={to}
+                        to={to}
+                        onClick={() => setMobileOpen(false)}
+                        className={clsx(
+                          'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                          active
+                            ? 'bg-gradient-to-r from-[#7c3aed]/20 to-[#db2777]/20 border-l-4 border-pink-500 text-white'
+                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                        )}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        <span>{label}</span>
+                        {active && <ChevronRight className="w-3.5 h-3.5 ml-auto text-pink-500" />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
-      {/* Footer links */}
-      <div className="px-3 py-4 border-t border-gray-800 space-y-1">
-        <Link
-          to="/admin/perfil"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-        >
-          <UserCog className="w-4 h-4" />
-          Meu Perfil
-        </Link>
+      {/* Footer */}
+      <div className="p-3 border-t border-gray-800 space-y-1">
         <Link
           to="/"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
         >
           <ExternalLink className="w-4 h-4" />
-          Voltar ao Site
+          <span>Voltar ao Site</span>
         </Link>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors"
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-xl text-sm text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors"
         >
-          <LogOut className="w-4 h-4" />
-          Sair do Admin
+          <Zap className="w-4 h-4 rotate-180" />
+          <span>Sair</span>
         </button>
       </div>
     </aside>
   );
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] flex">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:w-60 xl:w-64 flex-shrink-0 flex-col">
+    <div className="min-h-screen bg-[#0d1117] flex text-gray-100">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block w-64 flex-shrink-0 border-r border-gray-800">
         {sidebar}
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile Overlay Sidebar */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-          <div className="relative w-64 bg-white h-full flex flex-col shadow-xl z-10">
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="relative w-64 max-w-xs flex-1 z-10">
             {sidebar}
           </div>
         </div>
       )}
 
-      {/* Main content */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="h-14 bg-white border-b border-gray-200 flex items-center gap-4 px-4 sm:px-6 flex-shrink-0">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="lg:hidden w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          <div className="flex-1">
-            {title && (
-              <h1 className="text-base font-bold text-gray-900">{title}</h1>
-            )}
+        {/* Topbar */}
+        <header className="h-16 border-b border-gray-800 bg-[#111827] px-4 lg:px-8 flex items-center justify-between gap-4 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-bold text-white truncate">{title || 'Painel de Administração'}</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
             <div className="relative">
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
-                className={clsx(
-                  "relative w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
-                  notifOpen ? "bg-pink-50 text-pink-600" : "text-gray-400 hover:bg-gray-50 hover:text-gray-600"
-                )}
+                className="p-2 rounded-xl text-gray-400 hover:bg-gray-800 hover:text-white transition-colors relative"
               >
-                <Bell className="w-4 h-4" />
+                <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-pink-500 rounded-full" />
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-pink-500 rounded-full animate-pulse" />
                 )}
               </button>
 
               {notifOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 pb-2 mb-2 border-b border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-gray-900 text-sm">Notificações Admin</span>
-                        {unreadCount > 0 && (
-                          <span className="text-[10px] font-bold text-white bg-pink-500 px-1.5 py-0.5 rounded-full">
-                            {unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={() => markAllAsRead()}
-                          className="text-xs text-pink-600 hover:text-pink-700 font-semibold transition-colors"
-                        >
-                          Ler todas
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="max-h-[320px] overflow-y-auto px-2 space-y-1">
-                      {notifications.length === 0 ? (
-                        <div className="py-8 text-center text-gray-400">
-                          <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300 stroke-[1.5]" />
-                          <p className="text-xs">Nenhuma notificação recebida.</p>
-                        </div>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={clsx(
-                              "p-3 rounded-xl transition-all relative group flex gap-3",
-                              notif.read ? "hover:bg-gray-50" : "bg-pink-50/20 hover:bg-pink-50/40"
-                            )}
-                          >
-                            <div className="mt-0.5 flex-shrink-0">
-                              {notif.type === 'payment' ? (
-                                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
-                              ) : notif.type === 'request' ? (
-                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
-                              ) : notif.type === 'project' ? (
-                                <span className="w-2.5 h-2.5 rounded-full bg-pink-500 inline-block" />
-                              ) : (
-                                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0 pr-6">
-                              <h4 className={clsx("text-xs leading-snug truncate", notif.read ? "font-medium text-gray-700" : "font-bold text-gray-900")}>
-                                {notif.title}
-                              </h4>
-                              <p className="text-[11px] text-gray-500 mt-0.5 leading-normal">
-                                {notif.message}
-                              </p>
-                              <span className="text-[9px] text-gray-400 mt-1 block">
-                                {new Date(notif.createdAt).toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                            </div>
-
-                            <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {!notif.read && (
-                                <button
-                                  onClick={() => markAsRead(notif.id)}
-                                  title="Marcar como lida"
-                                  className="w-5 h-5 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-pink-600 hover:border-pink-100 transition-colors"
-                                >
-                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </button>
-                              )}
-                              <button
-                                onClick={() => deleteNotification(notif.id)}
-                                title="Excluir"
-                                className="w-5 h-5 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 transition-colors"
-                              >
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                <div className="absolute right-0 mt-2 w-80 bg-[#161e2e] border border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                  <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+                    <span className="font-bold text-sm text-white">Notificações</span>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllAsRead} className="text-xs text-pink-400 hover:underline">
+                        Marcar todas como lidas
+                      </button>
+                    )}
                   </div>
-                </>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-800">
+                    {notifications.length === 0 ? (
+                      <p className="p-4 text-xs text-gray-400 text-center">Nenhuma notificação</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <div key={n.id} className={clsx('p-3 text-xs flex justify-between gap-2', !n.read && 'bg-purple-950/20')}>
+                          <div>
+                            <div className="font-bold text-gray-200">{n.title}</div>
+                            <div className="text-gray-400 mt-0.5">{n.message}</div>
+                          </div>
+                          <button onClick={() => deleteNotification(n.id)} className="text-gray-500 hover:text-gray-300">
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               )}
+            </div>
+
+            {/* Admin Tag */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-800 border border-gray-700 text-xs font-bold text-gray-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              Modo Administrador
             </div>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* Content */}
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>
