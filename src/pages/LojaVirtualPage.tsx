@@ -41,6 +41,17 @@ export default function LojaVirtualPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('pro');
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
+
+  const handleSelectPlan = (planId: string) => {
+    setSelectedPlanId(planId);
+    if (planId === 'start') {
+      setRecProducts('small');
+    } else if (planId === 'pro') {
+      setRecProducts('medium');
+    } else if (planId === 'business' || planId === 'service-only') {
+      setRecProducts('large');
+    }
+  };
   const [creatingDraft, setCreatingDraft] = useState(false);
 
   // Recommendation Wizard state
@@ -465,7 +476,7 @@ export default function LojaVirtualPage() {
                 </ul>
               </div>
               <button
-                onClick={() => setSelectedPlanId('service-only')}
+                onClick={() => handleSelectPlan('service-only')}
                 className={`mt-8 w-full rounded-xl py-3 text-sm font-bold transition ${
                   selectedPlanId === 'service-only' ? 'bg-green-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
@@ -507,7 +518,7 @@ export default function LojaVirtualPage() {
                     </ul>
                   </div>
                   <button
-                    onClick={() => setSelectedPlanId(plan.id)}
+                    onClick={() => handleSelectPlan(plan.id)}
                     className={`mt-8 w-full rounded-xl py-3 text-sm font-bold transition ${
                       isSelected ? 'bg-green-600 text-white' : 'bg-[#1677FF] hover:bg-[#0F63D8] text-white'
                     }`}
@@ -571,13 +582,16 @@ export default function LojaVirtualPage() {
                 <label className="block text-sm font-bold text-slate-800 mb-2">Quantos produtos você planeja cadastrar inicialmente?</label>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { id: 'small', label: 'Até 50 produtos' },
-                    { id: 'medium', label: '50 a 500 produtos' },
-                    { id: 'large', label: 'Mais de 500 produtos' },
+                    { id: 'small', label: 'Até 50 produtos', plan: 'start' },
+                    { id: 'medium', label: '50 a 500 produtos', plan: 'pro' },
+                    { id: 'large', label: 'Mais de 500 produtos', plan: 'business' },
                   ].map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => setRecProducts(item.id)}
+                      onClick={() => {
+                        setRecProducts(item.id);
+                        setSelectedPlanId(item.plan);
+                      }}
                       className={`rounded-xl border p-3 text-xs font-bold transition ${
                         recProducts === item.id ? 'border-[#1677FF] bg-blue-50 text-[#1677FF]' : 'border-slate-200 text-slate-700'
                       }`}
@@ -620,7 +634,7 @@ export default function LojaVirtualPage() {
                 </p>
                 <button
                   onClick={() => {
-                    setSelectedPlanId(recommendedPlan);
+                    handleSelectPlan(recommendedPlan);
                     const el = document.getElementById('resumo-final');
                     el?.scrollIntoView({ behavior: 'smooth' });
                   }}
