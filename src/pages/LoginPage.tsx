@@ -18,7 +18,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/painel';
+  const redirectFrom = (location.state as any)?.from;
+  const from = typeof redirectFrom === 'object' ? `${redirectFrom.pathname || ''}${redirectFrom.search || ''}${redirectFrom.hash || ''}` : String(redirectFrom || '/painel');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +31,11 @@ export default function LoginPage() {
       setError(res.error);
     } else {
       let targetPath = from;
-      if (from === '/painel' && res.user?.role === 'admin') {
+      if ((from === '/painel' || from === '') && res.user?.role === 'admin') {
         targetPath = '/admin';
-      } else if (from === '/painel' && res.user?.role === 'partner') {
+      } else if ((from === '/painel' || from === '') && res.user?.role === 'partner') {
         targetPath = '/parceiro';
-      } else if (from === '/painel' && res.user?.role === 'technician') {
+      } else if ((from === '/painel' || from === '') && res.user?.role === 'technician') {
         targetPath = '/tecnico';
       }
       navigate(targetPath, { replace: true });

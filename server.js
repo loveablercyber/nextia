@@ -547,6 +547,107 @@ async function handleCatalogApi(req, res, url) {
       return json(res, 200, { services: result.rows });
     }
 
+    if ((url.pathname === '/api/catalog/store-templates' || url.pathname === '/api/admin/catalog/store-templates') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT id, slug, name, category, description, cover_image, preview_url, features, featured, active, sort_order, created_at, updated_at
+         FROM public.commercial_store_templates
+         ${isAdminRoute ? '' : 'WHERE active = TRUE'}
+         ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { templates: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/catalog/store-templates' && req.method === 'POST') {
+      const body = await readJson(req);
+      const id = String(body.id || `tpl-${randomUUID().slice(0, 8)}`);
+      const slug = String(body.slug || body.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const name = String(body.name || '').trim();
+      const category = String(body.category || 'Geral').trim();
+      const description = String(body.description || '').trim();
+      const coverImage = String(body.coverImage || '').trim();
+      const previewUrl = String(body.previewUrl || '').trim();
+      const features = Array.isArray(body.features) ? body.features : [];
+      const featured = body.featured === true;
+      const active = body.active !== false;
+      const sortOrder = Number(body.sortOrder || 0);
+
+      if (!slug || !name || !description) {
+        return json(res, 400, { error: 'Nome, slug e descrição são obrigatórios.' });
+      }
+
+      const result = await client.query(
+        `INSERT INTO public.commercial_store_templates
+           (id, slug, name, category, description, cover_image, preview_url, features, featured, active, sort_order, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           slug = EXCLUDED.slug, name = EXCLUDED.name, category = EXCLUDED.category,
+           description = EXCLUDED.description, cover_image = EXCLUDED.cover_image,
+           preview_url = EXCLUDED.preview_url, features = EXCLUDED.features,
+           featured = EXCLUDED.featured, active = EXCLUDED.active, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+         RETURNING *`,
+        [id, slug, name, category, description, coverImage, previewUrl, JSON.stringify(features), featured, active, sortOrder],
+      );
+      return json(res, 200, { template: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/commerce/store-drafts' && req.method === 'POST') {
+      const body = await readJson(req);
+      const modelId = String(body.modelId || '').trim();
+      const planId = body.planId ? String(body.planId).toLowerCase() : null;
+      const optionalItems = Array.isArray(body.optionalItems) ? body.optionalItems : [];
+
+      const tplRes = await client.query('SELECT * FROM public.commercial_store_templates WHERE (id = $1 OR slug = $1) AND active = TRUE', [modelId]);
+      const template = tplRes.rows[0];
+      if (!template) return json(res, 400, { error: 'Modelo de loja inválido ou inativo.' });
+
+      const serviceRes = await client.query("SELECT price_cents FROM public.commercial_services WHERE slug = 'lojas-virtuais' AND active = TRUE");
+      const servicePriceCents = serviceRes.rows[0]?.price_cents || 149000;
+
+      let planMonthlyCents = 0;
+      let planActivationCents = servicePriceCents;
+
+      if (planId) {
+        const planRes = await client.query('SELECT monthly_amount_cents, activation_amount_cents FROM public.commercial_plans WHERE id = $1 AND active = TRUE', [planId]);
+        if (planRes.rows[0]) {
+          planMonthlyCents = planRes.rows[0].monthly_amount_cents;
+          planActivationCents = planRes.rows[0].activation_amount_cents;
+        }
+      }
+
+      const draftId = randomUUID();
+      const result = await client.query(
+        `INSERT INTO public.commercial_store_drafts
+           (id, user_id, service_slug, model_id, offer_id, plan_id, store_info, needs, optional_items, snapshot_monthly_cents, snapshot_activation_cents)
+         VALUES ($1, $2, 'lojas-virtuais', $3, 'lojas-virtuais', $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          draftId,
+          sessionProfile?.id || null,
+          template.id,
+          planId,
+          JSON.stringify(body.store || {}),
+          JSON.stringify(body.needs || {}),
+          JSON.stringify(optionalItems),
+          planMonthlyCents,
+          planActivationCents,
+        ],
+      );
+      return json(res, 201, { draftId, draft: result.rows[0], template });
+    }
+
+    if (url.pathname.startsWith('/api/commerce/store-drafts/') && req.method === 'GET') {
+      const draftId = url.pathname.replace('/api/commerce/store-drafts/', '').trim();
+      const result = await client.query(
+        `SELECT d.*, t.name as model_name, t.cover_image as model_cover, t.preview_url as model_preview
+         FROM public.commercial_store_drafts d
+         LEFT JOIN public.commercial_store_templates t ON t.id = d.model_id
+         WHERE d.id = $1`,
+        [draftId],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Rascunho de contratação não encontrado.' });
+      return json(res, 200, { draft: result.rows[0] });
+    }
+
     if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
       const result = await client.query(
         `SELECT id, name, monthly_amount_cents, activation_amount_cents, active, sort_order, updated_at
@@ -608,14 +709,42 @@ async function handleCatalogApi(req, res, url) {
     if (url.pathname === '/api/commerce/orders' && req.method === 'POST') {
       if (!sessionProfile) return json(res, 401, { error: 'Faça login para contratar.' });
       const body = await readJson(req);
+      const draftId = body.draftId ? String(body.draftId).trim() : null;
+
+      let serviceSlug = String(body.serviceSlug || '').trim();
+      let draftData = null;
+
+      if (draftId) {
+        const dRes = await client.query(
+          `SELECT d.*, t.name as model_name, t.cover_image as model_cover
+           FROM public.commercial_store_drafts d
+           LEFT JOIN public.commercial_store_templates t ON t.id = d.model_id
+           WHERE d.id = $1`,
+          [draftId],
+        );
+        draftData = dRes.rows[0];
+        if (draftData) {
+          serviceSlug = draftData.service_slug;
+          // Claim draft if unassigned
+          if (!draftData.user_id) {
+            await client.query('UPDATE public.commercial_store_drafts SET user_id = $1 WHERE id = $2', [sessionProfile.id, draftId]);
+          }
+        }
+      }
+
       const serviceResult = await client.query(
         `SELECT slug, name, price_cents, recurring FROM public.commercial_services
          WHERE slug = $1 AND active = TRUE`,
-        [String(body.serviceSlug || '').trim()],
+        [serviceSlug],
       );
       const service = serviceResult.rows[0];
       if (!service) return json(res, 404, { error: 'Serviço não encontrado ou indisponível.' });
-      if (!Number.isInteger(service.price_cents) || service.price_cents <= 0) {
+
+      const finalPriceCents = draftData && draftData.snapshot_activation_cents > 0
+        ? draftData.snapshot_activation_cents
+        : service.price_cents;
+
+      if (!Number.isInteger(finalPriceCents) || finalPriceCents <= 0) {
         return json(res, 409, { error: 'Este serviço precisa de orçamento antes da contratação.' });
       }
       const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
@@ -625,11 +754,32 @@ async function handleCatalogApi(req, res, url) {
       const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
       const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
       const externalReference = `order:${orderId}`;
+
+      const storeSnapshot = draftData ? {
+        draftId: draftData.id,
+        modelId: draftData.model_id,
+        modelName: draftData.model_name,
+        planId: draftData.plan_id,
+        storeInfo: draftData.store_info,
+        needs: draftData.needs,
+        optionalItems: draftData.optional_items,
+      } : null;
+
       await client.query(
         `INSERT INTO public.commercial_orders
-          (id, user_id, item_id, item_name, amount_cents, recurring, customer_notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [orderId, sessionProfile.id, service.slug, service.name, service.price_cents, service.recurring, String(body.notes || '').trim().slice(0, 2000) || null],
+          (id, user_id, item_id, item_name, amount_cents, recurring, customer_notes, draft_id, store_snapshot)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          orderId,
+          sessionProfile.id,
+          service.slug,
+          draftData ? `Loja Virtual - ${draftData.model_name || service.name}` : service.name,
+          finalPriceCents,
+          service.recurring,
+          String(body.notes || '').trim().slice(0, 2000) || null,
+          draftId,
+          storeSnapshot ? JSON.stringify(storeSnapshot) : null,
+        ],
       );
 
       const recurringPayload = {
@@ -638,10 +788,10 @@ async function handleCatalogApi(req, res, url) {
         payer_email: sessionProfile.email,
         back_url: `${baseUrl}/checkout?status=return&order=${orderId}`,
         notification_url: `${baseUrl}/api/commerce/webhook`,
-        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: service.price_cents / 100, currency_id: 'BRL' },
+        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: finalPriceCents / 100, currency_id: 'BRL' },
       };
       const oneTimePayload = {
-        items: [{ id: service.slug, title: `Nextia - ${service.name}`, quantity: 1, unit_price: service.price_cents / 100, currency_id: 'BRL' }],
+        items: [{ id: service.slug, title: `Nextia - ${service.name}`, quantity: 1, unit_price: finalPriceCents / 100, currency_id: 'BRL' }],
         payer: { name: sessionProfile.name, email: sessionProfile.email },
         external_reference: externalReference,
         back_urls: { success: `${baseUrl}/checkout?status=success&order=${orderId}`, failure: `${baseUrl}/checkout?status=failure&order=${orderId}`, pending: `${baseUrl}/checkout?status=pending&order=${orderId}` },
@@ -879,12 +1029,66 @@ async function handleCatalogApi(req, res, url) {
         if (providerData.currency_id !== 'BRL' || amountCents !== order.amount_cents) throw new Error('Valor ou moeda divergente no pedido comercial.');
       }
       const approved = eventType === 'payment' ? providerData.status === 'approved' : providerData.status === 'authorized';
-      await client.query(
-        `UPDATE public.commercial_orders SET status = $2, provider_payment_id = $3,
-           paid_at = CASE WHEN $2 IN ('paid','active') THEN COALESCE(paid_at, NOW()) ELSE paid_at END, updated_at = NOW()
-         WHERE id = $1`,
-        [orderId, approved ? (order.recurring ? 'active' : 'paid') : 'payment_pending', resourceId],
-      );
+
+      await client.query('BEGIN');
+      try {
+        await client.query(
+          `UPDATE public.commercial_orders SET status = $2, provider_payment_id = $3,
+             paid_at = CASE WHEN $2 IN ('paid','active') THEN COALESCE(paid_at, NOW()) ELSE paid_at END, updated_at = NOW()
+           WHERE id = $1`,
+          [orderId, approved ? (order.recurring ? 'active' : 'paid') : 'payment_pending', resourceId],
+        );
+
+        if (approved) {
+          const snapshot = order.store_snapshot || {};
+          const planName = snapshot.planId ? `Plano ${snapshot.planId.toUpperCase()}` : 'Loja Virtual';
+          const projectResult = await client.query(
+            `INSERT INTO public.projects
+               (user_id, name, segment, status, plan, monthly_fee, activation_fee,
+                estimated_delivery, requests_remaining, requests_total, source_order_id, store_model_id, store_details)
+             VALUES ($1, $2, 'E-commerce', 'aguardando-briefing', $3, $4, $5, NOW() + INTERVAL '10 days', 2, 2, $6, $7, $8)
+             ON CONFLICT (source_order_id) WHERE source_order_id IS NOT NULL DO NOTHING
+             RETURNING id`,
+            [
+              order.user_id,
+              `Loja Virtual - ${snapshot.modelName || order.item_name}`,
+              planName,
+              0,
+              order.amount_cents / 100,
+              order.id,
+              snapshot.modelId || null,
+              JSON.stringify(snapshot),
+            ],
+          );
+
+          if (projectResult.rows[0]) {
+            const projectId = projectResult.rows[0].id;
+            const milestones = [
+              ['Briefing e Produtos', 'Envio de logotipo, identidade visual e primeiros produtos.', 0, 2],
+              ['Configuração do Modelo', 'Aplicação do modelo visual selecionado e catálogo inicial.', 1, 4],
+              ['Meios de Pagamento e Frete', 'Integração de checkout Cartão/Pix e cotação de entregas.', 2, 7],
+              ['Revisão e Testes de Compra', 'Validação de fluxo de pedidos e cadastro de domínio.', 3, 9],
+              ['Publicação da Loja', 'Loja virtual ativa no domínio oficial.', 4, 10],
+            ];
+            for (const [title, description, position, days] of milestones) {
+              await client.query(
+                `INSERT INTO public.milestones(project_id, title, description, position, estimated_at)
+                 VALUES ($1, $2, $3, $4, NOW() + ($5 || ' days')::interval)`,
+                [projectId, title, description, position, days],
+              );
+            }
+            await client.query(
+              `INSERT INTO public.notifications(user_id, title, message, type)
+               VALUES ($1, 'Loja Virtual Contratada!', $2, 'project')`,
+              [order.user_id, `O pedido da sua Loja Virtual foi confirmado. Acesse Meus Projetos para iniciar o onboarding.`],
+            );
+          }
+        }
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      }
       return json(res, 200, { status: approved ? 'confirmed' : 'pending' });
     }
     return json(res, 405, { error: 'Método não permitido.' });

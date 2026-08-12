@@ -93,5 +93,55 @@ CREATE TABLE IF NOT EXISTS public.commercial_plan_contracts (
   activated_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS commercial_plan_contracts_user_created_idx
-  ON public.commercial_plan_contracts (user_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS public.commercial_store_templates (
+  id TEXT PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  cover_image TEXT NOT NULL DEFAULT '',
+  preview_url TEXT NOT NULL DEFAULT '',
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  featured BOOLEAN NOT NULL DEFAULT FALSE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO public.commercial_store_templates (id, slug, name, category, description, cover_image, preview_url, features, featured, active, sort_order)
+VALUES (
+  'tpl-loja-catalogo',
+  'loja-catalogo',
+  'Loja & Catálogo Digital',
+  'Loja e Catálogo',
+  'Template oficial Nextia para lojas virtuais com catálogo completo, variações de produto, checkout integrado e gestão de pedidos.',
+  'https://images.unsplash.com/photo-1472851294608-062f824d29cc?q=80&w=800&auto=format&fit=crop',
+  '/demo/loja-catalogo',
+  '["Catálogo de produtos completo","Checkout transparente Cartão & Pix","Cálculo de frete automatizado","Painel administrativo de pedidos","Design 100% responsivo mobile-first"]'::jsonb,
+  TRUE,
+  TRUE,
+  10
+) ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.commercial_store_drafts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  service_slug TEXT NOT NULL DEFAULT 'lojas-virtuais',
+  model_id TEXT REFERENCES public.commercial_store_templates(id) ON DELETE RESTRICT,
+  offer_id TEXT NOT NULL DEFAULT 'lojas-virtuais',
+  plan_id TEXT CHECK (plan_id IN ('start', 'pro', 'business')),
+  store_info JSONB NOT NULL DEFAULT '{}'::jsonb,
+  needs JSONB NOT NULL DEFAULT '{}'::jsonb,
+  optional_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  snapshot_monthly_cents INTEGER NOT NULL DEFAULT 0,
+  snapshot_activation_cents INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.commercial_orders ADD COLUMN IF NOT EXISTS draft_id UUID REFERENCES public.commercial_store_drafts(id) ON DELETE SET NULL;
+ALTER TABLE public.commercial_orders ADD COLUMN IF NOT EXISTS store_snapshot JSONB;
+
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS store_model_id TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS store_details JSONB;

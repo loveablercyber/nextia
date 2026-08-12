@@ -15,6 +15,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import QuotePage from './pages/QuotePage';
 import CheckoutPage from './pages/CheckoutPage';
 import TemplateDemoPage from './pages/TemplateDemoPage';
+import LojaVirtualPage from './pages/LojaVirtualPage';
 
 import AutomacaoIAPage from './pages/AutomacaoIAPage';
 import TechCarePage from './pages/TechCarePage';
@@ -169,7 +170,7 @@ function AppRoutes() {
       <Route path="/sites-prontos" element={<TemplatesPage />} />
       <Route path="/sites" element={<ServicePage />} />
       <Route path="/landing-pages" element={<ServicePage />} />
-      <Route path="/lojas-virtuais" element={<ServicePage />} />
+      <Route path="/lojas-virtuais" element={<LojaVirtualPage />} />
       <Route path="/sistemas" element={<ServicePage />} />
       <Route path="/automacao-ia" element={<AutomacaoIAPage />} />
       <Route path="/chatbot" element={<ServicePage />} />
