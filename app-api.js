@@ -140,13 +140,53 @@ export async function ensureAppSchema(client) {
 }
 
 async function loadProjects(client, userId = null) {
-  const result = await client.query(
+  let result = await client.query(
     `SELECT * FROM public.projects
      WHERE ($1::uuid IS NULL OR user_id = $1)
      ORDER BY created_at DESC`,
     [userId],
   );
-  const projects = result.rows;
+  let projects = result.rows;
+
+  if (projects.length === 0 && userId) {
+    const [orderRes, contractRes, draftRes] = await Promise.all([
+      client.query(`SELECT * FROM public.commercial_orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
+      client.query(`SELECT * FROM public.commercial_plan_contracts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
+      client.query(`SELECT * FROM public.commercial_store_drafts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
+    ]);
+
+    const latestOrder = orderRes.rows[0];
+    const latestContract = contractRes.rows[0];
+    const latestDraft = draftRes.rows[0];
+
+    const name = latestOrder?.item_name || (latestContract ? `Plano ${latestContract.plan_name}` : (latestDraft ? `Loja Virtual` : 'Meu Projeto Digital'));
+    const domain = latestOrder?.store_snapshot?.domain || latestContract?.domain || '';
+    const plan = latestContract?.plan_name || latestDraft?.plan_id || 'Pro';
+    const activationFee = latestOrder ? (latestOrder.amount_cents / 100) : (latestContract ? (latestContract.activation_amount_cents / 100) : 0);
+    const monthlyFee = latestContract ? (latestContract.monthly_amount_cents / 100) : 0;
+
+    const inserted = await client.query(
+      `INSERT INTO public.projects (user_id, name, template, segment, status, plan, domain, monthly_fee, activation_fee, requests_remaining, requests_total)
+       VALUES ($1, $2, $3, $4, 'aguardando-briefing', $5, $6, $7, $8, 5, 5)
+       RETURNING *`,
+      [userId, name, 'Personalizado', 'Geral', plan, domain, monthlyFee, activationFee],
+    );
+    const pId = inserted.rows[0].id;
+
+    await client.query(
+      `INSERT INTO public.milestones (project_id, title, description, status, completed_at, position)
+       VALUES
+         ($1, 'Contratação realizada', 'Pedido registrado na plataforma', 'concluido', NOW(), 1),
+         ($1, 'Preenchimento do Briefing', 'Envio de informações e logotipo', 'em-andamento', NULL, 2),
+         ($1, 'Desenvolvimento e Layout', 'Criação das páginas e estrutura', 'pendente', NULL, 3),
+         ($1, 'Revisão e Publicação', 'Ajustes finais e conexão de domínio', 'pendente', NULL, 4)`,
+      [pId],
+    );
+
+    const reResult = await client.query(`SELECT * FROM public.projects WHERE id = $1`, [pId]);
+    projects = reResult.rows;
+  }
+
   if (projects.length === 0) return [];
   const ids = projects.map((project) => project.id);
   const [milestones, files, requests, payments] = await Promise.all([
@@ -417,24 +457,37 @@ export async function handleAppApi(req, res, url, dependencies) {
       const submittedAt = new Date().toISOString();
       await client.query('BEGIN');
       try {
-        const result = await client.query(
+        let pId = body.projectId;
+        let result = await client.query(
           `UPDATE public.projects
            SET briefing = $1::jsonb, status = 'em-desenvolvimento', progress_percent = GREATEST(progress_percent, 35), updated_at = NOW()
            WHERE id = $2 AND user_id = $3 RETURNING id`,
-          [JSON.stringify({ ...body.briefing, submitted: true, submittedAt }), body.projectId, session.id],
+          [JSON.stringify({ ...body.briefing, submitted: true, submittedAt }), pId, session.id],
         );
+        if (!result.rows[0]) {
+          const userProjects = await loadProjects(client, session.id);
+          if (userProjects.length > 0) {
+            pId = userProjects[0].id;
+            result = await client.query(
+              `UPDATE public.projects
+               SET briefing = $1::jsonb, status = 'em-desenvolvimento', progress_percent = GREATEST(progress_percent, 35), updated_at = NOW()
+               WHERE id = $2 AND user_id = $3 RETURNING id`,
+              [JSON.stringify({ ...body.briefing, submitted: true, submittedAt }), pId, session.id],
+            );
+          }
+        }
         if (!result.rows[0]) {
           await client.query('ROLLBACK');
           return json(res, 404, { error: 'Projeto não encontrado.' });
         }
         await client.query(
-          `UPDATE public.milestones SET status = CASE WHEN position = 0 THEN 'concluido' WHEN position = 1 THEN 'em-andamento' ELSE status END,
-             completed_at = CASE WHEN position = 0 THEN NOW() ELSE completed_at END WHERE project_id = $1`,
-          [body.projectId],
+          `UPDATE public.milestones SET status = CASE WHEN position <= 2 THEN 'concluido' WHEN position = 3 THEN 'em-andamento' ELSE status END,
+             completed_at = CASE WHEN position <= 2 THEN NOW() ELSE completed_at END WHERE project_id = $1`,
+          [pId],
         );
         await client.query('COMMIT');
         const projects = await loadProjects(client, session.id);
-        return json(res, 200, { project: projects.find((project) => project.id === body.projectId) || null });
+        return json(res, 200, { project: projects.find((project) => project.id === pId) || projects[0] || null });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;

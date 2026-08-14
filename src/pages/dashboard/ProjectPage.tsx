@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import {
   ExternalLink, Shield, Globe, Cpu, CreditCard
 } from 'lucide-react';
@@ -15,7 +16,20 @@ export default function ProjectPage() {
     );
   }
 
-  if (!project) return null;
+  if (!project) {
+    return (
+      <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center space-y-4 max-w-xl mx-auto my-12 shadow-sm">
+        <Globe className="w-12 h-12 text-[#5B4FE9] mx-auto opacity-80" />
+        <h2 className="text-xl font-bold text-gray-900">Seu projeto está pronto para iniciar</h2>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          Para que nossa equipe comece a configuração da sua loja ou site profissional, envie as informações básicas do seu negócio no briefing.
+        </p>
+        <Link to="/painel/briefing" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#5B4FE9] px-6 text-sm font-bold text-white shadow-md hover:bg-[#4F46E5]">
+          Preencher briefing do projeto →
+        </Link>
+      </div>
+    );
+  }
 
   const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleDateString('pt-BR', {

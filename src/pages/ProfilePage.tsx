@@ -19,6 +19,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useProject } from '../context/ProjectContext';
 import Button from '../components/ui/Button';
 
 interface ProfileFormData {
@@ -200,14 +201,12 @@ export default function ProfilePage() {
     navigate(isAdmin ? '/admin' : '/painel');
   };
 
-  const formatDate = (dateString?: string) => {
+  const formatDateTime = (dateString?: string) => {
     if (!dateString) return '—';
     try {
-      return new Date(dateString).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      });
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     } catch {
       return dateString;
     }
@@ -226,12 +225,14 @@ export default function ProfilePage() {
     { label: 'Central de Suporte', icon: HelpCircle, href: '/admin/suporte', color: 'from-[#db2777] to-[#ec4899]' },
   ];
 
-  // Dados ilustrativos para Cliente
-  const lastAppointments = [
-    { id: 1, service: 'Criação de Landing Page', date: '2026-01-10', status: 'Concluído' },
-    { id: 2, service: 'Revisão de Design', date: '2026-01-05', status: 'Concluído' },
-    { id: 3, service: 'Suporte Técnico', date: '2025-12-20', status: 'Concluído' },
-  ];
+  const { project } = useProject();
+
+  const userRequests = (project?.changeRequests || []).slice(0, 4).map((r) => ({
+    id: r.id,
+    service: r.title,
+    date: r.createdAt,
+    status: r.status === 'concluido' ? 'Concluído' : r.status === 'em-andamento' ? 'Em andamento' : 'Pendente',
+  }));
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -304,12 +305,12 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3 text-xs">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600">Cadastro:</span>
-                  <span className="font-semibold text-gray-900">{formatDate(user?.createdAt)}</span>
+                  <span className="font-semibold text-gray-900">{formatDateTime(user?.createdAt)}</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <Clock className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600">Último acesso:</span>
-                  <span className="font-semibold text-gray-900">{formatDate(user?.lastLogin)}</span>
+                  <span className="font-semibold text-gray-900">{formatDateTime(user?.lastLogin)}</span>
                 </div>
               </div>
 
@@ -427,22 +428,36 @@ export default function ProfilePage() {
                 Histórico de Atividade
               </h3>
               <div className="text-center py-4 bg-gradient-to-r from-[#5B4FE9]/5 to-[#7c3aed]/5 rounded-2xl border border-[#5B4FE9]/10 mb-4">
-                <p className="text-3xl font-black text-[#5B4FE9]">{lastAppointments.length}</p>
-                <p className="text-xs text-gray-600 mt-1">Serviços / Agendamentos</p>
+                <p className="text-3xl font-black text-[#5B4FE9]">{userRequests.length}</p>
+                <p className="text-xs text-gray-600 mt-1">Solicitações Registradas</p>
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Últimas solicitações</p>
-                {lastAppointments.map((apt) => (
-                  <div key={apt.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-xs font-semibold text-gray-900 truncate">{apt.service}</p>
-                      <span className="text-[10px] text-gray-500">{formatDate(apt.date)}</span>
-                    </div>
-                    <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full flex-shrink-0">
-                      {apt.status}
-                    </span>
+                {userRequests.length === 0 ? (
+                  <div className="p-4 bg-gray-50 rounded-xl text-center text-xs text-gray-400">
+                    Nenhuma solicitação enviada até o momento.
                   </div>
-                ))}
+                ) : (
+                  userRequests.map((apt) => (
+                    <div key={apt.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-semibold text-gray-900 truncate">{apt.service}</p>
+                        <span className="text-[10px] text-gray-500">{formatDateTime(apt.date)}</span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                          apt.status === 'Concluído'
+                            ? 'text-green-700 bg-green-100'
+                            : apt.status === 'Em andamento'
+                              ? 'text-amber-800 bg-amber-100'
+                              : 'text-gray-700 bg-gray-200'
+                        }`}
+                      >
+                        {apt.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

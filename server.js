@@ -399,6 +399,7 @@ function mapProfile(row) {
     avatarInitials: row.avatar_initials || 'NX',
     role: row.role === 'admin' ? 'admin' : (row.role === 'technician' ? 'technician' : (row.is_partner ? 'partner' : 'client')),
     createdAt: row.created_at || new Date().toISOString(),
+    lastLogin: row.last_login_at || row.created_at || new Date().toISOString(),
   };
 }
 
@@ -447,8 +448,10 @@ async function getUserById(userId) {
   const client = dbClient();
   await client.connect();
   try {
+    await client.query(`ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ DEFAULT NOW()`).catch(() => {});
+    await client.query(`UPDATE public.profiles SET last_login_at = NOW() WHERE id = $1 AND (last_login_at IS NULL OR last_login_at < NOW() - INTERVAL '2 minutes')`, [userId]).catch(() => {});
     const result = await client.query(
-      `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at,
+      `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, p.last_login_at,
               EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
        FROM public.profiles p
        WHERE p.id = $1`,

@@ -193,7 +193,7 @@ export default function CheckoutPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar a contratação.');
-      window.location.assign(data.checkoutUrl);
+      navigate('/painel/pedidos?success=1', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao iniciar contratação.');
       setLoading(false);

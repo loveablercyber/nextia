@@ -22,7 +22,9 @@ export default function PaymentsPage() {
     return null;
   });
 
-  if (!project) return null;
+  const monthlyFee = project?.monthlyFee ?? 0;
+  const planName = project?.plan || 'Pro';
+  const paymentsList = project?.payments || [];
 
   const handlePay = async (id: string) => {
     setPayingId(id);
@@ -99,7 +101,7 @@ export default function PaymentsPage() {
           <div>
             <span className="text-gray-400 text-xs block mb-0.5">Mensalidade</span>
             <span className="text-lg font-black text-gray-950">
-              R$ {project.monthlyFee.toLocaleString('pt-BR')} /mês
+              R$ {monthlyFee.toLocaleString('pt-BR')} /mês
             </span>
           </div>
         </div>
@@ -120,7 +122,7 @@ export default function PaymentsPage() {
           </div>
           <div>
             <span className="text-gray-400 text-xs block mb-0.5">Plano atual</span>
-            <span className="text-sm font-bold text-gray-800">Nextia {project.plan}</span>
+            <span className="text-sm font-bold text-gray-800">Nextia {planName}</span>
           </div>
         </div>
       </div>
@@ -141,7 +143,7 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50/50">
-              {project.payments.map((p) => (
+              {paymentsList.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50/20 transition-all">
                   <td className="py-4 font-bold text-gray-900">{p.description}</td>
                   <td className="py-4">{formatDate(p.dueDate)}</td>

@@ -11,7 +11,7 @@ export default function FilesPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [simulatedFileName, setSimulatedFileName] = useState('');
 
-  if (!project) return null;
+  const filesList = project?.files || [];
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -145,14 +145,14 @@ export default function FilesPage() {
       <div className="bg-white rounded-3xl p-6 border border-gray-100">
         <h3 className="font-bold text-gray-950 text-sm mb-4">Arquivos enviados</h3>
 
-        {project.files.length === 0 ? (
+        {filesList.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <Folder className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Nenhum arquivo enviado ainda.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {project.files.map((file) => (
+            {filesList.map((file) => (
               <div key={file.id} className="flex items-center justify-between py-3.5 gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">

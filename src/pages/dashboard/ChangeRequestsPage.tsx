@@ -18,7 +18,9 @@ export default function ChangeRequestsPage() {
     priority: 'normal' as 'baixa' | 'normal' | 'alta',
   });
 
-  if (!project) return null;
+  const changeRequestsList = project?.changeRequests || [];
+  const requestsRemaining = project?.requestsRemaining ?? 5;
+  const requestsTotal = project?.requestsTotal ?? 5;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +57,7 @@ export default function ChangeRequestsPage() {
             <Button
               variant="gradient"
               size="sm"
-              disabled={project.requestsRemaining === 0}
+              disabled={requestsRemaining === 0}
               onClick={() => setModalOpen(true)}
             >
               <Plus className="w-4 h-4" />
@@ -69,11 +71,11 @@ export default function ChangeRequestsPage() {
             <span className="text-xs text-gray-400 font-medium block">Alterações disponíveis</span>
           </div>
           <div className="my-2">
-            <span className="text-4xl font-black text-gray-900">{project.requestsRemaining}</span>
-            <span className="text-gray-300 font-bold text-sm ml-0.5">/ {project.requestsTotal}</span>
+            <span className="text-4xl font-black text-gray-900">{requestsRemaining}</span>
+            <span className="text-gray-300 font-bold text-sm ml-0.5">/ {requestsTotal}</span>
           </div>
           <span className="text-[10px] text-gray-400 leading-relaxed">
-            {project.requestsRemaining === 0 ? '⚠️ Cota esgotada para este mês' : 'Renovação mensal automática'}
+            {requestsRemaining === 0 ? '⚠️ Cota esgotada para este mês' : 'Renovação mensal automática'}
           </span>
         </div>
       </div>
@@ -82,14 +84,14 @@ export default function ChangeRequestsPage() {
       <div className="bg-white rounded-3xl p-6 border border-gray-100">
         <h3 className="font-bold text-gray-900 text-sm mb-4">Histórico de solicitações</h3>
 
-        {project.changeRequests.length === 0 ? (
+        {changeRequestsList.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Você ainda não enviou solicitações.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {project.changeRequests.map((r) => {
+            {changeRequestsList.map((r) => {
               const statusInfo = requestStatusConfig[r.status];
               return (
                 <div
