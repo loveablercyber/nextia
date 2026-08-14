@@ -357,11 +357,44 @@ export async function handleAppApi(req, res, url, dependencies) {
 
     if (url.pathname === '/api/app/project/file' && req.method === 'POST') {
       const body = await readJson(req);
+      const name = String(body.name || '').trim();
+      const type = String(body.type || 'other');
+      const dataUrl = body.dataUrl || body.url || null;
+      const sizeBytes = Number(body.sizeBytes || 0);
+
+      // Max size limit: 20MB
+      if (sizeBytes > 20 * 1024 * 1024) {
+        return json(res, 400, { error: 'Arquivo excede o limite máximo permitido de 20MB.' });
+      }
+
+      let fileUrl = dataUrl;
+
+      // Cloudinary upload if configured
+      if (dataUrl && (process.env.CLOUDINARY_URL || process.env.CLOUDINARY_CLOUD_NAME)) {
+        try {
+          const cloudinary = (await import('cloudinary')).v2;
+          if (process.env.CLOUDINARY_CLOUD_NAME) {
+            cloudinary.config({
+              cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+              api_key: process.env.CLOUDINARY_API_KEY,
+              api_secret: process.env.CLOUDINARY_API_SECRET,
+            });
+          }
+          const uploadRes = await cloudinary.uploader.upload(dataUrl, {
+            folder: 'nextia_uploads',
+            resource_type: 'auto',
+          });
+          fileUrl = uploadRes.secure_url;
+        } catch (cErr) {
+          console.error('[Cloudinary Upload Warning]', cErr.message || cErr);
+        }
+      }
+
       const result = await client.query(
         `INSERT INTO public.files(project_id, name, size, type, uploaded_by, url)
          SELECT p.id, $2, $3, $4, $5, $6 FROM public.projects p WHERE p.id = $1 AND p.user_id = $7
          RETURNING *`,
-        [body.projectId, String(body.name || '').trim(), body.size || '', body.type || 'other', session.name || session.email, body.url || null, session.id],
+        [body.projectId, name, body.size || '1.0 MB', type, session.name || session.email, fileUrl, session.id],
       );
       if (!result.rows[0]) return json(res, 404, { error: 'Projeto não encontrado.' });
       return json(res, 201, { file: result.rows[0] });

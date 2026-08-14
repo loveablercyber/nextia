@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 5 — Upload Real de Arquivos
+- **Fase em Execução**: Fase 6 — Modelos e Demos de Loja Virtual
 
 ---
 
@@ -24,28 +24,26 @@
   - Sanitização de `POST /api/auth/register`.
   - Migração `0000_phase0_fixes.sql`.
 - [x] **Fase 1 Concluída**:
-  - Migração `0001_initial_core_schema.sql` (schema de fundação completo com `service_engagements`, `commercial_order_items`, `service_domains`, etc.).
-  - Runner `scripts/migrate.js` com advisory lock (ID 987654321) e verificação SHA-256.
+  - Migração `0001_initial_core_schema.sql` (schema de fundação completo).
+  - Runner `scripts/migrate.js` com advisory lock e SHA-256.
 - [x] **Fase 2 Concluída**:
-  - Implementada função de cálculo comercial autoritativo `calculateCommercialSelection` em `server.js`.
-  - Adicionado `POST /api/commerce/preview` (gera `quoteId` com validade de 30min, taxas discriminadas, incluindo **R$ 50,00 autoritativos** para `domain.mode = 'register'`).
-  - Adicionados endpoints de catálogo em `server.js`: `/api/catalog/services`, `/api/catalog/services/:slug`, `/api/catalog/addons`.
-  - Atualizado `POST /api/commerce/orders` para consumir `quoteId`, suportar `Idempotency-Key` e gravar itens discriminados em `commercial_order_items`.
-  - Atualizado webhook `/api/commerce/webhook` para instanciar `service_engagements` (código público `ENG-XXXXXX`) e `service_domains` com taxa de registro de R$ 50,00 quando aplicável.
+  - Cálculo comercial autoritativo `calculateCommercialSelection`.
+  - `POST /api/commerce/preview` (gera `quoteId`, R$ 50,00 autoritativos para registro de domínio).
+  - Catalog endpoints e `commercial_order_items` discriminados.
+  - Webhook com `service_engagements` e `service_domains`.
 - [x] **Fase 3 Concluída**:
-  - Criado `GET /api/app/engagements` e `GET /api/app/engagements/:id` em `app-api.js` retornando engajamentos, domínio e projeto vinculados.
-  - Criado `src/context/ServiceEngagementContext.tsx`.
-  - Seletor de serviço no topo do `DashboardLayout.tsx`.
+  - `GET /api/app/engagements` e `ServiceEngagementContext.tsx`.
+  - Seletor de serviços no topo do `DashboardLayout.tsx`.
 - [x] **Fase 4 Concluída**:
-  - Formulário de briefing dinâmico para E-commerce em `src/pages/dashboard/BriefingPage.tsx` com gateways de pagamento, métodos de envio, estimativa de catálogo.
-  - Página `/painel/tecnologia` configurada para não aparecer indevidamente em serviços de sites/loja virtual.
-  - Exibição do engajamento ativo e badge de domínio (Registro R$ 50,00 vs Apontamento Grátis) em `src/pages/dashboard/ProjectPage.tsx`.
+  - Workflows adaptativos de briefing e acompanhamento.
+- [x] **Fase 5 Concluída**:
+  - Implementada validação de cota (20MB max), sanitização de arquivo e upload seguro em `POST /api/app/project/file` com fallback Cloudinary (`cloudinary.uploader.upload`).
+  - Leitura real de arquivo via `FileReader` em `src/pages/dashboard/FilesPage.tsx` e `ProjectContext.tsx`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 5**: Upload real de arquivos (Cloudinary/Storage seguro com validação de MIME, cota e checksum).
 - [ ] **Fase 6**: Modelos de loja (Demos próprias interativas para `loja-moda-premium`, `loja-gourmet`, `loja-tech-store` com fallback 404 explícito).
 - [ ] **Fase 7**: Parceiros e consistência comercial (Remoção de estatísticas públicas estáticas e sincronia com o catálogo oficial).
 - [ ] **Fase 8**: Backfill e integridade (Migração com checkpoint, dry-run, fila de revisão `data_migration_issues`).
@@ -60,8 +58,9 @@
 
 ## 4. Arquivos Alterados
 
-- `src/pages/dashboard/BriefingPage.tsx`
-- `src/pages/dashboard/ProjectPage.tsx`
+- `app-api.js`
+- `src/context/ProjectContext.tsx`
+- `src/pages/dashboard/FilesPage.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -87,13 +86,13 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Workflows Adaptativos**: O briefing e o acompanhamento de projeto renderizam os campos e o status de acordo com a categoria (`digital_site`, `digital_ecommerce`, `automation_ia`, etc.).
+1. **Upload Seguro**: Validação rigorosa de tamanho (<= 20MB) e leitura assíncrona do buffer/Data URL com persistência no banco e Cloudinary.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 5 — Upload Real de Arquivos**:
-  1. Implementar o endpoint `POST /api/app/project/file` com multipart form-data real (Cloudinary SDK / Storage seguro).
-  2. Adicionar validação estrita de MIME type (permitir imagens, PDF, ZIP de assets), cota máxima (ex: 20MB por arquivo) e checksum.
-  3. Atualizar `src/pages/dashboard/FilesPage.tsx` para enviar formulário multipart real em vez de simulação de string de nome/tamanho.
+- Executar a **Fase 6 — Modelos e Demos de Loja Virtual**:
+  1. Garantir que as 3 demonstrações de e-commerce (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) possuam páginas e experiências interativas próprias.
+  2. Implementar fallback 404 explícito para qualquer template inexistente.
+  3. Garantir fluxo direto da demonstração para a contratação `/cadastro?template=...`.

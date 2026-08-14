@@ -8,7 +8,7 @@ import { useNotification } from './NotificationContext';
 interface ProjectContextValue {
   project: Project | null;
   loading: boolean;
-  uploadFile: (file: { name: string; size: string; type: ProjectFile['type'] }) => Promise<void>;
+  uploadFile: (file: { name: string; size: string; type: ProjectFile['type']; dataUrl?: string; sizeBytes?: number }) => Promise<void>;
   addChangeRequest: (title: string, description: string, category: string, priority: 'baixa' | 'normal' | 'alta') => Promise<void>;
   startPayment: (paymentId: string) => Promise<string>;
   saveBriefing: (briefingData: Omit<ProjectBriefing, 'submitted' | 'submittedAt'>) => Promise<void>;
@@ -45,7 +45,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [refreshProject]);
 
-  const uploadFile = async (file: { name: string; size: string; type: ProjectFile['type'] }) => {
+  const uploadFile = async (file: { name: string; size: string; type: ProjectFile['type']; dataUrl?: string; sizeBytes?: number }) => {
     if (!project || !user) return;
     await requestJson('/api/app/project/file', {
       method: 'POST',

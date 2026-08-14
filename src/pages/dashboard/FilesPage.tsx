@@ -40,32 +40,41 @@ export default function FilesPage() {
   };
 
   const startUploadSimulation = async (file: File) => {
-    setUploading(true);
-    setSimulatedFileName(file.name);
-    setUploadProgress(0);
-
-    // Simulated progress tick
-    for (let i = 10; i <= 100; i += 15) {
-      await new Promise(r => setTimeout(r, 150));
-      setUploadProgress(Math.min(i, 100));
+    if (file.size > 20 * 1024 * 1024) {
+      alert('O arquivo selecionado excede o limite de 20MB.');
+      return;
     }
 
-    // Determine type
+    setUploading(true);
+    setSimulatedFileName(file.name);
+    setUploadProgress(20);
+
     let fileType: 'image' | 'document' | 'video' | 'other' = 'other';
     if (file.type.startsWith('image/')) fileType = 'image';
     else if (file.type.startsWith('video/')) fileType = 'video';
-    else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('text')) {
+    else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('text') || file.type.includes('zip')) {
       fileType = 'document';
     }
 
-    // Call store context
-    await uploadFile({
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      type: fileType,
-    });
-
-    setUploading(false);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setUploadProgress(70);
+      const dataUrl = reader.result as string;
+      await uploadFile({
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        type: fileType,
+        dataUrl,
+        sizeBytes: file.size,
+      });
+      setUploadProgress(100);
+      setUploading(false);
+    };
+    reader.onerror = () => {
+      alert('Falha ao ler o arquivo selecionado.');
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const getFileIcon = (type: string) => {
