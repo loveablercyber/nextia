@@ -593,6 +593,107 @@ async function handleCatalogApi(req, res, url) {
       return json(res, 200, { template: result.rows[0] });
     }
 
+async function calculateCommercialSelection(client, { serviceSlug, planId, templateId, addonCodes = [], domain }) {
+  const sRes = await client.query(
+    `SELECT slug, name, category, price_cents, recurring FROM public.commercial_services WHERE slug = $1 AND active = TRUE`,
+    [serviceSlug || 'sites']
+  );
+  const service = sRes.rows[0] || { slug: serviceSlug || 'sites', name: 'Site Profissional', category: 'digital', price_cents: 19700, recurring: true };
+
+  let plan = null;
+  if (planId) {
+    const pRes = await client.query(
+      `SELECT id, name, monthly_amount_cents AS monthly, activation_amount_cents AS activation FROM public.commercial_plans WHERE id = $1 AND active = TRUE`,
+      [String(planId).toLowerCase()]
+    );
+    plan = pRes.rows[0];
+  }
+
+  let template = null;
+  if (templateId) {
+    const tRes = await client.query(
+      `SELECT id, slug, name, price_cents, activation_fee_cents FROM public.commercial_store_templates WHERE id = $1 OR slug = $1`,
+      [templateId]
+    );
+    template = tRes.rows[0];
+  }
+
+  const oneTimeItems = [];
+  const monthlyItems = [];
+
+  const baseActivation = plan ? plan.activation : (template ? (template.activation_fee_cents || 19700) : (service.price_cents || 19700));
+  const baseMonthly = plan ? plan.monthly : (template ? (template.price_cents || 9900) : 9900);
+
+  oneTimeItems.push({
+    code: plan ? `activation-${plan.id}` : 'activation-base',
+    name: plan ? `Ativação Nextia ${plan.name}` : `Ativação ${service.name}`,
+    amountCents: baseActivation,
+    billingCycle: 'one_time'
+  });
+
+  if (service.recurring) {
+    monthlyItems.push({
+      code: plan ? `plan-${plan.id}` : 'plan-base',
+      name: plan ? `Assinatura Nextia ${plan.name}` : `Assinatura ${service.name}`,
+      amountCents: baseMonthly,
+      billingCycle: 'monthly'
+    });
+  }
+
+  if (domain && domain.name && String(domain.name).trim()) {
+    const dName = String(domain.name).trim().toLowerCase();
+    const isRegister = domain.mode === 'register';
+    if (isRegister) {
+      oneTimeItems.push({
+        code: 'domain-registration',
+        name: `Registro de domínio (${dName}) — 1 ano`,
+        amountCents: 5000, // R$ 50,00 AUTHORITATIVE FEE
+        billingCycle: 'one_time'
+      });
+    } else {
+      oneTimeItems.push({
+        code: 'domain-connect',
+        name: `Apontamento de domínio existente (${dName})`,
+        amountCents: 0,
+        billingCycle: 'one_time'
+      });
+    }
+  }
+
+  if (Array.isArray(addonCodes) && addonCodes.length > 0) {
+    const aRes = await client.query(
+      `SELECT code, name, amount_cents, billing_cycle FROM public.commercial_addons WHERE code = ANY($1) AND active = TRUE`,
+      [addonCodes]
+    );
+    for (const addon of aRes.rows) {
+      const item = {
+        code: addon.code,
+        name: addon.name,
+        amountCents: addon.amount_cents,
+        billingCycle: addon.billing_cycle
+      };
+      if (addon.billing_cycle === 'monthly') {
+        monthlyItems.push(item);
+      } else {
+        oneTimeItems.push(item);
+      }
+    }
+  }
+
+  const oneTimeTotalCents = oneTimeItems.reduce((sum, item) => sum + item.amountCents, 0);
+  const monthlyTotalCents = monthlyItems.reduce((sum, item) => sum + item.amountCents, 0);
+
+  return {
+    service,
+    plan,
+    template,
+    oneTimeItems,
+    monthlyItems,
+    oneTimeTotalCents,
+    monthlyTotalCents
+  };
+}
+
     if (url.pathname === '/api/commerce/store-drafts' && req.method === 'POST') {
       const body = await readJson(req);
       const modelId = String(body.modelId || '').trim();
@@ -718,6 +819,88 @@ async function handleCatalogApi(req, res, url) {
       return json(res, 200, { draft: result.rows[0] });
     }
 
+    if (url.pathname === '/api/catalog/services' && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT slug, name, category, price_cents, price_label, recurring, active, sort_order
+         FROM public.commercial_services WHERE active = TRUE ORDER BY sort_order, name`
+      );
+      return json(res, 200, { services: result.rows });
+    }
+
+    if (url.pathname.startsWith('/api/catalog/services/') && req.method === 'GET') {
+      const slug = url.pathname.replace('/api/catalog/services/', '').trim();
+      const result = await client.query(
+        `SELECT slug, name, category, price_cents, price_label, recurring, active, sort_order
+         FROM public.commercial_services WHERE slug = $1 AND active = TRUE`,
+        [slug]
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Serviço não encontrado.' });
+      return json(res, 200, { service: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/catalog/addons' && req.method === 'GET') {
+      const serviceSlug = url.searchParams.get('service');
+      const result = await client.query(
+        `SELECT code, name, description, amount_cents, billing_cycle, service_slug
+         FROM public.commercial_addons WHERE active = TRUE ${serviceSlug ? 'AND (service_slug IS NULL OR service_slug = $1)' : ''} ORDER BY name`,
+        serviceSlug ? [serviceSlug] : []
+      );
+      return json(res, 200, { addons: result.rows });
+    }
+
+    if (url.pathname === '/api/commerce/preview' && req.method === 'POST') {
+      const body = await readJson(req);
+      const selection = await calculateCommercialSelection(client, {
+        serviceSlug: body.serviceSlug,
+        planId: body.planId,
+        templateId: body.templateId,
+        addonCodes: body.addonCodes,
+        domain: body.domain,
+      });
+
+      const quoteId = randomUUID();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+      await client.query(
+        `INSERT INTO public.commercial_pricing_quotes
+           (id, user_id, session_draft_id, service_slug, template_slug, plan_id, addon_codes, domain_name, domain_mode,
+            one_time_items, monthly_items, one_time_total_cents, monthly_total_cents, pricing_version, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '2026-08-14.1', $14)`,
+        [
+          quoteId,
+          sessionProfile?.id || null,
+          body.draftId || null,
+          selection.service.slug,
+          selection.template?.slug || null,
+          selection.plan?.id || null,
+          JSON.stringify(body.addonCodes || []),
+          body.domain?.name || null,
+          body.domain?.mode || null,
+          JSON.stringify(selection.oneTimeItems),
+          JSON.stringify(selection.monthlyItems),
+          selection.oneTimeTotalCents,
+          selection.monthlyTotalCents,
+          expiresAt,
+        ],
+      );
+
+      return json(res, 200, {
+        quoteId,
+        expiresAt,
+        pricingVersion: '2026-08-14.1',
+        currency: 'BRL',
+        serviceSlug: selection.service.slug,
+        serviceName: selection.service.name,
+        templateSlug: selection.template?.slug || null,
+        planId: selection.plan?.id || null,
+        domain: body.domain || null,
+        oneTimeItems: selection.oneTimeItems,
+        monthlyItems: selection.monthlyItems,
+        oneTimeTotalCents: selection.oneTimeTotalCents,
+        monthlyTotalCents: selection.monthlyTotalCents,
+      });
+    }
+
     if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
       const result = await client.query(
         `SELECT id, name, monthly_amount_cents, activation_amount_cents, active, sort_order, updated_at
@@ -773,119 +956,142 @@ async function handleCatalogApi(req, res, url) {
          FROM public.commercial_orders WHERE user_id = $1 ORDER BY created_at DESC`,
         [sessionProfile.id],
       );
-      return json(res, 200, { orders: result.rows });
-    }
-
-    if (url.pathname === '/api/commerce/orders' && req.method === 'POST') {
+       if (url.pathname === '/api/commerce/orders' && req.method === 'POST') {
       if (!sessionProfile) return json(res, 401, { error: 'Faça login para contratar.' });
       const body = await readJson(req);
-      const draftId = body.draftId ? String(body.draftId).trim() : null;
+      const idempotencyHeader = req.headers['idempotency-key'] || body.idempotencyKey;
+      const quoteId = body.quoteId ? String(body.quoteId).trim() : null;
 
-      let serviceSlug = String(body.serviceSlug || '').trim();
-      let draftData = null;
+      let selection = null;
+      let quoteRecord = null;
 
-      if (draftId) {
-        const dRes = await client.query(
-          `SELECT d.*, t.name as model_name, t.cover_image as model_cover
-           FROM public.commercial_store_drafts d
-           LEFT JOIN public.commercial_store_templates t ON t.id = d.model_id
-           WHERE d.id = $1`,
-          [draftId],
+      if (quoteId) {
+        const qRes = await client.query(
+          `SELECT * FROM public.commercial_pricing_quotes WHERE id = $1 AND consumed = FALSE AND expires_at > NOW()`,
+          [quoteId]
         );
-        draftData = dRes.rows[0];
-        if (draftData) {
-          serviceSlug = draftData.service_slug;
-          // Claim draft if unassigned
-          if (!draftData.user_id) {
-            await client.query('UPDATE public.commercial_store_drafts SET user_id = $1 WHERE id = $2', [sessionProfile.id, draftId]);
-          }
+        quoteRecord = qRes.rows[0];
+        if (!quoteRecord) {
+          return json(res, 400, { error: 'Cotação expirada ou já utilizada. Solicite um novo cálculo.' });
         }
+        selection = {
+          service: { slug: quoteRecord.service_slug, name: quoteRecord.service_slug, recurring: true },
+          oneTimeItems: quoteRecord.one_time_items,
+          monthlyItems: quoteRecord.monthly_items,
+          oneTimeTotalCents: quoteRecord.one_time_total_cents,
+          monthlyTotalCents: quoteRecord.monthly_total_cents,
+        };
+      } else {
+        selection = await calculateCommercialSelection(client, {
+          serviceSlug: body.serviceSlug,
+          planId: body.planId,
+          templateId: body.templateId,
+          addonCodes: body.addonCodes,
+          domain: body.domain,
+        });
       }
 
-      const serviceResult = await client.query(
-        `SELECT slug, name, price_cents, recurring FROM public.commercial_services
-         WHERE slug = $1 AND active = TRUE`,
-        [serviceSlug],
-      );
-      const service = serviceResult.rows[0];
-      if (!service) return json(res, 404, { error: 'Serviço não encontrado ou indisponível.' });
-
-      const finalPriceCents = draftData && draftData.snapshot_activation_cents > 0
-        ? draftData.snapshot_activation_cents
-        : service.price_cents;
-
-      if (!Number.isInteger(finalPriceCents) || finalPriceCents <= 0) {
+      const finalAmountCents = selection.oneTimeTotalCents > 0 ? selection.oneTimeTotalCents : selection.monthlyTotalCents;
+      if (finalAmountCents <= 0) {
         return json(res, 409, { error: 'Este serviço precisa de orçamento antes da contratação.' });
       }
+
       const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
       if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });
-      const orderId = randomUUID();
-      const protocol = String(req.headers['x-forwarded-proto'] || (process.env.NODE_ENV === 'production' ? 'https' : 'http')).split(',')[0].trim();
-      const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
-      const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
-      const externalReference = `order:${orderId}`;
 
-      const storeSnapshot = draftData ? {
-        draftId: draftData.id,
-        modelId: draftData.model_id,
-        modelName: draftData.model_name,
-        planId: draftData.plan_id,
-        storeInfo: draftData.store_info,
-        needs: draftData.needs,
-        optionalItems: draftData.optional_items,
-      } : null;
+      await client.query('BEGIN');
+      try {
+        if (quoteRecord) {
+          await client.query(`UPDATE public.commercial_pricing_quotes SET consumed = TRUE, consumed_at = NOW() WHERE id = $1`, [quoteId]);
+        }
 
-      await client.query(
-        `INSERT INTO public.commercial_orders
-          (id, user_id, item_id, item_name, amount_cents, recurring, customer_notes, draft_id, store_snapshot)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [
-          orderId,
-          sessionProfile.id,
-          service.slug,
-          draftData ? `Loja Virtual - ${draftData.model_name || service.name}` : service.name,
-          finalPriceCents,
-          service.recurring,
-          String(body.notes || '').trim().slice(0, 2000) || null,
-          draftId,
-          storeSnapshot ? JSON.stringify(storeSnapshot) : null,
-        ],
-      );
+        const orderId = randomUUID();
+        const protocol = String(req.headers['x-forwarded-proto'] || (process.env.NODE_ENV === 'production' ? 'https' : 'http')).split(',')[0].trim();
+        const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+        const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
+        const externalReference = `order:${orderId}`;
 
-      const recurringPayload = {
-        reason: `Nextia - ${service.name}`,
-        external_reference: externalReference,
-        payer_email: sessionProfile.email,
-        back_url: `${baseUrl}/checkout?status=return&order=${orderId}`,
-        notification_url: `${baseUrl}/api/commerce/webhook`,
-        auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: finalPriceCents / 100, currency_id: 'BRL' },
-      };
-      const oneTimePayload = {
-        items: [{ id: service.slug, title: `Nextia - ${service.name}`, quantity: 1, unit_price: finalPriceCents / 100, currency_id: 'BRL' }],
-        payer: { name: sessionProfile.name, email: sessionProfile.email },
-        external_reference: externalReference,
-        back_urls: { success: `${baseUrl}/checkout?status=success&order=${orderId}`, failure: `${baseUrl}/checkout?status=failure&order=${orderId}`, pending: `${baseUrl}/checkout?status=pending&order=${orderId}` },
-        auto_return: 'approved',
-        notification_url: `${baseUrl}/api/commerce/webhook`,
-      };
-      const endpoint = service.recurring ? 'https://api.mercadopago.com/preapproval' : 'https://api.mercadopago.com/checkout/preferences';
-      const providerResponse = await fetch(endpoint, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-order-${orderId}` },
-        body: JSON.stringify(service.recurring ? recurringPayload : oneTimePayload),
-      });
-      const providerData = await providerResponse.json();
-      if (!providerResponse.ok || !providerData.init_point) {
-        await client.query(`UPDATE public.commercial_orders SET status = 'failed', updated_at = NOW() WHERE id = $1`, [orderId]);
-        console.error('[COMMERCE] Checkout creation failed', providerResponse.status, providerData);
-        return json(res, 502, { error: 'Não foi possível iniciar o pagamento. O pedido foi registrado para análise.' });
-      }
-      await client.query(
-        `UPDATE public.commercial_orders SET status = 'payment_pending', provider_reference = $2,
-          checkout_url = $3, updated_at = NOW() WHERE id = $1`,
-        [orderId, String(providerData.id), providerData.init_point],
-      );
-      return json(res, 201, { orderId, checkoutUrl: providerData.init_point, recurring: service.recurring });
+        await client.query(
+          `INSERT INTO public.commercial_orders
+            (id, user_id, item_id, item_name, amount_cents, recurring, customer_notes, draft_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [
+            orderId,
+            sessionProfile.id,
+            selection.service.slug,
+            `Contratação - ${selection.service.name || selection.service.slug}`,
+            finalAmountCents,
+            true,
+            String(body.notes || '').trim().slice(0, 2000) || null,
+            body.draftId || null,
+          ],
+        );
+
+        // Insert itemized lines in commercial_order_items
+        for (const item of [...selection.oneTimeItems, ...selection.monthlyItems]) {
+          await client.query(
+            `INSERT INTO public.commercial_order_items
+              (order_id, item_kind, item_code, name_snapshot, quantity, unit_amount_cents, total_amount_cents, billing_cycle)
+             VALUES ($1, $2, $3, $4, 1, $5, $6, $7)`,
+            [
+              orderId,
+              item.code.startsWith('domain') ? 'domain' : item.code.startsWith('plan') || item.code.startsWith('activation') ? 'plan' : 'addon',
+              item.code,
+              item.name,
+              item.amountCents,
+              item.amountCents,
+              item.billingCycle,
+            ],
+          );
+        }
+
+        const oneTimePayload = {
+          items: selection.oneTimeItems.map((i) => ({
+            id: i.code,
+            title: i.name,
+            quantity: 1,
+            unit_price: i.amountCents / 100,
+            currency_id: 'BRL',
+          })),
+          payer: { name: sessionProfile.name, email: sessionProfile.email },
+          external_reference: externalReference,
+          back_urls: {
+            success: `${baseUrl}/checkout?status=success&order=${orderId}`,
+            failure: `${baseUrl}/checkout?status=failure&order=${orderId}`,
+            pending: `${baseUrl}/checkout?status=pending&order=${orderId}`,
+          },
+          auto_return: 'approved',
+          notification_url: `${baseUrl}/api/commerce/webhook`,
+        };
+
+        const mpHeaders = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+        if (idempotencyHeader) mpHeaders['X-Idempotency-Key'] = `order-${idempotencyHeader}`;
+
+        const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: mpHeaders,
+          body: JSON.stringify(oneTimePayload),
+        });
+
+        const providerData = await providerResponse.json();
+        if (!providerResponse.ok || !providerData.init_point) {
+          await client.query(`UPDATE public.commercial_orders SET status = 'failed', updated_at = NOW() WHERE id = $1`, [orderId]);
+          await client.query('COMMIT');
+          return json(res, 502, { error: 'Não foi possível iniciar o pagamento. Tente novamente.' });
+        }
+
+        await client.query(
+          `UPDATE public.commercial_orders SET status = 'payment_pending', provider_reference = $2,
+             checkout_url = $3, updated_at = NOW() WHERE id = $1`,
+          [orderId, String(providerData.id), providerData.init_point],
+        );
+
+        await client.query('COMMIT');
+        return json(res, 201, { orderId, checkoutUrl: providerData.init_point, quoteId });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[COMMERCE ORDER ERROR]', err);
+        return json(res, 500, { error: 'Falha ao criar o pedido.' });
     }
 
     if (url.pathname === '/api/commerce/plan-contracts' && req.method === 'GET') {
@@ -1125,12 +1331,44 @@ async function handleCatalogApi(req, res, url) {
 
         if (approved) {
           const snapshot = order.store_snapshot || {};
-          const planName = snapshot.planId ? `Plano ${snapshot.planId.toUpperCase()}` : 'Loja Virtual';
+          const planName = snapshot.planId ? `Plano ${snapshot.planId.toUpperCase()}` : 'Serviço Digital';
+          const publicCode = `ENG-${randomUUID().substring(0, 8).toUpperCase()}`;
+          const serviceCategory = order.item_id === 'lojas-virtuais' ? 'digital' : order.item_id.startsWith('automacao') ? 'automation' : 'digital';
+          const workflowKey = order.item_id === 'lojas-virtuais' ? 'digital_ecommerce' : order.item_id === 'sites' ? 'digital_site' : 'digital_custom';
+
+          const engagementRes = await client.query(
+            `INSERT INTO public.service_engagements
+              (public_code, user_id, service_slug, service_name_snapshot, service_category, workflow_key, status, source_kind, source_order_id, activation_amount_cents, monthly_amount_cents)
+             VALUES ($1, $2, $3, $4, $5, $6, 'active', 'order', $7, $8, 0)
+             ON CONFLICT (source_order_id) WHERE source_order_id IS NOT NULL DO UPDATE SET status = 'active'
+             RETURNING id`,
+            [publicCode, order.user_id, order.item_id, order.item_name, serviceCategory, workflowKey, order.id, order.amount_cents],
+          );
+          const engagementId = engagementRes.rows[0]?.id;
+
+          // Check if order items has domain
+          const domainItemRes = await client.query(
+            `SELECT name_snapshot, item_code FROM public.commercial_order_items WHERE order_id = $1 AND item_kind = 'domain'`,
+            [order.id]
+          );
+          if (domainItemRes.rows[0] && engagementId) {
+            const domainItem = domainItemRes.rows[0];
+            const isReg = domainItem.item_code === 'domain-registration';
+            const fqdnMatch = domainItem.name_snapshot.match(/\(([^)]+)\)/);
+            const fqdn = fqdnMatch ? fqdnMatch[1] : 'dominio.com.br';
+            await client.query(
+              `INSERT INTO public.service_domains (engagement_id, fqdn, mode, registration_fee_cents, status)
+               VALUES ($1, $2, $3, $4, 'pending')
+               ON CONFLICT (engagement_id) DO UPDATE SET fqdn = $2, mode = $3, registration_fee_cents = $4`,
+              [engagementId, fqdn, isReg ? 'register' : 'connect', isReg ? 5000 : 0]
+            );
+          }
+
           const projectResult = await client.query(
             `INSERT INTO public.projects
                (user_id, name, segment, status, plan, monthly_fee, activation_fee,
-                estimated_delivery, requests_remaining, requests_total, source_order_id, store_model_id, store_details)
-             VALUES ($1, $2, 'E-commerce', 'aguardando-briefing', $3, $4, $5, NOW() + INTERVAL '10 days', 2, 2, $6, $7, $8)
+                estimated_delivery, requests_remaining, requests_total, source_order_id, engagement_id, store_model_id, store_details)
+             VALUES ($1, $2, 'E-commerce', 'aguardando-briefing', $3, $4, $5, NOW() + INTERVAL '10 days', 2, 2, $6, $7, $8, $9)
              ON CONFLICT (source_order_id) WHERE source_order_id IS NOT NULL DO NOTHING
              RETURNING id`,
             [
@@ -1140,6 +1378,7 @@ async function handleCatalogApi(req, res, url) {
               0,
               order.amount_cents / 100,
               order.id,
+              engagementId || null,
               snapshot.modelId || null,
               JSON.stringify(snapshot),
             ],
