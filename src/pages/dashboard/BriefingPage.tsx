@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ClipboardList, CheckCircle2, ArrowRight, ArrowLeft,
   Building2, Palette, Layers, Send, FileCheck, Edit3,
-  Phone, Share2, MapPin, Clock, Sparkles
+  Phone, Share2, MapPin, Clock, Sparkles, ShoppingBag
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import Button from '../../components/ui/Button';
@@ -51,6 +51,10 @@ export default function BriefingPage() {
     address: existingBriefing?.address || '',
     businessHours: existingBriefing?.businessHours || '',
     additionalNotes: existingBriefing?.additionalNotes || '',
+    paymentGateways: existingBriefing?.paymentGateways || '',
+    shippingMethods: existingBriefing?.shippingMethods || '',
+    productsCount: existingBriefing?.productsCount || 'small',
+    productCategories: existingBriefing?.productCategories || '',
   });
 
   if (loading) {
@@ -596,6 +600,74 @@ export default function BriefingPage() {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
                     placeholder="Segunda a Sexta das 08h às 18h"
                   />
+                </div>
+              </div>
+
+              {/* Bloco de Configuração para Loja Virtual / E-Commerce */}
+              <div className="pt-5 border-t border-gray-100 space-y-4">
+                <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100">
+                  <h3 className="text-xs font-bold text-[#5B4FE9] uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <ShoppingBag className="w-4 h-4" /> Configuração da Loja Virtual / E-Commerce
+                  </h3>
+                  <p className="text-xs text-gray-500">Detalhes para configuração dos meios de pagamento, frete e catálogo.</p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Formas de Pagamento Desejadas
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.paymentGateways}
+                      onChange={(e) => setFormData({ ...formData, paymentGateways: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
+                      placeholder="Ex: Pix automático, Cartão de Crédito Mercado Pago, Boleto"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Formas de Envio / Frete
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.shippingMethods}
+                      onChange={(e) => setFormData({ ...formData, shippingMethods: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
+                      placeholder="Ex: Correios (Sedex/PAC), Melhor Envio, Retirada na Loja"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Quantidade Estimada de Produtos
+                    </label>
+                    <select
+                      value={formData.productsCount}
+                      onChange={(e) => setFormData({ ...formData, productsCount: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm bg-white"
+                    >
+                      <option value="small">Até 50 produtos</option>
+                      <option value="medium">De 50 a 500 produtos</option>
+                      <option value="large">Mais de 500 produtos</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Categorias Iniciais de Produtos
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.productCategories}
+                      onChange={(e) => setFormData({ ...formData, productCategories: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
+                      placeholder="Ex: Roupas femininas, Acessórios, Calçados"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

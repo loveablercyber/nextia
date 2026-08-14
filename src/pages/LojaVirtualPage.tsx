@@ -52,7 +52,6 @@ export default function LojaVirtualPage() {
       setRecProducts('large');
     }
   };
-  const [creatingDraft, setCreatingDraft] = useState(false);
 
   // Recommendation Wizard state
   const [recProducts, setRecProducts] = useState<string>('medium');
@@ -109,47 +108,10 @@ export default function LojaVirtualPage() {
     );
   };
 
-  const handleProceedToCheckout = async () => {
+  const handleProceedToCheckout = () => {
     if (!selectedTemplate) return;
-    setCreatingDraft(true);
-
-    try {
-      const response = await fetch('/api/commerce/store-drafts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          modelId: selectedTemplate.id,
-          planId: selectedPlanId,
-          optionalItems: selectedOptionIds,
-          store: {
-            name: '',
-            segment: selectedTemplate.category,
-          },
-          needs: {},
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Erro ao criar rascunho de loja.');
-
-      // Push analytics event
-      if (typeof window !== 'undefined' && (window as unknown as { dataLayer?: Record<string, unknown>[] }).dataLayer) {
-        (window as unknown as { dataLayer: Record<string, unknown>[] }).dataLayer.push({
-          event: 'start_store_checkout',
-          modelId: selectedTemplate.id,
-          planId: selectedPlanId,
-          draftId: data.draftId,
-        });
-      }
-
-      navigate(`/checkout?draft=${data.draftId}`);
-    } catch (err) {
-      console.error('Falha ao processar rascunho:', err);
-      // Fallback seguro caso falhe a API de rascunho
-      navigate(`/checkout?service=lojas-virtuais&model=${selectedTemplate.id}&plan=${selectedPlanId}`);
-    } finally {
-      setCreatingDraft(false);
-    }
+    const optionsQuery = selectedOptionIds.length > 0 ? `&options=${selectedOptionIds.join(',')}` : '';
+    navigate(`/cadastro?template=${selectedTemplate.slug}&plano=${selectedPlanId}${optionsQuery}`);
   };
 
   const recommendedPlan = (recProducts === 'large' || recPayments === 'custom')
@@ -450,80 +412,97 @@ export default function LojaVirtualPage() {
             <h2 className="mt-2 text-3xl font-black sm:text-4xl text-white">
               Escolha a oferta ideal para a sua operação.
             </h2>
-            <p className="mt-4 text-lg text-slate-300">
-              Preço transparente do catálogo oficial. Sem surpresas ou taxas ocultas.
+            <p className="mt-4 text-lg text-slate-300 max-w-3xl mx-auto">
+              Valores transparentes e alinhados ao catálogo oficial da plataforma. Sem surpresas ou taxas ocultas.
             </p>
+
+            {/* Comparativo de Diferenciação: Catálogo vs Loja Virtual Completa */}
+            <div className="mt-8 mx-auto max-w-3xl rounded-2xl border border-blue-500/30 bg-blue-950/40 p-5 text-left text-xs sm:text-sm text-slate-300">
+              <div className="flex items-center gap-2 font-bold text-white mb-2 text-base">
+                <Store className="h-5 w-5 text-[#35B7FF]" /> Catálogo Digital vs. Loja Virtual Completa
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="font-bold text-slate-200 block mb-1">📖 Site com Catálogo (Vitrine)</span>
+                  <p className="text-slate-400 text-xs">Ideal para exibir produtos e enviar o cliente para o WhatsApp para negociar. Não cobra frete ou cartão direto no site.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-900/30 border border-blue-500/30">
+                  <span className="font-bold text-[#35B7FF] block mb-1">🛒 Loja Virtual Completa (E-commerce)</span>
+                  <p className="text-slate-300 text-xs">Sua loja 100% automatizada com checkout transparente (Pix & Cartão), cálculo automático de frete Correios/Melhor Envio e gestão de estoque.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-14 grid gap-8 md:grid-cols-3">
-            {/* Oferta Padrão Serviço */}
-            <div className={`flex flex-col justify-between rounded-2xl border p-8 transition ${
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* 1. Oferta Padrão Serviço (Projeto Avulso) */}
+            <div className={`flex flex-col justify-between rounded-2xl border p-6 transition ${
               selectedPlanId === 'service-only' ? 'border-[#35B7FF] bg-slate-800 ring-2 ring-[#35B7FF]' : 'border-slate-800 bg-slate-950'
             }`}>
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">PROJETO AVULSO</span>
-                <h3 className="mt-2 text-2xl font-bold text-white">Loja Virtual Padrão</h3>
-                <p className="mt-2 text-sm text-slate-400">Desenvolvimento e configuração da loja em projeto único sem mensalidade obrigatória.</p>
-                <div className="mt-6">
-                  <span className="text-3xl font-black text-white">{money.format(baseServicePrice)}</span>
-                  <span className="text-xs text-slate-400 block mt-1">pagamento único do projeto</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">PROJETO AVULSO</span>
+                <h3 className="mt-1 text-xl font-bold text-white">Projeto Único</h3>
+                <p className="mt-1 text-xs text-slate-400">Desenvolvimento sem mensalidade obrigatória.</p>
+                <div className="mt-4">
+                  <span className="text-2xl font-black text-white">{money.format(baseServicePrice)}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">pagamento único do projeto</span>
                 </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-300">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Modelo configurado e personalizado</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Meios de pagamento e frete</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Cadastro dos primeiros produtos</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Treinamento de operação da loja</li>
+                <ul className="mt-5 space-y-2 text-xs text-slate-300">
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Modelo configurado</li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Meios de pagamento</li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Cálculo de frete</li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Treinamento inicial</li>
                 </ul>
               </div>
               <button
                 onClick={() => handleSelectPlan('service-only')}
-                className={`mt-8 w-full rounded-xl py-3 text-sm font-bold transition ${
+                className={`mt-6 w-full rounded-xl py-2.5 text-xs font-bold transition ${
                   selectedPlanId === 'service-only' ? 'bg-green-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
               >
-                {selectedPlanId === 'service-only' ? 'Plano Selecionado ✓' : 'Selecionar Projeto Avulso'}
+                {selectedPlanId === 'service-only' ? 'Selecionado ✓' : 'Selecionar Avulso'}
               </button>
             </div>
 
-            {/* Planos Recorrentes do Catálogo */}
-            {commercialPlans.slice(0, 2).map((plan) => {
+            {/* 2. Start, 3. Pro, 4. Business */}
+            {commercialPlans.slice(0, 3).map((plan) => {
               const isSelected = selectedPlanId === plan.id;
               const isPopular = plan.id === 'pro';
               return (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col justify-between rounded-2xl border p-8 transition ${
+                  className={`relative flex flex-col justify-between rounded-2xl border p-6 transition ${
                     isSelected ? 'border-[#35B7FF] bg-slate-800 ring-2 ring-[#35B7FF]' : 'border-slate-800 bg-slate-950'
                   }`}
                 >
                   {isPopular && (
-                    <div className="absolute -top-3 right-6 rounded-full bg-[#1677FF] px-3 py-1 text-[10px] font-bold text-white">
-                      RECOMENDADO
+                    <div className="absolute -top-3 right-4 rounded-full bg-[#1677FF] px-2.5 py-0.5 text-[9px] font-bold text-white">
+                      MAIS VENDIDO
                     </div>
                   )}
                   <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#35B7FF]">{plan.name}</span>
-                    <h3 className="mt-2 text-2xl font-bold text-white">Assinatura {plan.name}</h3>
-                    <p className="mt-2 text-sm text-slate-400">Ativação + suporte contínuo e evoluções mensais da sua loja.</p>
-                    <div className="mt-6">
-                      <span className="text-3xl font-black text-white">{money.format(plan.price)}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#35B7FF]">{plan.name}</span>
+                    <h3 className="mt-1 text-xl font-bold text-white">Nextia {plan.name}</h3>
+                    <p className="mt-1 text-xs text-slate-400">Ativação + suporte mensal contínuo.</p>
+                    <div className="mt-4">
+                      <span className="text-2xl font-black text-white">{money.format(plan.price)}</span>
                       <span className="text-xs text-slate-400">/mês</span>
-                      <span className="text-xs text-slate-400 block mt-1">+ {money.format(plan.activationFee)} ativação inicial</span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">+ {money.format(plan.activationFee)} ativação</span>
                     </div>
-                    <ul className="mt-6 space-y-3 text-sm text-slate-300">
-                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Estrutura completa de loja</li>
-                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Hospedagem + SSL inclusos</li>
-                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Atualizações e suporte dedicado</li>
-                      <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-400" /> Backup automatizado da loja</li>
+                    <ul className="mt-5 space-y-2 text-xs text-slate-300">
+                      <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Loja virtual completa</li>
+                      <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Hospedagem + SSL grátis</li>
+                      <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Suporte contínuo</li>
+                      <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-green-400" /> Backup automático</li>
                     </ul>
                   </div>
                   <button
                     onClick={() => handleSelectPlan(plan.id)}
-                    className={`mt-8 w-full rounded-xl py-3 text-sm font-bold transition ${
+                    className={`mt-6 w-full rounded-xl py-2.5 text-xs font-bold transition ${
                       isSelected ? 'bg-green-600 text-white' : 'bg-[#1677FF] hover:bg-[#0F63D8] text-white'
                     }`}
                   >
-                    {isSelected ? 'Plano Selecionado ✓' : `Selecionar ${plan.name}`}
+                    {isSelected ? 'Selecionado ✓' : `Selecionar ${plan.name}`}
                   </button>
                 </div>
               );
@@ -691,7 +670,6 @@ export default function LojaVirtualPage() {
               <Button
                 variant="gradient"
                 size="lg"
-                loading={creatingDraft}
                 onClick={handleProceedToCheckout}
               >
                 Avançar para o Checkout <ArrowRight className="h-5 w-5 ml-1" />

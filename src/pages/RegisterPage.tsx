@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff, Zap, CheckCircle, AlertCircle, UserCheck, Globe } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { templates, ALL_OPTIONAL_FEATURES, getTemplateOptionalFeatures } from '../data/templates';
 import { plans } from '../data/plans';
@@ -12,7 +12,8 @@ export default function RegisterPage() {
   }, []);
 
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const location = useLocation();
+  const { user, register } = useAuth();
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
   const planoParam = searchParams.get('plano') || 'pro';
@@ -25,6 +26,10 @@ export default function RegisterPage() {
   const optionsParam = searchParams.get('options') || '';
   const initialOptions = optionsParam ? optionsParam.split(',') : [];
   const [selectedOptions, setSelectedOptions] = useState<string[]>(initialOptions);
+
+  // Domain state
+  const [domain, setDomain] = useState('');
+  const [domainType, setDomainType] = useState<'registro' | 'transferencia'>('registro');
 
   const handleToggleOption = (id: string) => {
     setSelectedOptions(prev =>
@@ -54,11 +59,45 @@ export default function RegisterPage() {
     terms: false,
   });
 
+  const handleConfirmExistingUser = async () => {
+    if ((selectedTemplate || selectedPlanObj) && !domain.trim()) {
+      setError('Por favor, informe o domínio desejado para o seu projeto.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/commerce/plan-contracts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: selectedPlanObj.id,
+          domain: domain.trim(),
+          domainType,
+          templateSlug: selectedTemplate?.slug,
+          optionalItems: selectedOptions,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar a contratação.');
+
+      navigate('/painel/pedidos?success=1', { replace: true });
+    } catch (err: any) {
+      setError(err.message || 'Falha ao confirmar pedido.');
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validações
+    if (selectedTemplate && !domain.trim()) {
+      setError('Por favor, informe o domínio desejado para o seu projeto.');
+      return;
+    }
+
     if (form.password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres.');
       return;
@@ -86,6 +125,8 @@ export default function RegisterPage() {
         segment: selectedTemplate ? selectedTemplate.category : '',
         monthlyFee,
         activationFee,
+        domain: domain.trim(),
+        domainType,
       });
 
       if (regRes.error) {
@@ -96,7 +137,7 @@ export default function RegisterPage() {
       setLoading(false);
       const draftParam = searchParams.get('draft');
       const redirectParam = searchParams.get('redirect');
-      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/painel');
+      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/painel/pedidos?success=1');
       setTimeout(() => {
         navigate(targetCheckout, { replace: true });
       }, 1000);
@@ -104,8 +145,9 @@ export default function RegisterPage() {
       setError(err.message || 'Ocorreu um erro ao criar sua conta.');
       setLoading(false);
     }
-
   };
+
+  const loginRedirectUrl = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex">
@@ -173,7 +215,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right panel — form */}
+      {/* Right panel — form or logged in state */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-12 py-12 overflow-y-auto">
         <div className="max-w-md mx-auto w-full">
           {/* Mobile logo */}
@@ -184,17 +226,136 @@ export default function RegisterPage() {
             <span className="text-xl font-black text-gray-900">Nextia</span>
           </Link>
 
-          {success ? (
+          {user ? (
+            /* Logged In User State */
+            <div className="space-y-6">
+              <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#5B4FE9] flex items-center justify-center text-white font-bold flex-shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[#5B4FE9] uppercase tracking-wider">Você está logado</div>
+                  <div className="text-sm font-bold text-gray-900">{user.name}</div>
+                  <div className="text-xs text-gray-500">{user.email}</div>
+                </div>
+              </div>
+
+              <div className="mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">Confirmar Contratação do Projeto</h1>
+                <p className="text-gray-500 text-sm">
+                  Confira as informações do seu pedido e informe o domínio desejado.
+                </p>
+              </div>
+
+              {error && (
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Order summary box */}
+              {selectedTemplate && (
+                <div className="p-4 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-3">
+                  <div>
+                    <div className="text-xs text-[#5B4FE9] font-bold uppercase tracking-wider">Modelo selecionado</div>
+                    <div className="text-gray-900 font-bold text-base">{selectedTemplate.name}</div>
+                    <div className="text-xs text-gray-500 font-medium mt-0.5">
+                      {selectedPlanObj.name} (Base: R$ {baseMonthlyPrice}/mês + R$ {baseActivationFee} ativação)
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                      Recursos Opcionais
+                    </h4>
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 border border-gray-100 rounded-xl p-2 bg-gray-50">
+                      {templateOptionalFeatures.map((opt) => {
+                        const isChecked = selectedOptions.includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className="flex items-center justify-between gap-3 text-xs p-1.5 rounded hover:bg-gray-100 cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleOption(opt.id)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-[#5B4FE9] focus:ring-[#5B4FE9]"
+                              />
+                              <span className="text-gray-700 font-medium">{opt.name}</span>
+                            </div>
+                            <span className="text-gray-500 font-bold">
+                              {opt.monthlyPrice > 0 ? `+R$ ${opt.monthlyPrice}/mês` : `+R$ ${opt.oneTimePrice}`}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex justify-between gap-4 text-sm font-bold">
+                    <div>
+                      <div className="text-xs text-gray-400 font-normal">Total Mensal</div>
+                      <div className="text-[#5B4FE9] text-base">R$ {monthlyFee}/mês</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-400 font-normal">Taxa de Ativação</div>
+                      <div className="text-gray-900 text-base">R$ {activationFee}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Domain Input Field */}
+              <div className="p-4 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-3">
+                <label className="block text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Globe className="w-4 h-4 text-[#5B4FE9]" />
+                  Domínio do seu site / loja *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="exemplo: sualoja.com.br"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
+                />
+                <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${domainType === 'registro' ? 'border-[#5B4FE9] bg-indigo-50/60 text-[#5B4FE9]' : 'border-gray-200 text-gray-600'}`}>
+                    <input type="radio" name="domainType" value="registro" checked={domainType === 'registro'} onChange={() => setDomainType('registro')} className="accent-[#5B4FE9]" />
+                    <span>Registrar novo domínio</span>
+                  </label>
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${domainType === 'transferencia' ? 'border-[#5B4FE9] bg-indigo-50/60 text-[#5B4FE9]' : 'border-gray-200 text-gray-600'}`}>
+                    <input type="radio" name="domainType" value="transferencia" checked={domainType === 'transferencia'} onChange={() => setDomainType('transferencia')} className="accent-[#5B4FE9]" />
+                    <span>Já tenho domínio (apontar)</span>
+                  </label>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="gradient"
+                size="lg"
+                fullWidth
+                loading={loading}
+                onClick={handleConfirmExistingUser}
+              >
+                {loading ? 'Confirmando pedido...' : 'Confirmar e Registrar Pedido →'}
+              </Button>
+            </div>
+          ) : success ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Conta criada com sucesso!</h2>
               <p className="text-gray-500 text-sm mb-6">
-                Sua conta foi cadastrada. Você será redirecionado para a página de login em instantes.
+                Sua conta foi cadastrada e seu pedido registrado. Você será redirecionado para suas faturas em instantes.
               </p>
-              <Link to="/login">
-                <Button variant="gradient" size="lg">Ir para o Login</Button>
+              <Link to="/painel/pedidos">
+                <Button variant="gradient" size="lg">Acompanhar Pedido</Button>
               </Link>
             </div>
           ) : (
@@ -268,6 +429,33 @@ export default function RegisterPage() {
                   </div>
                 </div>
               )}
+
+              {/* Domain Input Field */}
+              <div className="mb-6 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-3">
+                <label htmlFor="domain-input" className="block text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Globe className="w-4 h-4 text-[#5B4FE9]" />
+                  Domínio do seu site / loja *
+                </label>
+                <input
+                  id="domain-input"
+                  type="text"
+                  required
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="exemplo: sualoja.com.br"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] text-sm"
+                />
+                <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${domainType === 'registro' ? 'border-[#5B4FE9] bg-indigo-50/60 text-[#5B4FE9]' : 'border-gray-200 text-gray-600'}`}>
+                    <input type="radio" name="domainType" value="registro" checked={domainType === 'registro'} onChange={() => setDomainType('registro')} className="accent-[#5B4FE9]" />
+                    <span>Registrar novo domínio</span>
+                  </label>
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${domainType === 'transferencia' ? 'border-[#5B4FE9] bg-indigo-50/60 text-[#5B4FE9]' : 'border-gray-200 text-gray-600'}`}>
+                    <input type="radio" name="domainType" value="transferencia" checked={domainType === 'transferencia'} onChange={() => setDomainType('transferencia')} className="accent-[#5B4FE9]" />
+                    <span>Já tenho domínio (apontar)</span>
+                  </label>
+                </div>
+              </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -390,7 +578,7 @@ export default function RegisterPage() {
 
               <p className="text-center text-sm text-gray-500 mt-6">
                 Já tem uma conta?{' '}
-                <Link to="/login" className="text-[#5B4FE9] font-semibold hover:underline">
+                <Link to={loginRedirectUrl} className="text-[#5B4FE9] font-semibold hover:underline">
                   Entrar
                 </Link>
               </p>

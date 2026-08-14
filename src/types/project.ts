@@ -73,6 +73,10 @@ export interface ProjectBriefing {
   address?: string;
   businessHours?: string;
   additionalNotes?: string;
+  paymentGateways?: string;
+  shippingMethods?: string;
+  productsCount?: string;
+  productCategories?: string;
 }
 
 export interface Project {

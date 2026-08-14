@@ -17,7 +17,7 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
   if (slug === 'servicos-profissionais' || category === 'prestador-servicos') {
     return <ServicosPremiumIllustration />;
   }
-  if (slug === 'loja-catalogo' || category === 'loja-catalogo') {
+  if (slug === 'loja-catalogo' || category === 'loja-catalogo' || category === 'loja-virtual' || slug?.startsWith('loja-')) {
     return <LojaPremiumIllustration />;
   }
   if (slug === 'clinica-estetica' || category === 'clinica-estetica') {
@@ -35,6 +35,7 @@ export function TemplateIllustration({ category, slug }: IllustrationProps) {
     'salao-barbearia': <SalaoIllustration />,
     'prestador-servicos': <ServicosIllustration />,
     'loja-catalogo': <LojaIllustration />,
+    'loja-virtual': <LojaIllustration />,
     'clinica-estetica': <ClinicaIllustration />,
     'contabilidade': <ContabilidadeIllustration />,
     'imobiliaria': <ImobiliariaIllustration />,
