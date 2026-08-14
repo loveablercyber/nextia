@@ -28,9 +28,16 @@ const navItems = [
   { to: '/painel/configuracoes', icon: Settings, label: 'Configurações' },
 ];
 
+import { useOptionalServiceEngagements } from '../../context/ServiceEngagementContext';
+
 export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotification();
+  const serviceEngagementContext = useOptionalServiceEngagements();
+  const engagements = serviceEngagementContext?.engagements || [];
+  const selectedEngagement = serviceEngagementContext?.selectedEngagement;
+  const selectEngagement = serviceEngagementContext?.selectEngagement;
+
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -144,9 +151,26 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex-1">
+          <div className="flex-1 flex items-center gap-3">
             {title && (
               <h1 className="text-base font-bold text-gray-900">{title}</h1>
+            )}
+
+            {engagements.length > 0 && selectEngagement && (
+              <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1 text-xs">
+                <span className="text-slate-400 font-medium">Serviço:</span>
+                <select
+                  value={selectedEngagement?.id || ''}
+                  onChange={(e) => selectEngagement(e.target.value)}
+                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  {engagements.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.service_name_snapshot} ({e.public_code}) — {e.status}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 

@@ -31,6 +31,7 @@ import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
+import { ServiceEngagementProvider } from './context/ServiceEngagementContext';
 import { AdminProvider } from './context/AdminContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -472,10 +473,12 @@ export default function App() {
     <AppErrorBoundary>
       <AuthProvider>
         <NotificationProvider>
-          <BrowserRouter>
-            <ScrollToTop />
-            <AppRoutes />
-          </BrowserRouter>
+          <ServiceEngagementProvider>
+            <BrowserRouter>
+              <ScrollToTop />
+              <AppRoutes />
+            </BrowserRouter>
+          </ServiceEngagementProvider>
         </NotificationProvider>
       </AuthProvider>
     </AppErrorBoundary>

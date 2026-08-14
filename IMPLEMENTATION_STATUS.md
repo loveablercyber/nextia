@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 3 — Painel Multi-Serviço
+- **Fase em Execução**: Fase 4 — Workflows Específicos por Categoria de Serviço
 
 ---
 
@@ -32,12 +32,16 @@
   - Adicionados endpoints de catálogo em `server.js`: `/api/catalog/services`, `/api/catalog/services/:slug`, `/api/catalog/addons`.
   - Atualizado `POST /api/commerce/orders` para consumir `quoteId`, suportar `Idempotency-Key` e gravar itens discriminados em `commercial_order_items`.
   - Atualizado webhook `/api/commerce/webhook` para instanciar `service_engagements` (código público `ENG-XXXXXX`) e `service_domains` com taxa de registro de R$ 50,00 quando aplicável.
+- [x] **Fase 3 Concluída**:
+  - Criado `GET /api/app/engagements` e `GET /api/app/engagements/:id` em `app-api.js` retornando engajamentos, domínio e projeto vinculados.
+  - Criado `src/context/ServiceEngagementContext.tsx` (`ServiceEngagementProvider`, `useServiceEngagements`, `useOptionalServiceEngagements`).
+  - Adicionado `ServiceEngagementProvider` em `src/App.tsx`.
+  - Adicionado seletor de serviço contratado no topo do `DashboardLayout.tsx` permitindo ao cliente alternar dinamicamente entre múltiplos engajamentos ativos sem selecionar implicitamente `projects[0]`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 3**: Painel multi-serviço (`ServiceEngagementContext`, seletor no topo, rotas por `engagementId`).
 - [ ] **Fase 4**: Workflows específicos (Website, E-commerce, Automação, Bot WhatsApp, TechCare, Redes, Câmeras, Backup).
 - [ ] **Fase 5**: Upload real de arquivos (Cloudinary/Storage seguro com validação de MIME, cota e checksum).
 - [ ] **Fase 6**: Modelos de loja (Demos próprias interativas para `loja-moda-premium`, `loja-gourmet`, `loja-tech-store` com fallback 404 explícito).
@@ -54,7 +58,10 @@
 
 ## 4. Arquivos Alterados
 
-- `server.js`
+- `app-api.js`
+- `src/context/ServiceEngagementContext.tsx` (novo)
+- `src/App.tsx`
+- `src/components/dashboard/DashboardLayout.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -80,15 +87,13 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Cotação Autoritativa (`quoteId`)**: Todo pedido passa pelo `POST /api/commerce/preview`, garantindo que os preços sejam calculados 100% no servidor.
-2. **Taxa de Domínio**: Adicionado item de R$ 50,00 (`5000` centavos) quando `mode === 'register'`, e R$ 0,00 para `connect`.
+1. **Contexto de Engajamento Autônomo**: `ServiceEngagementContext` gerencia a lista de engajamentos do usuário de forma reativa e fornece seleção explícita para os componentes do dashboard.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 3 — Painel Multi-Serviço**:
-  1. Criar `src/context/ServiceEngagementContext.tsx` listando todos os engajamentos ativos/contratados do cliente.
-  2. Adicionar o seletor de serviços no topo do dashboard em `src/components/dashboard/DashboardLayout.tsx`.
-  3. Suportar rotas por engajamento `/painel/servicos/:engagementId` e rotas genéricas `/painel/projeto`, `/painel/briefing`, `/painel/arquivos`, `/painel/alteracoes`, `/painel/pagamentos`.
-  4. Adicionar endpoint backend `GET /api/app/engagements` e `GET /api/app/engagements/:id`.
+- Executar a **Fase 4 — Workflows Específicos por Categoria de Serviço**:
+  1. Criar componente de briefing dinâmico específico para E-commerce em `src/pages/dashboard/BriefingPage.tsx` (configurações da loja virtual: formas de pagamento Pix/Cartão, integração de frete/Correios, logotipo, banners, redes sociais).
+  2. Esconder módulo irrelevante "Tecnologia" ou customizá-lo para exibir apenas se o serviço for desenvolvimento técnico.
+  3. Garantir preenchimento dos detalhes da loja em `/painel/projeto` e `/painel/briefing`.

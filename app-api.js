@@ -499,6 +499,37 @@ export async function handleAppApi(req, res, url, dependencies) {
       return json(res, 200, { notifications: result.rows });
     }
 
+    if (url.pathname === '/api/app/engagements' && req.method === 'GET') {
+      if (!session) return json(res, 401, { error: 'Faça login para consultar seus serviços.' });
+      const engagementsRes = await client.query(
+        `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
+                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent
+         FROM public.service_engagements e
+         LEFT JOIN public.service_domains d ON d.engagement_id = e.id
+         LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
+         WHERE e.user_id = $1
+         ORDER BY e.created_at DESC`,
+        [session.id],
+      );
+      return json(res, 200, { engagements: engagementsRes.rows });
+    }
+
+    if (url.pathname.startsWith('/api/app/engagements/') && req.method === 'GET') {
+      if (!session) return json(res, 401, { error: 'Faça login para consultar este serviço.' });
+      const idOrCode = url.pathname.replace('/api/app/engagements/', '').trim();
+      const engagementRes = await client.query(
+        `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
+                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent
+         FROM public.service_engagements e
+         LEFT JOIN public.service_domains d ON d.engagement_id = e.id
+         LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
+         WHERE (e.id::text = $1 OR e.public_code = $1) AND e.user_id = $2`,
+        [idOrCode, session.id],
+      );
+      if (!engagementRes.rows[0]) return json(res, 404, { error: 'Serviço não encontrado.' });
+      return json(res, 200, { engagement: engagementRes.rows[0] });
+    }
+
     if (url.pathname === '/api/notifications' && req.method === 'POST') {
       const body = await readJson(req);
       const target = String(body.targetUserId || session.id);
