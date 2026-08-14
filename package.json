@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "start": "node server.js",
     "db:migrate": "node scripts/migrate.js",
+    "db:backfill": "node scripts/backfill-engagements.js",
     "db:set-admin-password": "node scripts/set-local-admin-password.js"
   },
   "dependencies": {

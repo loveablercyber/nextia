@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 8 — Backfill de Integridade e Migração Resumível
+- **Fase em Execução**: Fase 9 — Ferramentas Administrativas e Observabilidade de Domínio
 
 ---
 
@@ -25,15 +25,16 @@
 - [x] **Fase 4 Concluída**: Workflows dinâmicos por categoria de serviço.
 - [x] **Fase 5 Concluída**: Upload real de arquivos (20MB max), Cloudinary fallback, `FileReader`.
 - [x] **Fase 6 Concluída**: 3 demonstrações de e-commerce distintas (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) e 404 fallback.
-- [x] **Fase 7 Concluída**:
-  - Criado endpoint `GET /api/partners/public-stats` em `server.js` calculando estatísticas públicas reais a partir do banco de dados.
-  - Atualizado `src/pages/partner/PartnerLandingPage.tsx` para renderizar total de parceiros ativos e comissões de forma dinâmica.
+- [x] **Fase 7 Concluída**: Endpoint `/api/partners/public-stats` dinâmico e estatísticas reais na landing page de parceiros.
+- [x] **Fase 8 Concluída**:
+  - Criado o script resumível de migração e alinhamento `scripts/backfill-engagements.js` com suporte a `--dry-run` e `--limit`.
+  - Mapeamento de registros legados para `service_engagements` (estados `exact`, `inferred`) e registro de pendências em `data_migration_issues` (estado `needs_review`).
+  - Adicionado o script `"db:backfill": "node scripts/backfill-engagements.js"` em `package.json`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 8**: Backfill e integridade (Migração com checkpoint, dry-run, fila de revisão `data_migration_issues`).
 - [ ] **Fase 9**: Ferramentas administrativas (Central de serviços contratados, gestor de domínios, fila de integridade).
 - [ ] **Fase 10**: QA e Homologação (Testes unitários, integração, E2E com Playwright, build e lint).
 - [ ] **Fase 11**: Dual-write e canário interno.
@@ -45,8 +46,8 @@
 
 ## 4. Arquivos Alterados
 
-- `server.js`
-- `src/pages/partner/PartnerLandingPage.tsx`
+- `scripts/backfill-engagements.js` (novo)
+- `package.json`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -72,14 +73,16 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Estatísticas Públicas Autênticas**: `public-stats` agrega `partner_profiles` e `partner_commissions` eliminando números estáticos na landing page.
+1. **Migração Idempotente de Histórico**: O script de backfill consulta registros não vinculados e grava evidências em `data_migration_issues` quando encontrar inconformidades sem forçar falha no banco de produção.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 8 — Backfill de Integridade e Migração Resumível**:
-  1. Criar o script de migração resumível de dados legados `scripts/backfill-engagements.js`.
-  2. Ler registros legados em `projects`, `commercial_orders`, `commercial_plan_contracts`.
-  3. Mapear cada registro para um `service_engagements` correspondente. Registros ambíguos ou incompletos gravam ocorrência em `data_migration_issues` com status `needs_review`.
-  4. Suportar `--dry-run` para simulação sem efeitos colaterais.
+- Executar a **Fase 9 — Ferramentas Administrativas e Observabilidade de Domínio**:
+  1. Adicionar endpoints administrativos em `server.js` / `app-api.js`:
+     - `GET /api/admin/engagements`: Lista central de todos os serviços contratados.
+     - `GET /api/admin/domains`: Gestor unificado de registros e apontamentos de domínios.
+     - `GET /api/admin/migration-issues`: Fila de revisão de divergências de dados.
+     - `PATCH /api/admin/migration-issues/:id`: Resolução de divergência com nota técnica.
+  2. Adicionar páginas/views no painel administrativo.
