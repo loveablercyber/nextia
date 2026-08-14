@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 9 — Ferramentas Administrativas e Observabilidade de Domínio
+- **Fase em Execução**: Fase 10 — QA, Homologação e Validação de Suíte de Testes
 
 ---
 
@@ -26,16 +26,16 @@
 - [x] **Fase 5 Concluída**: Upload real de arquivos (20MB max), Cloudinary fallback, `FileReader`.
 - [x] **Fase 6 Concluída**: 3 demonstrações de e-commerce distintas (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) e 404 fallback.
 - [x] **Fase 7 Concluída**: Endpoint `/api/partners/public-stats` dinâmico e estatísticas reais na landing page de parceiros.
-- [x] **Fase 8 Concluída**:
-  - Criado o script resumível de migração e alinhamento `scripts/backfill-engagements.js` com suporte a `--dry-run` e `--limit`.
-  - Mapeamento de registros legados para `service_engagements` (estados `exact`, `inferred`) e registro de pendências em `data_migration_issues` (estado `needs_review`).
-  - Adicionado o script `"db:backfill": "node scripts/backfill-engagements.js"` em `package.json`.
+- [x] **Fase 8 Concluída**: Script de backfill resumível `scripts/backfill-engagements.js` com dry-run e fila de revisão.
+- [x] **Fase 9 Concluída**:
+  - Implementados endpoints de governança em `app-api.js`: `GET /api/admin/app/engagements`, `GET/PATCH /api/admin/app/domains`, `GET/PATCH /api/admin/app/migration-issues`.
+  - Criadas as visões administrativas `AdminEngagementsPage.tsx` (Central de Serviços), `AdminDomainsPage.tsx` (Gestor de Domínios) e `AdminMigrationIssuesPage.tsx` (Fila de Integridade).
+  - Atualizado `AdminLayout.tsx` e `src/App.tsx` com as novas rotas.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 9**: Ferramentas administrativas (Central de serviços contratados, gestor de domínios, fila de integridade).
 - [ ] **Fase 10**: QA e Homologação (Testes unitários, integração, E2E com Playwright, build e lint).
 - [ ] **Fase 11**: Dual-write e canário interno.
 - [ ] **Fase 12**: Liberação gradual em produção.
@@ -46,8 +46,12 @@
 
 ## 4. Arquivos Alterados
 
-- `scripts/backfill-engagements.js` (novo)
-- `package.json`
+- `app-api.js`
+- `src/pages/admin/AdminEngagementsPage.tsx` (novo)
+- `src/pages/admin/AdminDomainsPage.tsx` (novo)
+- `src/pages/admin/AdminMigrationIssuesPage.tsx` (novo)
+- `src/components/admin/AdminLayout.tsx`
+- `src/App.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -73,16 +77,13 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Migração Idempotente de Histórico**: O script de backfill consulta registros não vinculados e grava evidências em `data_migration_issues` quando encontrar inconformidades sem forçar falha no banco de produção.
+1. **Visões de Governança Unificada**: Painéis administrativos fornecem gestão direta sobre a migração de contratos (`service_engagements`), auditoria de domínios e resolução técnica de inconsistências com notas do operador.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 9 — Ferramentas Administrativas e Observabilidade de Domínio**:
-  1. Adicionar endpoints administrativos em `server.js` / `app-api.js`:
-     - `GET /api/admin/engagements`: Lista central de todos os serviços contratados.
-     - `GET /api/admin/domains`: Gestor unificado de registros e apontamentos de domínios.
-     - `GET /api/admin/migration-issues`: Fila de revisão de divergências de dados.
-     - `PATCH /api/admin/migration-issues/:id`: Resolução de divergência com nota técnica.
-  2. Adicionar páginas/views no painel administrativo.
+- Executar a **Fase 10 — QA, Homologação e Validação de Suíte de Testes**:
+  1. Executar suíte de testes unitários e de integração (`npm test` / Vitest).
+  2. Executar validação de build completa de produção (`npm run build`).
+  3. Validar se não há regressão de TypeScript (`npx tsc --noEmit`).

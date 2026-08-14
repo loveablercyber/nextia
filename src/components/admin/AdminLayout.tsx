@@ -78,6 +78,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: 'Governança & Operações',
+    items: [
+      { to: '/admin/servicos-contratados', icon: Briefcase, label: 'Serviços Contratados' },
+      { to: '/admin/dominios', icon: Database, label: 'Gestor de Domínios' },
+      { to: '/admin/integridade-dados', icon: Database, label: 'Fila de Integridade' },
+    ],
+  },
+  {
     title: 'Sistema',
     items: [
       { to: '/admin/backup', icon: Database, label: 'Backup & Restauração' },

@@ -602,6 +602,68 @@ export async function handleAppApi(req, res, url, dependencies) {
     if (url.pathname.startsWith('/api/admin/app/')) {
       if (!requireAdmin(session, json, res)) return;
 
+      if (url.pathname === '/api/admin/app/engagements' && req.method === 'GET') {
+        const result = await client.query(`
+          SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
+                 p.name AS customer_name, p.email AS customer_email,
+                 proj.name AS project_name, proj.status AS project_status
+          FROM public.service_engagements e
+          JOIN public.profiles p ON p.id = e.user_id
+          LEFT JOIN public.service_domains d ON d.engagement_id = e.id
+          LEFT JOIN public.projects proj ON proj.engagement_id = e.id
+          ORDER BY e.created_at DESC
+        `);
+        return json(res, 200, { engagements: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/app/domains' && req.method === 'GET') {
+        const result = await client.query(`
+          SELECT d.*, e.public_code, e.service_name_snapshot, p.name AS customer_name, p.email AS customer_email
+          FROM public.service_domains d
+          JOIN public.service_engagements e ON e.id = d.engagement_id
+          JOIN public.profiles p ON p.id = e.user_id
+          ORDER BY d.created_at DESC
+        `);
+        return json(res, 200, { domains: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/app/domains' && req.method === 'PATCH') {
+        const body = await readJson(req);
+        const { domainId, status, fqdn } = body;
+        const result = await client.query(`
+          UPDATE public.service_domains
+          SET status = COALESCE($1, status),
+              fqdn = COALESCE($2, fqdn),
+              dns_verified_at = CASE WHEN $1 = 'verified' THEN NOW() ELSE dns_verified_at END,
+              updated_at = NOW()
+          WHERE id = $3 RETURNING *
+        `, [status, fqdn, domainId]);
+        if (!result.rows[0]) return json(res, 404, { error: 'Domínio não encontrado.' });
+        return json(res, 200, { domain: result.rows[0] });
+      }
+
+      if (url.pathname === '/api/admin/app/migration-issues' && req.method === 'GET') {
+        const result = await client.query(`
+          SELECT i.*, p.name AS reviewer_name
+          FROM public.data_migration_issues i
+          LEFT JOIN public.profiles p ON p.id = i.resolved_by
+          ORDER BY i.created_at DESC
+        `);
+        return json(res, 200, { issues: result.rows });
+      }
+
+      if (url.pathname === '/api/admin/app/migration-issues' && req.method === 'PATCH') {
+        const body = await readJson(req);
+        const { issueId, status, notes } = body;
+        const result = await client.query(`
+          UPDATE public.data_migration_issues
+          SET status = $1, resolution_notes = $2, resolved_by = $3, resolved_at = NOW()
+          WHERE id = $4 RETURNING *
+        `, [status || 'resolved', notes || '', session.id, issueId]);
+        if (!result.rows[0]) return json(res, 404, { error: 'Ocorrência não encontrada.' });
+        return json(res, 200, { issue: result.rows[0] });
+      }
+
       if (url.pathname === '/api/admin/app/data' && req.method === 'GET') {
         const [projects, quotes] = await Promise.all([
           loadProjects(client),

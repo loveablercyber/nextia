@@ -59,6 +59,9 @@ import AdminClientsPage from './pages/admin/AdminClientsPage';
 import AdminProfilePage from './pages/admin/AdminProfilePage';
 import AdminBackupPage from './pages/admin/AdminBackupPage';
 import AdminPartnerMaterialsPage from './pages/admin/AdminPartnerMaterialsPage';
+import AdminEngagementsPage from './pages/admin/AdminEngagementsPage';
+import AdminDomainsPage from './pages/admin/AdminDomainsPage';
+import AdminMigrationIssuesPage from './pages/admin/AdminMigrationIssuesPage';
 import TechnicianDashboardPage from './pages/technician/TechnicianDashboardPage';
 import TechnicianResourcesPage from './pages/technician/TechnicianResourcesPage';
 import TechnicianAgendaPage from './pages/technician/TechnicianAgendaPage';
@@ -443,6 +446,30 @@ function AppRoutes() {
         element={
           <AdminContainer title="Materiais de Parceiros">
             <AdminPartnerMaterialsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/servicos-contratados"
+        element={
+          <AdminContainer title="Central de Serviços Contratados">
+            <AdminEngagementsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/dominios"
+        element={
+          <AdminContainer title="Gestor Unificado de Domínio">
+            <AdminDomainsPage />
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/integridade-dados"
+        element={
+          <AdminContainer title="Fila de Integridade de Dados">
+            <AdminMigrationIssuesPage />
           </AdminContainer>
         }
       />
