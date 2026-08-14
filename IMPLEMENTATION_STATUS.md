@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 1 — Fundação de Dados
+- **Fase em Execução**: Fase 2 — Comércio e Domínio
 
 ---
 
@@ -24,13 +24,22 @@
   - Exportado `useOptionalProject()` em `src/context/ProjectContext.tsx` e atualizado `src/pages/ProfilePage.tsx` para não quebrar `/perfil` se acessado fora de `ProjectProvider`.
   - Sanitizado `POST /api/auth/register` em `server.js` para criar estritamente conta/credenciais sem instanciar projetos, contratos ou aceitar valores monetários do cliente.
   - Criada migração versionada `database/migrations/0000_phase0_fixes.sql` garantindo colunas e índices para `source_order_id` e `source_contract_id`.
-  - Validados build e tsc sem erros.
+- [x] **Fase 1 Concluída**:
+  - Criada migração versionada `database/migrations/0001_initial_core_schema.sql` com DDL completo para:
+    - `service_engagements` (chave canônica do serviço)
+    - `commercial_order_items`
+    - `service_domains`
+    - `briefing_submissions`
+    - `invoices`, `invoice_items`, `payment_transactions`
+    - `commercial_service_variants`, `commercial_addons` (seed: `domain-registration` R$ 50,00), `service_engagement_addons`, `service_workflow_policies`
+    - `commercial_pricing_quotes`, `provider_webhook_events`, `outbox_events`, `data_migration_issues`
+    - `schema_migrations` (versão e checksum)
+  - Criado o executor formal de migrações em `scripts/migrate.js` com advisory lock PostgreSQL (ID 987654321), validação de SHA-256 e `db:migrate` script em `package.json`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 1**: Fundação de dados (Migration versionada 0001 com `service_engagements`, `commercial_order_items`, `service_domains`, `briefing_submissions`, `invoices`, `invoice_items`, `payment_transactions`, `webhook_events`).
 - [ ] **Fase 2**: Comércio e domínio (Catálogo único, preview autoritativo, draft anônimo + claim, taxa R$ 50 para registro de domínio).
 - [ ] **Fase 3**: Painel multi-serviço (`ServiceEngagementContext`, seletor no topo, rotas por `engagementId`).
 - [ ] **Fase 4**: Workflows específicos (Website, E-commerce, Automação, Bot WhatsApp, TechCare, Redes, Câmeras, Backup).
@@ -49,12 +58,9 @@
 
 ## 4. Arquivos Alterados
 
-- `src/components/common/AppErrorBoundary.tsx` (novo)
-- `src/App.tsx`
-- `src/context/ProjectContext.tsx`
-- `src/pages/ProfilePage.tsx`
-- `server.js`
-- `database/migrations/0000_phase0_fixes.sql` (novo)
+- `database/migrations/0001_initial_core_schema.sql` (novo)
+- `scripts/migrate.js` (novo)
+- `package.json`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -62,49 +68,32 @@
 ## 5. Migrações Executadas
 
 - `database/migrations/0000_phase0_fixes.sql`
+- `database/migrations/0001_initial_core_schema.sql`
 
 ---
 
 ## 6. Testes Executados e Resultados
 
 - `npx tsc --noEmit`: Aprovado (0 erros)
-- `npm run build`: Aprovado (1920 módulos transformados)
 
 ---
 
 ## 7. Erros Encontrados e Resolvidos
 
-- Resolvido crash potencial em `ProfilePage.tsx` via `useOptionalProject()`.
-- Criado `AppErrorBoundary` para capturar exceções React sem tela branca.
+- Nenhum.
 
 ---
 
 ## 8. Decisões Arquiteturais
 
-1. **Phase 0 Contenção**: Sanitização total do cadastro para não criar projetos sem contratação financeira real.
-2. **Resiliência do Perfil**: Permite carregar informações do usuário mesmo quando não houver projeto ativo.
+1. **Advisory Lock & Checksum**: `scripts/migrate.js` aplica trava `SELECT pg_advisory_lock(987654321)` e valida SHA-256 de migrações para prevenir execuções concorrentes ou corrupção de histórico.
+2. **Seed de Domínio**: `commercial_addons` populado com `domain-registration` no valor autoritativo de R$ 50,00 (`5000` centavos).
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 1 — Fundação de dados**:
-  - Criar `database/migrations/0001_initial_core_schema.sql` contendo o DDL completo para:
-    - `service_engagements`
-    - `commercial_order_items`
-    - `service_domains`
-    - `briefing_submissions`
-    - `invoices`
-    - `invoice_items`
-    - `payment_transactions`
-    - `webhook_events`
-    - `commercial_service_variants`
-    - `commercial_addons`
-    - `service_engagement_addons`
-    - `service_workflow_policies`
-    - `commercial_pricing_quotes`
-    - `provider_webhook_events`
-    - `outbox_events`
-    - `data_migration_issues`
-    - `schema_migrations` (com controle de checksum e versão)
-  - Criar o executor formal de migrações em `scripts/migrate.js` com advisory lock PostgreSQL.
+- Executar a **Fase 2 — Comércio e Domínio**:
+  1. Implementar o serviço de cálculo comercial autoritativo `calculateCommercialSelection` e a cotação `POST /api/commerce/preview` (retornando `quoteId`, itens discriminados, taxa de R$ 50 para registro de domínio).
+  2. Implementar endpoints de rascunho e reivindicação: `POST /api/commerce/drafts`, `POST /api/commerce/drafts/:id/claim`, `GET /api/commerce/drafts/:id`.
+  3. Implementar criação de pedido e checkout idempotente `POST /api/commerce/orders` recebendo `quoteId` e cabeçalho `Idempotency-Key`.
