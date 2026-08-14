@@ -3032,6 +3032,7 @@ async function ensurePartnerSchema(client) {
 }
 
 const partnerApiMethods = new Map([
+  ['/api/partners/public-stats', 'GET'],
   ['/api/partner/me', 'GET'],
   ['/api/partner/ranking', 'GET'],
   ['/api/partner/materials', 'GET'],
@@ -3056,6 +3057,25 @@ async function handlePartnerApi(req, res, url) {
   await client.connect();
   try {
     await ensurePartnerSchema(client);
+
+    if (url.pathname === '/api/partners/public-stats') {
+      const [partnerCount, commissionSum] = await Promise.all([
+        client.query(`SELECT COUNT(*) FROM public.partner_profiles WHERE status = 'ativo'`),
+        client.query(`SELECT COALESCE(SUM(commission_value), 0) AS total FROM public.partner_commissions WHERE status = 'confirmado'`),
+      ]);
+
+      const activePartners = Math.max(1, Number(partnerCount.rows[0]?.count || 0));
+      const totalCommissionsCents = Math.round(Number(commissionSum.rows[0]?.total || 0) * 100);
+
+      return json(res, 200, {
+        activePartners,
+        totalCommissionsFormatted: totalCommissionsCents > 0
+          ? `R$ ${(totalCommissionsCents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : 'R$ 0,00',
+        recurringPercentage: 25,
+      });
+    }
+
     const sessionProfile = await getSessionProfile(req, client);
     if (!sessionProfile) return json(res, 401, { error: 'Não autorizado.' });
 
