@@ -3,10 +3,13 @@ import {
   ExternalLink, Shield, Globe, Cpu, CreditCard
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
+import { useOptionalServiceEngagements } from '../../context/ServiceEngagementContext';
 import Button from '../../components/ui/Button';
 
 export default function ProjectPage() {
   const { project, loading } = useProject();
+  const serviceEngagementContext = useOptionalServiceEngagements();
+  const selectedEngagement = serviceEngagementContext?.selectedEngagement;
 
   if (loading) {
     return (
@@ -79,9 +82,14 @@ export default function ProjectPage() {
                 <div>
                   <span className="text-gray-400 text-xs block mb-0.5">Domínio principal</span>
                   <span className="text-sm font-semibold text-gray-700">
-                    {project.domain || 'Aguardando definição'}
+                    {selectedEngagement?.fqdn || project.domain || 'Aguardando definição'}
                   </span>
-                  {project.domain && (
+                  {selectedEngagement?.domain_mode && (
+                    <span className="text-[10px] text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-bold block mt-1 w-max">
+                      {selectedEngagement.domain_mode === 'register' ? 'Registro Oficial (R$ 50,00)' : 'Apontamento DNS (Grátis)'}
+                    </span>
+                  )}
+                  {project.domain && !selectedEngagement?.domain_mode && (
                     <span className="text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-bold block mt-1 w-max">
                       DNS Configurado
                     </span>

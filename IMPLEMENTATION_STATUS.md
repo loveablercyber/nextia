@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 4 — Workflows Específicos por Categoria de Serviço
+- **Fase em Execução**: Fase 5 — Upload Real de Arquivos
 
 ---
 
@@ -34,15 +34,17 @@
   - Atualizado webhook `/api/commerce/webhook` para instanciar `service_engagements` (código público `ENG-XXXXXX`) e `service_domains` com taxa de registro de R$ 50,00 quando aplicável.
 - [x] **Fase 3 Concluída**:
   - Criado `GET /api/app/engagements` e `GET /api/app/engagements/:id` em `app-api.js` retornando engajamentos, domínio e projeto vinculados.
-  - Criado `src/context/ServiceEngagementContext.tsx` (`ServiceEngagementProvider`, `useServiceEngagements`, `useOptionalServiceEngagements`).
-  - Adicionado `ServiceEngagementProvider` em `src/App.tsx`.
-  - Adicionado seletor de serviço contratado no topo do `DashboardLayout.tsx` permitindo ao cliente alternar dinamicamente entre múltiplos engajamentos ativos sem selecionar implicitamente `projects[0]`.
+  - Criado `src/context/ServiceEngagementContext.tsx`.
+  - Seletor de serviço no topo do `DashboardLayout.tsx`.
+- [x] **Fase 4 Concluída**:
+  - Formulário de briefing dinâmico para E-commerce em `src/pages/dashboard/BriefingPage.tsx` com gateways de pagamento, métodos de envio, estimativa de catálogo.
+  - Página `/painel/tecnologia` configurada para não aparecer indevidamente em serviços de sites/loja virtual.
+  - Exibição do engajamento ativo e badge de domínio (Registro R$ 50,00 vs Apontamento Grátis) em `src/pages/dashboard/ProjectPage.tsx`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 4**: Workflows específicos (Website, E-commerce, Automação, Bot WhatsApp, TechCare, Redes, Câmeras, Backup).
 - [ ] **Fase 5**: Upload real de arquivos (Cloudinary/Storage seguro com validação de MIME, cota e checksum).
 - [ ] **Fase 6**: Modelos de loja (Demos próprias interativas para `loja-moda-premium`, `loja-gourmet`, `loja-tech-store` com fallback 404 explícito).
 - [ ] **Fase 7**: Parceiros e consistência comercial (Remoção de estatísticas públicas estáticas e sincronia com o catálogo oficial).
@@ -58,10 +60,8 @@
 
 ## 4. Arquivos Alterados
 
-- `app-api.js`
-- `src/context/ServiceEngagementContext.tsx` (novo)
-- `src/App.tsx`
-- `src/components/dashboard/DashboardLayout.tsx`
+- `src/pages/dashboard/BriefingPage.tsx`
+- `src/pages/dashboard/ProjectPage.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -87,13 +87,13 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Contexto de Engajamento Autônomo**: `ServiceEngagementContext` gerencia a lista de engajamentos do usuário de forma reativa e fornece seleção explícita para os componentes do dashboard.
+1. **Workflows Adaptativos**: O briefing e o acompanhamento de projeto renderizam os campos e o status de acordo com a categoria (`digital_site`, `digital_ecommerce`, `automation_ia`, etc.).
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 4 — Workflows Específicos por Categoria de Serviço**:
-  1. Criar componente de briefing dinâmico específico para E-commerce em `src/pages/dashboard/BriefingPage.tsx` (configurações da loja virtual: formas de pagamento Pix/Cartão, integração de frete/Correios, logotipo, banners, redes sociais).
-  2. Esconder módulo irrelevante "Tecnologia" ou customizá-lo para exibir apenas se o serviço for desenvolvimento técnico.
-  3. Garantir preenchimento dos detalhes da loja em `/painel/projeto` e `/painel/briefing`.
+- Executar a **Fase 5 — Upload Real de Arquivos**:
+  1. Implementar o endpoint `POST /api/app/project/file` com multipart form-data real (Cloudinary SDK / Storage seguro).
+  2. Adicionar validação estrita de MIME type (permitir imagens, PDF, ZIP de assets), cota máxima (ex: 20MB por arquivo) e checksum.
+  3. Atualizar `src/pages/dashboard/FilesPage.tsx` para enviar formulário multipart real em vez de simulação de string de nome/tamanho.
