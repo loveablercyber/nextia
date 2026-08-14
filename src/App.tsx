@@ -26,6 +26,7 @@ import ServicePage from './pages/ServicePage';
 import ServiceRequestPage from './pages/ServiceRequestPage';
 import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
 import Seo from './components/seo/Seo';
+import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 
 // Auth, Project, and Admin Imports
 import { AuthProvider } from './context/AuthContext';
@@ -468,13 +469,15 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppRoutes />
-        </BrowserRouter>
-      </NotificationProvider>
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <NotificationProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <AppRoutes />
+          </BrowserRouter>
+        </NotificationProvider>
+      </AuthProvider>
+    </AppErrorBoundary>
   );
 }

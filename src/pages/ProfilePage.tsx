@@ -19,7 +19,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useProject } from '../context/ProjectContext';
+import { useOptionalProject } from '../context/ProjectContext';
 import Button from '../components/ui/Button';
 
 interface ProfileFormData {
@@ -225,7 +225,8 @@ export default function ProfilePage() {
     { label: 'Central de Suporte', icon: HelpCircle, href: '/admin/suporte', color: 'from-[#db2777] to-[#ec4899]' },
   ];
 
-  const { project } = useProject();
+  const projectContext = useOptionalProject();
+  const project = projectContext?.project;
 
   const userRequests = (project?.changeRequests || []).slice(0, 4).map((r) => ({
     id: r.id,

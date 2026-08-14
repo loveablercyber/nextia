@@ -105,3 +105,7 @@ export function useProject() {
   if (!context) throw new Error('useProject must be used within a ProjectProvider');
   return context;
 }
+
+export function useOptionalProject() {
+  return useContext(ProjectContext);
+}

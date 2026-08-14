@@ -3367,24 +3367,6 @@ async function handleAuth(req, res, pathname) {
         `INSERT INTO public.local_auth_users (id, password_hash) VALUES ($1, $2)`,
         [id, hashPassword(body.password)],
       );
-      if (body.template || body.plan || body.domain) {
-        const projectName = body.template || (body.plan ? `Projeto ${body.plan}` : 'Meu Projeto Digital');
-        await client.query(
-          `INSERT INTO public.projects (user_id, name, template, segment, status, plan, domain, monthly_fee, activation_fee)
-           VALUES ($1, $2, $3, $4, 'aguardando-briefing', $5, $6, $7, $8)
-           ON CONFLICT DO NOTHING`,
-          [
-            id,
-            projectName,
-            body.template || 'Personalizado',
-            body.segment || 'Geral',
-            body.plan || 'Pro',
-            body.domain || '',
-            body.monthlyFee || 0,
-            body.activationFee || 0,
-          ],
-        ).catch(() => {});
-      }
 
       if (isPartner) {
         const nameSlug = String(body.name || 'partner')
