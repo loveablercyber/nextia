@@ -1123,14 +1123,122 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
       description: "Casas de luxo, coberturas, terrenos e imóveis comerciais. Tour virtual 360°, agendamento de visitas e atendimento personalizado com corretores CRECI.",
       sitelinks: ["🏡 Imóveis de Luxo", "🧮 Simulador de Financiamento", "📝 Anuncie Seu Imóvel", "👨‍💼 Corretores CRECI", "📞 WhatsApp Atendimento"]
     }
+  },
+  'loja-moda-premium': {
+    name: "Loja Moda Premium",
+    category: "E-Commerce & Boutique",
+    colorTheme: {
+      bg: "#09090B",
+      bgPanel: "#121217",
+      border: "#27273A",
+      text: "#FAFAFA",
+      primary: "#EC4899",
+      primaryHover: "#DB2777"
+    },
+    ctas: {
+      primaryText: { pt: "Ver Coleção", en: "View Collection", es: "Ver Colección" },
+      secondaryText: { pt: "Meu Carrinho", en: "My Cart", es: "Mi Carrito" },
+      type: "cart"
+    },
+    title: { pt: "Aura Boutique — Alta Moda", en: "Aura Boutique — High Fashion", es: "Aura Boutique — Alta Moda" },
+    subtitle: { pt: "Peças exclusivas, alfaiataria nobre e acabamento artesanal para o seu estilo único.", en: "Exclusive pieces, fine tailoring, and artisan finishes for your unique style.", es: "Piezas exclusivas, sastrería fina y acabado artesanal para tu estilo único." },
+    menuTitle: { pt: "Catálogo de Moda", en: "Fashion Catalog", es: "Catálogo de Moda" },
+    menuSubtitle: { pt: "Explore nossos lançamentos e garanta frete grátis nas compras acima de R$ 299.", en: "Explore our new arrivals with free shipping on orders over R$ 299.", es: "Explora nuestros lanzamientos con envío gratis en compras superiores a R$ 299." },
+    items: [
+      { id: 'moda-1', name: { pt: 'Blazer Alfaiataria Italiana', en: 'Italian Tailored Blazer', es: 'Blazer Sastrería Italiana' }, description: { pt: 'Corte estruturado em lã fria importada, forro em seda e botões em madrepérola.', en: 'Structured cut in imported cool wool, silk lining, and mother-of-pearl buttons.', es: 'Corte estructurado en lana fría importada, forro de seda y botones de nacar.' }, price: 489, image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=300&auto=format&fit=crop' },
+      { id: 'moda-2', name: { pt: 'Vestido Midi Festa Seda', en: 'Silk Party Midi Dress', es: 'Vestido Midi Fiesta Seda' }, description: { pt: 'Seda pura com caimento fluido, decote sutil e acabamento artesanal de luxo.', en: 'Pure silk with fluid drape, subtle neckline, and luxury artisan finish.', es: 'Seda pura con caída fluida, escote sutil y acabado artesanal de lujo.' }, price: 590, image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?q=80&w=300&auto=format&fit=crop' },
+      { id: 'moda-3', name: { pt: 'Bolsa Couro Legítimo Handcrafted', en: 'Handcrafted Leather Handbag', es: 'Bolso Cuero Legítimo Handcrafted' }, description: { pt: 'Couro italiano bovino de alta durabilidade com fivelas folheadas a ouro.', en: 'Durable Italian bovine leather with gold-plated buckles.', es: 'Cuero italiano bovino de alta durabilidad con hebillas bañadas en oro.' }, price: 790, image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=300&auto=format&fit=crop' },
+      { id: 'moda-4', name: { pt: 'Óculos de Sol Polarizado Gold', en: 'Gold Polarized Sunglasses', es: 'Gafas de Sol Polarizadas Gold' }, description: { pt: 'Armação em acetato nobre italiano com lentes UV400 polarizadas.', en: 'Italian acetate frame with UV400 polarized lenses.', es: 'Montura de acetato italiano con lentes UV400 polarizadas.' }, price: 349, image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?q=80&w=300&auto=format&fit=crop' }
+    ],
+    chatbot: { welcome: { pt: 'Bem-vindo à Aura Boutique! Como posso te ajudar na escolha do look?', en: 'Welcome to Aura Boutique! How can I assist with your outfit choice?', es: '¡Bienvenido a Aura Boutique! ¿Cómo puedo ayudarte a elegir tu atuendo?' }, prompts: [] },
+    seo: { title: 'Aura Boutique | Moda Feminina & Acessórios Premium', description: 'Loja virtual de moda com entrega para todo o Brasil.', sitelinks: ['Coleção 2026', 'Bolsas & Couro', 'Atendimento'] }
+  },
+  'loja-gourmet': {
+    name: "Empório Gourmet Fino",
+    category: "E-Commerce Gastronomia & Vinhos",
+    colorTheme: {
+      bg: "#0F0B08",
+      bgPanel: "#1B130E",
+      border: "#2C1E16",
+      text: "#F7F3EE",
+      primary: "#D97706",
+      primaryHover: "#B45309"
+    },
+    ctas: {
+      primaryText: { pt: "Ver Produtos Gourmet", en: "View Gourmet Products", es: "Ver Productos Gourmet" },
+      secondaryText: { pt: "Fazer Pedido", en: "Place Order", es: "Hacer Pedido" },
+      type: "cart"
+    },
+    title: { pt: "Empório & Adega Sabores do Mundo", en: "World Flavors Emporium & Cellar", es: "Empuesto & Bodega Sabores del Mundo" },
+    subtitle: { pt: "Azeites trufados, queijos artesanais curados e vinhos premiados das melhores vinícolas.", en: "Truffle oils, aged artisan cheeses, and award-winning wines from top vineyards.", es: "Aceites trufados, quesos artesanales curados y vinos premiados de las mejores bodegas." },
+    menuTitle: { pt: "Seleção Especial de Época", en: "Special Seasonal Selection", es: "Selección Especial de Temporada" },
+    menuSubtitle: { pt: "Ingredientes nobres importados direto dos produtores artesanais.", en: "Noble ingredients imported directly from artisan producers.", es: "Ingredientes nobles importados directamente de los productores artesanales." },
+    items: [
+      { id: 'gourmet-1', name: { pt: 'Azeite Trufado Extra Virgem 250ml', en: 'Extra Virgin Truffle Oil 250ml', es: 'Aceite Trufado Extra Virgen 250ml' }, description: { pt: 'Infusão de trufas negras italianas em azeite de oliva extra virgem de prensa a frio.', en: 'Italian black truffle infusion in cold-pressed extra virgin olive oil.', es: 'Infusión de trufas negras italianas en aceite de oliva extra virgen prensado en frío.' }, price: 189, image: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?q=80&w=300&auto=format&fit=crop' },
+      { id: 'gourmet-2', name: { pt: 'Queijo Parmigiano Reggiano 24 Meses (500g)', en: 'Parmigiano Reggiano 24 Months Cheese', es: 'Queso Parmigiano Reggiano 24 Meses' }, description: { pt: 'Importado da Itália com selo DOP de origem protegida, sabor intenso e textura granulada.', en: 'Imported from Italy with DOP seal, intense flavor, and crumbly texture.', es: 'Importado de Italia con sello DOP, sabor intenso y textura granulada.' }, price: 145, image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?q=80&w=300&auto=format&fit=crop' },
+      { id: 'gourmet-3', name: { pt: 'Vinho Reserva Gran Cabernet Sauvignon 750ml', en: 'Gran Cabernet Sauvignon Reserve Wine', es: 'Vino Reserva Gran Cabernet Sauvignon' }, description: { pt: 'Amadurecido 18 meses em barris de carvalho francês com notas de ameixa e baunilha.', en: 'Aged 18 months in French oak barrels with plum and vanilla notes.', es: 'Madurado 18 meses en barricas de roble francés con notas de ciruela y vainilla.' }, price: 280, image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=300&auto=format&fit=crop' }
+    ],
+    chatbot: { welcome: { pt: 'Olá! Deseja sugestão de harmonização para o seu pedido?', en: 'Hello! Would you like wine pairing suggestions?', es: '¡Hola! ¿Deseas sugerencias de maridaje para tu pedido?' }, prompts: [] },
+    seo: { title: 'Empório Gourmet | Sabores do Mundo & Adega', description: 'Produtos gourmet artesanais e vinhos com entrega refrigerada.', sitelinks: ['Vinhos', 'Queijos', 'Azeites'] }
+  },
+  'loja-tech-store': {
+    name: "Tech Store High Performance",
+    category: "E-Commerce Eletrônicos & Tech",
+    colorTheme: {
+      bg: "#0B0F19",
+      bgPanel: "#111827",
+      border: "#1F2937",
+      text: "#F9FAFB",
+      primary: "#3B82F6",
+      primaryHover: "#2563EB"
+    },
+    ctas: {
+      primaryText: { pt: "Explorar Hardware", en: "Explore Hardware", es: "Explorar Hardware" },
+      secondaryText: { pt: "Carrinho Tech", en: "Tech Cart", es: "Carrito Tech" },
+      type: "cart"
+    },
+    title: { pt: "Nexus Tech — Alta Performance", en: "Nexus Tech — High Performance", es: "Nexus Tech — Alta Performance" },
+    subtitle: { pt: "Periféricos pro, monitores de alta taxa de atualização e gadgets com garantia oficial.", en: "Pro peripherals, high-refresh monitors, and official warranty gadgets.", es: "Periféricos pro, monitores de alta tasa de refresco y gadgets con garantía oficial." },
+    menuTitle: { pt: "Catálogo de Dispositivos", en: "Device Catalog", es: "Catálogo de Dispositivos" },
+    menuSubtitle: { pt: "Equipamentos homologados para setups de alta produtividade e gaming.", en: "Homologated equipment for high-productivity and gaming setups.", es: "Equipos homologados para setups de alta productividad y gaming." },
+    items: [
+      { id: 'tech-1', name: { pt: 'Fone Active Noise Cancelling Wireless Pro', en: 'Pro Wireless ANC Headphones', es: 'Auriculares ANC Wireless Pro' }, description: { pt: 'Cancelamento ativo de ruído de 45dB, áudio Hi-Res e bateria de 40 horas.', en: 'Active noise cancellation up to 45dB, Hi-Res audio, and 40h battery.', es: 'Cancelación activa de ruido de 45dB, audio Hi-Res y batería de 40 horas.' }, price: 899, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=300&auto=format&fit=crop' },
+      { id: 'tech-2', name: { pt: 'Smartwatch AMOLED GPS Titanium', en: 'Titanium AMOLED GPS Smartwatch', es: 'Smartwatch AMOLED GPS Titanio' }, description: { pt: 'Caixa em titanio aeroespacial, monitoramento cardíaco contínuo e à prova d\'água 50m.', en: 'Aerospace titanium case, continuous heart monitoring, 50m waterproof.', es: 'Caja de titanio aeroespacial, monitoreo cardíaco continuo y resistente al agua 50m.' }, price: 1290, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=300&auto=format&fit=crop' },
+      { id: 'tech-3', name: { pt: 'Teclado Mecânico RGB Wireless Hot-Swap', en: 'RGB Wireless Hot-Swap Keyboard', es: 'Teclado Mecánico RGB Wireless Hot-Swap' }, description: { pt: 'Switches amarelos pré-lubrificados, teclas PBT de injeção dupla e bluetooth tri-mode.', en: 'Pre-lubed yellow switches, double-shot PBT keycaps, tri-mode bluetooth.', es: 'Switches amarillos prelubricados, teclas PBT inyección doble y bluetooth tri-mode.' }, price: 549, image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?q=80&w=300&auto=format&fit=crop' }
+    ],
+    chatbot: { welcome: { pt: 'Dúvidas sobre compatibilidade ou especificações técnicas?', en: 'Questions about compatibility or specs?', es: '¿Dudas sobre compatibilidad o especificaciones?' }, prompts: [] },
+    seo: { title: 'Nexus Tech | Eletrônicos & Periféricos Pro', description: 'Equipamentos de alta performance com garantia e entrega rápida.', sitelinks: ['Fones', 'Smartwatches', 'Teclados'] }
   }
 };
 
 export default function TemplateDemoPage() {
   const { slug } = useParams();
   
-  // Resolve active config or fallback to restaurante-premium if slug doesn't exist
-  const activeSlug = slug && DEMO_CONFIGS[slug] ? slug : 'restaurante-premium';
+  if (slug && !DEMO_CONFIGS[slug]) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white text-center font-sans">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-500">
+            <X className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">Modelo não encontrado</h1>
+            <p className="text-slate-400 text-xs mt-2 leading-relaxed">
+              O modelo de demonstração <strong>"{slug}"</strong> não foi localizado no catálogo oficial da plataforma.
+            </p>
+          </div>
+          <Link
+            to="/templates"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#5B4FE9] text-white font-bold text-sm hover:bg-[#4F46E5] transition shadow-lg"
+          >
+            <ArrowLeft className="w-4 h-4" /> Ver Todos os Modelos
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const activeSlug = slug || 'restaurante-premium';
   const config = DEMO_CONFIGS[activeSlug];
 
   const [lang, setLang] = useState<'pt' | 'en' | 'es'>('pt');

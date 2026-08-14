@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 6 — Modelos e Demos de Loja Virtual
+- **Fase em Execução**: Fase 7 — Consistência Comercial de Parceiros
 
 ---
 
@@ -33,18 +33,19 @@
   - Webhook com `service_engagements` e `service_domains`.
 - [x] **Fase 3 Concluída**:
   - `GET /api/app/engagements` e `ServiceEngagementContext.tsx`.
-  - Seletor de serviços no topo do `DashboardLayout.tsx`.
+  - Seletor de serviço no topo do `DashboardLayout.tsx`.
 - [x] **Fase 4 Concluída**:
   - Workflows adaptativos de briefing e acompanhamento.
 - [x] **Fase 5 Concluída**:
-  - Implementada validação de cota (20MB max), sanitização de arquivo e upload seguro em `POST /api/app/project/file` com fallback Cloudinary (`cloudinary.uploader.upload`).
-  - Leitura real de arquivo via `FileReader` em `src/pages/dashboard/FilesPage.tsx` e `ProjectContext.tsx`.
+  - Upload real de arquivos com validação de 20MB, Cloudinary upload e `FileReader`.
+- [x] **Fase 6 Concluída**:
+  - Implementados 3 modelos e demonstrações interativas de e-commerce distintas (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) em `src/pages/TemplateDemoPage.tsx`.
+  - Adicionado fallback 404 explícito para modelos não encontrados no catálogo.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 6**: Modelos de loja (Demos próprias interativas para `loja-moda-premium`, `loja-gourmet`, `loja-tech-store` com fallback 404 explícito).
 - [ ] **Fase 7**: Parceiros e consistência comercial (Remoção de estatísticas públicas estáticas e sincronia com o catálogo oficial).
 - [ ] **Fase 8**: Backfill e integridade (Migração com checkpoint, dry-run, fila de revisão `data_migration_issues`).
 - [ ] **Fase 9**: Ferramentas administrativas (Central de serviços contratados, gestor de domínios, fila de integridade).
@@ -58,9 +59,7 @@
 
 ## 4. Arquivos Alterados
 
-- `app-api.js`
-- `src/context/ProjectContext.tsx`
-- `src/pages/dashboard/FilesPage.tsx`
+- `src/pages/TemplateDemoPage.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -86,13 +85,13 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Upload Seguro**: Validação rigorosa de tamanho (<= 20MB) e leitura assíncrona do buffer/Data URL com persistência no banco e Cloudinary.
+1. **Catálogo de Demos Reais**: `TemplateDemoPage.tsx` carrega especificações visuais e produtos distintos por nicho sem fallback silencioso para evitar ambiguidade de escolha.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 6 — Modelos e Demos de Loja Virtual**:
-  1. Garantir que as 3 demonstrações de e-commerce (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) possuam páginas e experiências interativas próprias.
-  2. Implementar fallback 404 explícito para qualquer template inexistente.
-  3. Garantir fluxo direto da demonstração para a contratação `/cadastro?template=...`.
+- Executar a **Fase 7 — Consistência Comercial de Parceiros**:
+  1. Revisar as páginas de parceiros `src/pages/partner/Partner*` e endpoints em `partner-api.js` / `server.js`.
+  2. Sincronizar com os planos autoritativos do catálogo oficial (`commercial_plans`, `commercial_services`).
+  3. Remover estatísticas estáticas simuladas ou torná-las dinâmicas a partir de agregações do banco de dados.
