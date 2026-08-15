@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server.js",
+    "verify:deploy": "node scripts/verify-deployment.js",
     "db:migrate": "node scripts/migrate.js",
     "db:backfill": "node scripts/backfill-engagements.js",
     "db:set-admin-password": "node scripts/set-local-admin-password.js"

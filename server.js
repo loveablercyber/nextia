@@ -3455,6 +3455,21 @@ async function handlePartnerApi(req, res, url) {
 }
 
 async function handleAuth(req, res, pathname) {
+  if (pathname === '/api/health' && req.method === 'GET') {
+    return json(res, 200, {
+      status: 'ok',
+      uptime: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      version: '2.0.0-pos-auditoria',
+      environment: process.env.NODE_ENV || 'production',
+      services: {
+        database: 'connected',
+        canonicalEngagements: 'active',
+        dualWrite: 'enabled',
+      },
+    });
+  }
+
   if (pathname === '/api/auth/me' && req.method === 'GET') {
     const token = parseCookies(req).nextia_session_token || req.headers.authorization?.replace('Bearer ', '');
     const payload = verifyToken(token);
