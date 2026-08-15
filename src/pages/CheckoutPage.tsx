@@ -20,6 +20,15 @@ interface StoreDraftData {
   snapshot_activation_cents: number;
 }
 
+interface CommercePreview {
+  quoteId: string;
+  expiresAt: string;
+  oneTimeItems: Array<{ code: string; name: string; amountCents: number }>;
+  monthlyItems: Array<{ code: string; name: string; amountCents: number }>;
+  oneTimeTotalCents: number;
+  monthlyTotalCents: number;
+}
+
 const DIGITAL_SLUGS = ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'];
 
 export default function CheckoutPage() {
@@ -122,12 +131,59 @@ export default function CheckoutPage() {
     return DIGITAL_SLUGS.includes(selection.slug);
   }, [selection]);
 
-  const [domain, setDomain] = useState('');
+  const [domain, setDomain] = useState(() => params.get('domain') || '');
+  const [domainMode, setDomainMode] = useState<'register' | 'connect'>(() => params.get('domainMode') === 'connect' ? 'connect' : 'register');
   const [notes, setNotes] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [preview, setPreview] = useState<CommercePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const returnStatus = params.get('status');
+
+  const createPreview = async () => {
+    if (!selection) throw new Error('Seleção comercial inválida.');
+    const serviceSlug = selection.kind === 'draft'
+      ? 'lojas-virtuais'
+      : selection.kind === 'plan'
+        ? params.get('service')
+        : selection.slug;
+    if (!serviceSlug) throw new Error('Escolha o serviço relacionado a este plano antes de continuar.');
+    const response = await fetch('/api/commerce/preview', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serviceSlug,
+        planId: selection.kind === 'draft' ? draft?.plan_id : selection.kind === 'plan' ? selection.id : params.get('plan'),
+        templateId: selection.kind === 'draft' ? draft?.model_id : params.get('template'),
+        draftId: selection.kind === 'draft' ? selection.id : undefined,
+        addonCodes: selection.kind === 'draft' ? undefined : (params.get('options') || '').split(',').map((code) => code.trim()).filter(Boolean),
+        domain: isDigital && domain.trim() ? { name: domain.trim(), mode: domainMode } : undefined,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível calcular a contratação.');
+    setPreview(data);
+    return data as CommercePreview;
+  };
+
+  useEffect(() => {
+    if (!selection || (isDigital && domain.trim().length < 4)) {
+      setPreview(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setPreviewLoading(true);
+      createPreview().catch((previewError) => {
+        setPreview(null);
+        setError(previewError instanceof Error ? previewError.message : 'Falha ao calcular contratação.');
+      }).finally(() => setPreviewLoading(false));
+    }, 400);
+    return () => window.clearTimeout(timer);
+    // createPreview is intentionally driven by primitive commercial selections.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domain, domainMode, draft?.id, isDigital, selection?.id, selection?.kind]);
 
   if (loadingDraft) {
     return (
@@ -178,22 +234,20 @@ export default function CheckoutPage() {
     setLoading(true);
     setError('');
     try {
-      const endpoint = selection!.kind === 'plan' ? '/api/commerce/plan-contracts' : '/api/commerce/orders';
-      const bodyPayload = selection!.kind === 'plan'
-        ? { planId: selection!.id, domain: domain.trim() }
-        : selection!.kind === 'draft'
-          ? { draftId: selection!.id, domain: domain.trim(), notes }
-          : { serviceSlug: selection!.id, domain: domain.trim(), notes };
-
-      const response = await fetch(endpoint, {
+      const activePreview = preview && new Date(preview.expiresAt).getTime() > Date.now() ? preview : await createPreview();
+      const storageKey = `nextia.checkout.idempotency.${activePreview.quoteId}`;
+      const idempotencyKey = window.sessionStorage.getItem(storageKey) || crypto.randomUUID();
+      window.sessionStorage.setItem(storageKey, idempotencyKey);
+      const response = await fetch('/api/commerce/orders', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ quoteId: activePreview.quoteId, notes }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar a contratação.');
-      navigate('/painel/pedidos?success=1', { replace: true });
+      if (!data.checkoutUrl) throw new Error('O provedor não retornou o endereço de pagamento.');
+      window.location.assign(data.checkoutUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao iniciar contratação.');
       setLoading(false);
@@ -283,6 +337,17 @@ export default function CheckoutPage() {
                   placeholder="ex: meusite.com.br"
                   className="mt-3 w-full rounded border border-slate-300 bg-white p-3 text-base font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-[#1677FF] focus:outline-none"
                 />
+                <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <legend className="sr-only">Forma de uso do domínio</legend>
+                  <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'register' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'register'} onChange={() => setDomainMode('register')} />
+                    Registrar domínio (+ {money.format(50)})
+                  </label>
+                  <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'connect' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'connect'} onChange={() => setDomainMode('connect')} />
+                    Conectar domínio existente
+                  </label>
+                </fieldset>
               </div>
             )}
 
@@ -300,12 +365,6 @@ export default function CheckoutPage() {
                   className="mt-2 w-full rounded border border-slate-300 p-4 text-base"
                   placeholder="Informe contexto, prazo ou necessidade específica."
                 />
-              </div>
-            )}
-
-            {selection!.kind === 'plan' && (
-              <div className="mt-6 border border-blue-200 bg-blue-50 p-4 text-base leading-7 text-blue-900">
-                A taxa de ativação é paga primeiro. Após a confirmação, o link para autorizar a mensalidade ficará disponível em Meus pedidos.
               </div>
             )}
 
@@ -333,21 +392,23 @@ export default function CheckoutPage() {
             <h2 className="text-xl font-black">Resumo do Pedido</h2>
 
             <div className="mt-6 border-y border-white/15 py-5 space-y-4">
-              {selection!.activationFee > 0 && (
-                <div>
-                  <p className="text-sm text-slate-300">Taxa de ativação / Projeto total</p>
-                  <p className="text-2xl font-black text-[#D6A84B]">{money.format(selection!.activationFee)}</p>
+              {previewLoading && <p className="flex items-center gap-2 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Calculando valores...</p>}
+              {preview?.oneTimeItems.map((item) => (
+                <div key={`once-${item.code}`} className="flex justify-between gap-3 text-sm">
+                  <span className="text-slate-300">{item.name}</span><strong>{money.format(item.amountCents / 100)}</strong>
                 </div>
-              )}
-              {selection!.price > 0 && (
-                <div>
-                  <p className="text-sm text-slate-300">{selection!.recurring ? 'Mensalidade total' : 'Pagamento único total'}</p>
-                  <p className="mt-1 text-3xl font-black">
-                    {money.format(selection!.price)}
-                    {selection!.recurring && <span className="text-base font-semibold text-slate-300">/mês</span>}
-                  </p>
+              ))}
+              {preview?.oneTimeTotalCents ? (
+                <div><p className="text-sm text-slate-300">Total inicial</p><p className="text-2xl font-black text-[#D6A84B]">{money.format(preview.oneTimeTotalCents / 100)}</p></div>
+              ) : null}
+              {preview?.monthlyItems.map((item) => (
+                <div key={`monthly-${item.code}`} className="flex justify-between gap-3 text-sm">
+                  <span className="text-slate-300">{item.name}</span><strong>{money.format(item.amountCents / 100)}/mês</strong>
                 </div>
-              )}
+              ))}
+              {preview?.monthlyTotalCents ? (
+                <div><p className="text-sm text-slate-300">Total mensal</p><p className="text-3xl font-black">{money.format(preview.monthlyTotalCents / 100)}<span className="text-base font-semibold text-slate-300">/mês</span></p></div>
+              ) : null}
             </div>
 
             <ul className="mt-6 space-y-3">
@@ -361,7 +422,7 @@ export default function CheckoutPage() {
 
             <button
               onClick={submit}
-              disabled={loading}
+              disabled={loading || previewLoading || !preview}
               className="mt-8 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-5 text-lg font-bold disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
@@ -369,9 +430,7 @@ export default function CheckoutPage() {
                 ? 'Preparando pagamento...'
                 : !user
                   ? 'Entrar / Cadastrar para pagar'
-                  : selection!.kind === 'plan'
-                    ? 'Pagar ativação'
-                    : selection!.recurring
+                  : selection!.recurring
                       ? 'Continuar para assinatura'
                       : 'Continuar para pagamento'}
             </button>

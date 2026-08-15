@@ -10,6 +10,13 @@ interface Order {
   status: string;
   checkout_url: string | null;
   created_at: string;
+  total_cents?: number;
+  service_name_snapshot?: string;
+  plan_name_snapshot?: string;
+  template_name_snapshot?: string;
+  domain_fqdn?: string;
+  engagement_id?: string;
+  items?: Array<{ kind: string; code: string; name: string; amountCents: number; billingCycle: string }>;
 }
 
 interface Contract {
@@ -164,12 +171,21 @@ export default function OrdersPage() {
               {orders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="p-4">
-                    <p className="font-bold text-slate-900">{order.item_name}</p>
-                    <p className="text-xs text-slate-500">{order.recurring ? 'Assinatura mensal' : 'Serviço avulso'}</p>
+                    <p className="font-bold text-slate-900">{order.service_name_snapshot || order.item_name}</p>
+                    <p className="text-xs text-slate-500">
+                      {[order.template_name_snapshot, order.plan_name_snapshot, order.domain_fqdn].filter(Boolean).join(' · ') || (order.recurring ? 'Assinatura mensal' : 'Serviço avulso')}
+                    </p>
+                    {order.items && order.items.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                        {order.items.filter((item) => item.amountCents > 0).map((item) => (
+                          <li key={`${item.billingCycle}-${item.code}`}>{item.name} — {money.format(item.amountCents / 100)}{item.billingCycle === 'monthly' ? '/mês' : ''}</li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
                   <td className="p-4 text-slate-600">{new Date(order.created_at).toLocaleDateString('pt-BR')}</td>
                   <td className="p-4 font-bold text-slate-900">
-                    {money.format(order.amount_cents / 100)}
+                    {money.format((order.total_cents ?? order.amount_cents) / 100)}
                     {order.recurring && '/mês'}
                   </td>
                   <td className="p-4">

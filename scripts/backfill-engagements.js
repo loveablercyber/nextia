@@ -91,29 +91,37 @@ async function runBackfill() {
         continue;
       }
 
-      // Determine service_slug & workflow_key
-      let serviceSlug = 'sites';
-      let serviceCategory = 'digital';
-      let workflowKey = 'digital_site';
-      let migrationState = 'exact';
+      // Classify only from durable evidence. Names and plan labels are not authoritative.
+      let serviceSlug = 'legacy-unclassified';
+      let serviceCategory = 'legacy';
+      let workflowKey = 'legacy_review_v1';
+      let migrationState = 'needs_review';
 
-      const nameLower = (project.name || '').toLowerCase();
-      const segmentLower = (project.segment || '').toLowerCase();
-
-      if (nameLower.includes('loja') || segmentLower.includes('e-commerce') || project.store_model_id) {
+      if (project.order_item_id) {
+        serviceSlug = String(project.order_item_id);
+        serviceCategory = serviceSlug.startsWith('automacao') ? 'automation'
+          : ['techcare', 'suporte-ti'].includes(serviceSlug) ? 'techcare'
+            : ['redes-wifi', 'cameras-seguranca'].includes(serviceSlug) ? 'infrastructure'
+              : 'digital';
+        const workflowByService = {
+          sites: 'website_v1',
+          'landing-pages': 'landing_page_v1',
+          'lojas-virtuais': 'ecommerce_v1',
+          'automacao-ia': 'automation_v1',
+          'automacao-whatsapp': 'whatsapp_bot_v1',
+          sistemas: 'custom_system_v1',
+          techcare: 'techcare_v1',
+          'redes-wifi': 'network_v1',
+          'cameras-seguranca': 'security_v1',
+          backup: 'backup_v1',
+        };
+        workflowKey = workflowByService[serviceSlug] || 'legacy_review_v1';
+        migrationState = workflowKey === 'legacy_review_v1' ? 'needs_review' : 'exact';
+      } else if (project.store_model_id) {
         serviceSlug = 'lojas-virtuais';
         serviceCategory = 'digital';
-        workflowKey = 'digital_ecommerce';
-      } else if (nameLower.includes('automação') || nameLower.includes('bot') || nameLower.includes('ia')) {
-        serviceSlug = 'automacao-ia';
-        serviceCategory = 'automation';
-        workflowKey = 'automation_ia';
-        migrationState = 'inferred';
-      } else if (nameLower.includes('techcare') || nameLower.includes('suporte')) {
-        serviceSlug = 'techcare';
-        serviceCategory = 'techcare';
-        workflowKey = 'techcare_maintenance';
-        migrationState = 'inferred';
+        workflowKey = 'ecommerce_v1';
+        migrationState = 'exact';
       }
 
       const publicCode = generatePublicCode();
@@ -145,6 +153,21 @@ async function runBackfill() {
 
           const engagementId = engRes.rows[0].id;
 
+          if (migrationState === 'needs_review') {
+            await client.query(`
+              INSERT INTO public.data_migration_issues
+                (entity_type,entity_id,issue_code,description,evidence,status)
+              VALUES ('project',$1,'ambiguous_service','Não há evidência durável suficiente para identificar o serviço contratado',$2,'needs_review')
+            `, [project.id, JSON.stringify({
+              projectName: project.name,
+              segment: project.segment,
+              plan: project.plan,
+              sourceOrderId: project.source_order_id,
+              sourceContractId: project.source_contract_id,
+            })]);
+            reviewCount++;
+          }
+
           await client.query(`UPDATE public.projects SET engagement_id = $1 WHERE id = $2`, [engagementId, project.id]);
 
           if (project.domain && String(project.domain).trim()) {
@@ -165,7 +188,7 @@ async function runBackfill() {
       }
 
       if (migrationState === 'exact') exactCount++;
-      else inferredCount++;
+      else if (migrationState === 'inferred') inferredCount++;
     }
 
     console.log(`\n========================================`);

@@ -14,13 +14,10 @@ interface DashboardLayoutProps {
   title?: string;
 }
 
-const navItems = [
+const globalNavItems = [
   { to: '/painel', icon: LayoutDashboard, label: 'Visão geral', exact: true },
+  { to: '/painel/servicos', icon: FolderOpen, label: 'Serviços contratados' },
   { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
-  { to: '/painel/projeto', icon: FolderOpen, label: 'Meu projeto' },
-  { to: '/painel/briefing', icon: ClipboardList, label: 'Briefing do Site' },
-  { to: '/painel/arquivos', icon: Upload, label: 'Arquivos' },
-  { to: '/painel/alteracoes', icon: MessageSquare, label: 'Solicitações' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/parceiros', icon: Users, label: 'Programa de Parceiros' },
@@ -42,6 +39,22 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const serviceBase = selectedEngagement ? `/painel/servicos/${selectedEngagement.id}` : null;
+  const capabilities = new Set(selectedEngagement?.capabilities || []);
+  const briefingLabel = selectedEngagement?.workflow_key?.includes('automation')
+    ? 'Levantamento da automação'
+    : selectedEngagement?.workflow_key?.includes('techcare')
+      ? 'Triagem técnica'
+      : 'Briefing';
+  const serviceNavItems = serviceBase ? [
+    { to: serviceBase, icon: LayoutDashboard, label: 'Visão do serviço', exact: true, enabled: true },
+    { to: `${serviceBase}/projeto`, icon: FolderOpen, label: 'Projeto', enabled: capabilities.has('project') },
+    { to: `${serviceBase}/briefing`, icon: ClipboardList, label: briefingLabel, enabled: capabilities.has('briefing') },
+    { to: `${serviceBase}/arquivos`, icon: Upload, label: 'Arquivos', enabled: capabilities.has('files') },
+    { to: `${serviceBase}/solicitacoes`, icon: MessageSquare, label: 'Solicitações', enabled: capabilities.has('change_requests') },
+    { to: `${serviceBase}/faturas`, icon: CreditCard, label: 'Faturas do serviço', enabled: capabilities.has('billing') },
+  ].filter((item) => item.enabled) : [];
+  const navItems = [...globalNavItems, ...serviceNavItems];
 
   const handleLogout = async () => {
     await logout();
@@ -164,6 +177,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
                   onChange={(e) => selectEngagement(e.target.value)}
                   className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
                 >
+                  <option value="" disabled>Escolha um serviço</option>
                   {engagements.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.service_name_snapshot} ({e.public_code}) — {e.status}

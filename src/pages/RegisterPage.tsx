@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
   const planoParam = searchParams.get('plano') || 'pro';
+  const hasCommercialContext = Boolean(templateSlug || searchParams.has('plano') || searchParams.get('draft') || searchParams.get('redirect')?.startsWith('/checkout'));
 
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
   const selectedPlanObj = plans.find(p => p.id === planoParam.toLowerCase()) || plans.find(p => p.id === 'pro') || plans[0];
@@ -60,40 +61,31 @@ export default function RegisterPage() {
   });
 
   const handleConfirmExistingUser = async () => {
-    if ((selectedTemplate || selectedPlanObj) && !domain.trim()) {
+    if (!hasCommercialContext) {
+      navigate('/painel', { replace: true });
+      return;
+    }
+    if (!domain.trim()) {
       setError('Por favor, informe o domínio desejado para o seu projeto.');
       return;
     }
-    setLoading(true);
     setError(null);
-    try {
-      const response = await fetch('/api/commerce/plan-contracts', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planId: selectedPlanObj.id,
-          domain: domain.trim(),
-          domainType,
-          templateSlug: selectedTemplate?.slug,
-          optionalItems: selectedOptions,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Não foi possível registrar a contratação.');
-
-      navigate('/painel/pedidos?success=1', { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Falha ao confirmar pedido.');
-      setLoading(false);
-    }
+    const target = new URLSearchParams({
+      service: selectedTemplate ? 'lojas-virtuais' : 'sites',
+      plan: selectedPlanObj.id,
+      domain: domain.trim(),
+      domainMode: domainType === 'registro' ? 'register' : 'connect',
+    });
+    if (selectedTemplate) target.set('template', selectedTemplate.slug);
+    if (selectedOptions.length) target.set('options', selectedOptions.join(','));
+    navigate(`/checkout?${target.toString()}`, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (selectedTemplate && !domain.trim()) {
+    if (hasCommercialContext && !domain.trim()) {
       setError('Por favor, informe o domínio desejado para o seu projeto.');
       return;
     }
@@ -120,13 +112,6 @@ export default function RegisterPage() {
         phone: form.phone,
         company: form.company,
         password: form.password,
-        template: selectedTemplate ? selectedTemplate.name : '',
-        plan: selectedPlanObj.name,
-        segment: selectedTemplate ? selectedTemplate.category : '',
-        monthlyFee,
-        activationFee,
-        domain: domain.trim(),
-        domainType,
       });
 
       if (regRes.error) {
@@ -137,7 +122,15 @@ export default function RegisterPage() {
       setLoading(false);
       const draftParam = searchParams.get('draft');
       const redirectParam = searchParams.get('redirect');
-      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : '/painel/pedidos?success=1');
+      const checkoutParams = new URLSearchParams({
+        service: selectedTemplate ? 'lojas-virtuais' : 'sites',
+        plan: selectedPlanObj.id,
+        domain: domain.trim(),
+        domainMode: domainType === 'registro' ? 'register' : 'connect',
+      });
+      if (selectedTemplate) checkoutParams.set('template', selectedTemplate.slug);
+      if (selectedOptions.length) checkoutParams.set('options', selectedOptions.join(','));
+      const targetCheckout = redirectParam || (draftParam ? `/checkout?draft=${draftParam}` : hasCommercialContext ? `/checkout?${checkoutParams.toString()}` : '/painel');
       setTimeout(() => {
         navigate(targetCheckout, { replace: true });
       }, 1000);

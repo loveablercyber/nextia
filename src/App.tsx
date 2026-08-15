@@ -44,6 +44,7 @@ import FilesPage from './pages/dashboard/FilesPage';
 import ChangeRequestsPage from './pages/dashboard/ChangeRequestsPage';
 import PaymentsPage from './pages/dashboard/PaymentsPage';
 import OrdersPage from './pages/dashboard/OrdersPage';
+import ServicesPage from './pages/dashboard/ServicesPage';
 import TechnicalOverviewPage from './pages/dashboard/TechnicalOverviewPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 
@@ -215,6 +216,34 @@ function AppRoutes() {
       <Route path="/tecnico/os/:ticketId" element={<ProtectedRoute requireRole="technician"><TechnicianServiceOrderPage /></ProtectedRoute>} />
 
       {/* Dashboard Subroutes */}
+      <Route
+        path="/painel/servicos"
+        element={<DashboardContainer title="Serviços contratados"><ServicesPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId"
+        element={<DashboardContainer title="Visão geral do serviço"><OverviewPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId/projeto"
+        element={<DashboardContainer title="Projeto"><ProjectPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId/briefing"
+        element={<DashboardContainer title="Briefing"><BriefingPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId/arquivos"
+        element={<DashboardContainer title="Arquivos"><FilesPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId/solicitacoes"
+        element={<DashboardContainer title="Solicitações"><ChangeRequestsPage /></DashboardContainer>}
+      />
+      <Route
+        path="/painel/servicos/:engagementId/faturas"
+        element={<DashboardContainer title="Faturas"><PaymentsPage /></DashboardContainer>}
+      />
       <Route
         path="/painel"
         element={
@@ -500,12 +529,12 @@ export default function App() {
     <AppErrorBoundary>
       <AuthProvider>
         <NotificationProvider>
-          <ServiceEngagementProvider>
-            <BrowserRouter>
+          <BrowserRouter>
+            <ServiceEngagementProvider>
               <ScrollToTop />
               <AppRoutes />
-            </BrowserRouter>
-          </ServiceEngagementProvider>
+            </ServiceEngagementProvider>
+          </BrowserRouter>
         </NotificationProvider>
       </AuthProvider>
     </AppErrorBoundary>

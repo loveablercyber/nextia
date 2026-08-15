@@ -1,23 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Users, TrendingUp, DollarSign, Star, HelpCircle } from 'lucide-react';
-import { requestJson } from '../../lib/appData';
 
 export default function PartnerLandingPage() {
-  const [stats, setStats] = useState({
-    activePartners: 150,
-    totalCommissionsFormatted: 'R$ 2.5M+',
-    recurringPercentage: 25,
-  });
-
-  useEffect(() => {
-    requestJson<{ activePartners: number; totalCommissionsFormatted: string; recurringPercentage: number }>('/api/partners/public-stats')
-      .then((data) => {
-        if (data) setStats(data);
-      })
-      .catch(() => {});
-  }, []);
-
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-white selection:bg-[#D4A853]/30">
       {/* Header */}
@@ -61,21 +45,6 @@ export default function PartnerLandingPage() {
             </Link>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 pt-8 border-t border-white/10 max-w-4xl mx-auto">
-            <div>
-              <div className="text-4xl font-black text-white mb-2">{stats.activePartners}+</div>
-              <div className="text-gray-400 font-medium">Parceiros Ativos</div>
-            </div>
-            <div>
-              <div className="text-4xl font-black text-[#D4A853] mb-2">{stats.totalCommissionsFormatted}</div>
-              <div className="text-gray-400 font-medium">Em Comissões Pagas</div>
-            </div>
-            <div>
-              <div className="text-4xl font-black text-white mb-2">{stats.recurringPercentage}%</div>
-              <div className="text-gray-400 font-medium">Comissão Recorrente</div>
-            </div>
-          </div>
         </div>
       </section>
 

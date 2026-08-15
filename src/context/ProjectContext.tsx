@@ -4,6 +4,7 @@ import type { Project, ProjectBriefing, ProjectFile } from '../types/project';
 import { mapProjectDbToUi, requestJson, type DatabaseRecord } from '../lib/appData';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
+import { useOptionalServiceEngagements } from './ServiceEngagementContext';
 
 interface ProjectContextValue {
   project: Project | null;
@@ -19,18 +20,20 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { addNotification } = useNotification();
+  const serviceContext = useOptionalServiceEngagements();
+  const activeProjectId = serviceContext?.selectedEngagement?.project_id || null;
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshProject = useCallback(async () => {
-    if (!user) {
+    if (!user || !activeProjectId) {
       setProject(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const data = await requestJson<{ project: DatabaseRecord | null }>('/api/app/project');
+      const data = await requestJson<{ project: DatabaseRecord | null }>(`/api/app/project?projectId=${encodeURIComponent(activeProjectId)}`);
       setProject(data.project ? mapProjectDbToUi(data.project) : null);
     } catch (error) {
       console.error('Error loading project:', error);
@@ -38,7 +41,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [activeProjectId, user]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void refreshProject(), 0);

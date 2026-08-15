@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 let appSchemaPromise;
 
 export async function ensureAppSchema(client) {
@@ -140,52 +142,13 @@ export async function ensureAppSchema(client) {
 }
 
 async function loadProjects(client, userId = null) {
-  let result = await client.query(
+  const result = await client.query(
     `SELECT * FROM public.projects
      WHERE ($1::uuid IS NULL OR user_id = $1)
      ORDER BY created_at DESC`,
     [userId],
   );
-  let projects = result.rows;
-
-  if (projects.length === 0 && userId) {
-    const [orderRes, contractRes, draftRes] = await Promise.all([
-      client.query(`SELECT * FROM public.commercial_orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
-      client.query(`SELECT * FROM public.commercial_plan_contracts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
-      client.query(`SELECT * FROM public.commercial_store_drafts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [userId]),
-    ]);
-
-    const latestOrder = orderRes.rows[0];
-    const latestContract = contractRes.rows[0];
-    const latestDraft = draftRes.rows[0];
-
-    const name = latestOrder?.item_name || (latestContract ? `Plano ${latestContract.plan_name}` : (latestDraft ? `Loja Virtual` : 'Meu Projeto Digital'));
-    const domain = latestOrder?.store_snapshot?.domain || latestContract?.domain || '';
-    const plan = latestContract?.plan_name || latestDraft?.plan_id || 'Pro';
-    const activationFee = latestOrder ? (latestOrder.amount_cents / 100) : (latestContract ? (latestContract.activation_amount_cents / 100) : 0);
-    const monthlyFee = latestContract ? (latestContract.monthly_amount_cents / 100) : 0;
-
-    const inserted = await client.query(
-      `INSERT INTO public.projects (user_id, name, template, segment, status, plan, domain, monthly_fee, activation_fee, requests_remaining, requests_total)
-       VALUES ($1, $2, $3, $4, 'aguardando-briefing', $5, $6, $7, $8, 5, 5)
-       RETURNING *`,
-      [userId, name, 'Personalizado', 'Geral', plan, domain, monthlyFee, activationFee],
-    );
-    const pId = inserted.rows[0].id;
-
-    await client.query(
-      `INSERT INTO public.milestones (project_id, title, description, status, completed_at, position)
-       VALUES
-         ($1, 'Contratação realizada', 'Pedido registrado na plataforma', 'concluido', NOW(), 1),
-         ($1, 'Preenchimento do Briefing', 'Envio de informações e logotipo', 'em-andamento', NULL, 2),
-         ($1, 'Desenvolvimento e Layout', 'Criação das páginas e estrutura', 'pendente', NULL, 3),
-         ($1, 'Revisão e Publicação', 'Ajustes finais e conexão de domínio', 'pendente', NULL, 4)`,
-      [pId],
-    );
-
-    const reResult = await client.query(`SELECT * FROM public.projects WHERE id = $1`, [pId]);
-    projects = reResult.rows;
-  }
+  const projects = result.rows;
 
   if (projects.length === 0) return [];
   const ids = projects.map((project) => project.id);
@@ -350,53 +313,106 @@ export async function handleAppApi(req, res, url, dependencies) {
     const session = await getSessionProfile(req, client);
     if (!session) return json(res, 401, { error: 'Usuário não autenticado.' });
 
+    if (url.pathname === '/api/app/profile/activity' && req.method === 'GET') {
+      const [engagementCount, requestCount, ticketCount, recentRequests] = await Promise.all([
+        client.query('SELECT COUNT(*)::int AS count FROM public.service_engagements WHERE user_id=$1', [session.id]),
+        client.query(`SELECT COUNT(*)::int AS count FROM public.change_requests r JOIN public.projects p ON p.id=r.project_id WHERE p.user_id=$1`, [session.id]),
+        client.query('SELECT COUNT(*)::int AS count FROM public.support_tickets WHERE user_id=$1', [session.id]),
+        client.query(
+          `SELECT r.id,r.title,r.status,r.created_at,e.service_name_snapshot
+           FROM public.change_requests r
+           JOIN public.projects p ON p.id=r.project_id
+           LEFT JOIN public.service_engagements e ON e.id=p.engagement_id
+           WHERE p.user_id=$1 ORDER BY r.created_at DESC LIMIT 4`,
+          [session.id],
+        ),
+      ]);
+      return json(res, 200, {
+        summary: {
+          services: engagementCount.rows[0]?.count || 0,
+          requests: requestCount.rows[0]?.count || 0,
+          supportTickets: ticketCount.rows[0]?.count || 0,
+        },
+        recentRequests: recentRequests.rows,
+      });
+    }
+
+    if (url.pathname === '/api/app/projects' && req.method === 'GET') {
+      return json(res, 200, { projects: await loadProjects(client, session.id) });
+    }
+
     if (url.pathname === '/api/app/project' && req.method === 'GET') {
+      const projectId = String(url.searchParams.get('projectId') || '').trim();
+      if (!projectId) return json(res, 400, { error: 'Informe o projeto que deseja acessar.' });
       const projects = await loadProjects(client, session.id);
-      return json(res, 200, { project: projects[0] || null });
+      const project = projects.find((item) => item.id === projectId) || null;
+      if (!project) return json(res, 404, { error: 'Projeto não encontrado.' });
+      return json(res, 200, { project });
     }
 
     if (url.pathname === '/api/app/project/file' && req.method === 'POST') {
       const body = await readJson(req);
       const name = String(body.name || '').trim();
       const type = String(body.type || 'other');
-      const dataUrl = body.dataUrl || body.url || null;
-      const sizeBytes = Number(body.sizeBytes || 0);
-
-      // Max size limit: 20MB
-      if (sizeBytes > 20 * 1024 * 1024) {
+      const dataUrl = String(body.dataUrl || '');
+      const dataMatch = dataUrl.match(/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
+      if (!name || !dataMatch) return json(res, 400, { error: 'Arquivo inválido ou ausente.' });
+      const allowedMimeTypes = new Set([
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+        'application/pdf', 'text/plain', 'text/csv',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ]);
+      const mimeType = dataMatch[1].toLowerCase();
+      if (!allowedMimeTypes.has(mimeType)) return json(res, 415, { error: 'Formato de arquivo não permitido.' });
+      const fileBuffer = Buffer.from(dataMatch[2], 'base64');
+      const sizeBytes = fileBuffer.length;
+      if (sizeBytes === 0 || sizeBytes > 20 * 1024 * 1024) {
         return json(res, 400, { error: 'Arquivo excede o limite máximo permitido de 20MB.' });
       }
-
-      let fileUrl = dataUrl;
-
-      // Cloudinary upload if configured
-      if (dataUrl && (process.env.CLOUDINARY_URL || process.env.CLOUDINARY_CLOUD_NAME)) {
-        try {
-          const cloudinary = (await import('cloudinary')).v2;
-          if (process.env.CLOUDINARY_CLOUD_NAME) {
-            cloudinary.config({
-              cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-              api_key: process.env.CLOUDINARY_API_KEY,
-              api_secret: process.env.CLOUDINARY_API_SECRET,
-            });
-          }
-          const uploadRes = await cloudinary.uploader.upload(dataUrl, {
-            folder: 'nextia_uploads',
-            resource_type: 'auto',
-          });
-          fileUrl = uploadRes.secure_url;
-        } catch (cErr) {
-          console.error('[Cloudinary Upload Warning]', cErr.message || cErr);
-        }
+      if (!(process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET))) {
+        return json(res, 503, { error: 'Armazenamento de arquivos não configurado.' });
       }
 
+      let uploadRes;
+      try {
+        const cloudinary = (await import('cloudinary')).v2;
+        if (process.env.CLOUDINARY_CLOUD_NAME) {
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          });
+        }
+        uploadRes = await cloudinary.uploader.upload(dataUrl, {
+          folder: `nextia_uploads/${session.id}`,
+          resource_type: 'auto',
+          type: 'authenticated',
+          use_filename: false,
+          unique_filename: true,
+          overwrite: false,
+        });
+      } catch (error) {
+        console.error('[CLIENT FILE UPLOAD ERROR]', error.message || error);
+        return json(res, 502, { error: 'Não foi possível armazenar o arquivo. Nenhum registro foi criado.' });
+      }
+      if (!uploadRes?.secure_url || !uploadRes?.public_id) return json(res, 502, { error: 'Armazenamento não confirmou o arquivo.' });
+      const checksum = createHash('sha256').update(fileBuffer).digest('hex');
+
       const result = await client.query(
-        `INSERT INTO public.files(project_id, name, size, type, uploaded_by, url)
-         SELECT p.id, $2, $3, $4, $5, $6 FROM public.projects p WHERE p.id = $1 AND p.user_id = $7
+        `INSERT INTO public.files
+          (project_id,engagement_id,name,size,type,uploaded_by,url,storage_provider,storage_key,secure_url,
+           original_name,mime_type,size_bytes,checksum_sha256,scan_status,uploaded_by_user_id)
+         SELECT p.id,p.engagement_id,$2,$3,$4,$5,$6,'cloudinary',$7,$6,$2,$8,$9,$10,'pending',$11
+         FROM public.projects p WHERE p.id = $1 AND p.user_id = $11
          RETURNING *`,
-        [body.projectId, name, body.size || '1.0 MB', type, session.name || session.email, fileUrl, session.id],
+        [body.projectId, name.slice(0, 255), `${(sizeBytes / 1024 / 1024).toFixed(2)} MB`, type, session.name || session.email, uploadRes.secure_url, uploadRes.public_id, mimeType, sizeBytes, checksum, session.id],
       );
-      if (!result.rows[0]) return json(res, 404, { error: 'Projeto não encontrado.' });
+      if (!result.rows[0]) {
+        const cloudinary = (await import('cloudinary')).v2;
+        await cloudinary.uploader.destroy(uploadRes.public_id, { resource_type: uploadRes.resource_type, type: 'authenticated' }).catch(() => undefined);
+        return json(res, 404, { error: 'Projeto não encontrado.' });
+      }
       return json(res, 201, { file: result.rows[0] });
     }
 
@@ -498,18 +514,6 @@ export async function handleAppApi(req, res, url, dependencies) {
           [JSON.stringify({ ...body.briefing, submitted: true, submittedAt }), pId, session.id],
         );
         if (!result.rows[0]) {
-          const userProjects = await loadProjects(client, session.id);
-          if (userProjects.length > 0) {
-            pId = userProjects[0].id;
-            result = await client.query(
-              `UPDATE public.projects
-               SET briefing = $1::jsonb, status = 'em-desenvolvimento', progress_percent = GREATEST(progress_percent, 35), updated_at = NOW()
-               WHERE id = $2 AND user_id = $3 RETURNING id`,
-              [JSON.stringify({ ...body.briefing, submitted: true, submittedAt }), pId, session.id],
-            );
-          }
-        }
-        if (!result.rows[0]) {
           await client.query('ROLLBACK');
           return json(res, 404, { error: 'Projeto não encontrado.' });
         }
@@ -520,7 +524,9 @@ export async function handleAppApi(req, res, url, dependencies) {
         );
         await client.query('COMMIT');
         const projects = await loadProjects(client, session.id);
-        return json(res, 200, { project: projects.find((project) => project.id === pId) || projects[0] || null });
+        const project = projects.find((item) => item.id === pId) || null;
+        if (!project) return json(res, 404, { error: 'Projeto não encontrado.' });
+        return json(res, 200, { project });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -536,10 +542,12 @@ export async function handleAppApi(req, res, url, dependencies) {
       if (!session) return json(res, 401, { error: 'Faça login para consultar seus serviços.' });
       const engagementsRes = await client.query(
         `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
-                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent
+                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent,
+                COALESCE(w.modules, '[]'::jsonb) AS capabilities
          FROM public.service_engagements e
          LEFT JOIN public.service_domains d ON d.engagement_id = e.id
          LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
+         LEFT JOIN public.service_workflow_policies w ON w.workflow_key = e.workflow_key
          WHERE e.user_id = $1
          ORDER BY e.created_at DESC`,
         [session.id],
@@ -547,15 +555,122 @@ export async function handleAppApi(req, res, url, dependencies) {
       return json(res, 200, { engagements: engagementsRes.rows });
     }
 
+    const engagementModuleMatch = url.pathname.match(/^\/api\/app\/engagements\/([^/]+)\/(overview|briefing|files|requests|invoices)$/);
+    if (engagementModuleMatch) {
+      const [, idOrCode, moduleName] = engagementModuleMatch;
+      const scopeResult = await client.query(
+        `SELECT e.*, p.id AS project_id
+         FROM public.service_engagements e
+         LEFT JOIN public.projects p ON p.engagement_id = e.id
+         WHERE (e.id::text = $1 OR e.public_code = $1) AND e.user_id = $2`,
+        [idOrCode, session.id],
+      );
+      const engagement = scopeResult.rows[0];
+      if (!engagement) return json(res, 404, { error: 'Serviço não encontrado.' });
+
+      if (moduleName === 'overview' && req.method === 'GET') {
+        return json(res, 200, { engagement });
+      }
+
+      if (moduleName === 'briefing' && req.method === 'GET') {
+        const result = await client.query(
+          `SELECT * FROM public.briefing_submissions WHERE engagement_id = $1
+           ORDER BY created_at DESC LIMIT 1`,
+          [engagement.id],
+        );
+        return json(res, 200, { briefing: result.rows[0] || null });
+      }
+
+      if (moduleName === 'briefing' && ['PUT', 'POST'].includes(req.method)) {
+        const body = await readJson(req);
+        const responses = body.responses || body.briefing;
+        if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
+          return json(res, 400, { error: 'Respostas do briefing inválidas.' });
+        }
+        const schemaKey = String(body.schemaKey || engagement.workflow_key || 'generic_v1').slice(0, 100);
+        const schemaVersion = Math.max(1, Number(body.schemaVersion || engagement.workflow_version || 1));
+        const targetStatus = req.method === 'POST' ? 'submitted' : 'draft';
+        const existingDraft = await client.query(
+          `SELECT id FROM public.briefing_submissions
+           WHERE engagement_id = $1 AND status = 'draft' ORDER BY created_at DESC LIMIT 1`,
+          [engagement.id],
+        );
+        let result;
+        if (existingDraft.rows[0]) {
+          result = await client.query(
+            `UPDATE public.briefing_submissions
+             SET responses=$2,schema_key=$3,schema_version=$4,status=$5,
+                 submitted_at=CASE WHEN $5='submitted' THEN NOW() ELSE submitted_at END,
+                 submitted_by=CASE WHEN $5='submitted' THEN $6 ELSE submitted_by END,
+                 updated_at=NOW()
+             WHERE id=$1 RETURNING *`,
+            [existingDraft.rows[0].id, JSON.stringify(responses), schemaKey, schemaVersion, targetStatus, session.id],
+          );
+        } else {
+          result = await client.query(
+            `INSERT INTO public.briefing_submissions
+              (engagement_id,project_id,schema_key,schema_version,responses,status,submitted_at,submitted_by)
+             VALUES ($1,$2,$3,$4,$5,$6,CASE WHEN $6='submitted' THEN NOW() END,$7)
+             RETURNING *`,
+            [engagement.id, engagement.project_id, schemaKey, schemaVersion, JSON.stringify(responses), targetStatus, session.id],
+          );
+        }
+        return json(res, req.method === 'POST' ? 201 : 200, { briefing: result.rows[0] });
+      }
+
+      if (moduleName === 'files' && req.method === 'GET') {
+        const result = await client.query(
+          `SELECT id,engagement_id,project_id,original_name,name,mime_type,type,size_bytes,size,secure_url,url,scan_status,version,uploaded_at
+           FROM public.files WHERE engagement_id=$1 AND deleted_at IS NULL ORDER BY uploaded_at DESC`,
+          [engagement.id],
+        );
+        return json(res, 200, { files: result.rows });
+      }
+
+      if (moduleName === 'requests' && req.method === 'GET') {
+        if (!engagement.project_id) return json(res, 200, { requests: [] });
+        const result = await client.query('SELECT * FROM public.change_requests WHERE project_id=$1 ORDER BY created_at DESC', [engagement.project_id]);
+        return json(res, 200, { requests: result.rows });
+      }
+
+      if (moduleName === 'requests' && req.method === 'POST') {
+        if (!engagement.project_id) return json(res, 409, { error: 'Este serviço não possui projeto para solicitações.' });
+        const body = await readJson(req);
+        const title = String(body.title || '').trim();
+        const description = String(body.description || '').trim();
+        if (!title || !description) return json(res, 400, { error: 'Título e descrição são obrigatórios.' });
+        const result = await client.query(
+          `INSERT INTO public.change_requests(project_id,title,description,status,priority,category)
+           VALUES($1,$2,$3,'aberto',$4,$5) RETURNING *`,
+          [engagement.project_id, title.slice(0, 200), description.slice(0, 5000), String(body.priority || 'normal'), String(body.category || 'geral')],
+        );
+        return json(res, 201, { request: result.rows[0] });
+      }
+
+      if (moduleName === 'invoices' && req.method === 'GET') {
+        const result = await client.query(
+          `SELECT i.*,COALESCE(json_agg(ii ORDER BY ii.created_at) FILTER (WHERE ii.id IS NOT NULL),'[]') AS items
+           FROM public.invoices i LEFT JOIN public.invoice_items ii ON ii.invoice_id=i.id
+           WHERE i.engagement_id=$1 GROUP BY i.id ORDER BY i.created_at DESC`,
+          [engagement.id],
+        );
+        return json(res, 200, { invoices: result.rows });
+      }
+
+      return json(res, 405, { error: 'Método não permitido.' });
+    }
+
     if (url.pathname.startsWith('/api/app/engagements/') && req.method === 'GET') {
       if (!session) return json(res, 401, { error: 'Faça login para consultar este serviço.' });
       const idOrCode = url.pathname.replace('/api/app/engagements/', '').trim();
       const engagementRes = await client.query(
         `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
-                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent
+                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent,
+                COALESCE(w.modules, '[]'::jsonb) AS capabilities
          FROM public.service_engagements e
          LEFT JOIN public.service_domains d ON d.engagement_id = e.id
          LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
+         LEFT JOIN public.service_workflow_policies w ON w.workflow_key = e.workflow_key
          WHERE (e.id::text = $1 OR e.public_code = $1) AND e.user_id = $2`,
         [idOrCode, session.id],
       );

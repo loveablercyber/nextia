@@ -19,14 +19,19 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useOptionalProject } from '../context/ProjectContext';
 import Button from '../components/ui/Button';
+import { requestJson } from '../lib/appData';
 
 interface ProfileFormData {
   name: string;
   email: string;
   phone: string;
   company: string;
+}
+
+interface ProfileActivity {
+  summary: { services: number; requests: number; supportTickets: number };
+  recentRequests: Array<{ id: string; title: string; status: string; created_at: string; service_name_snapshot?: string }>;
 }
 
 export default function ProfilePage() {
@@ -40,6 +45,7 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState(false);
   const [formError, setFormError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
+  const [activity, setActivity] = useState<ProfileActivity>({ summary: { services: 0, requests: 0, supportTickets: 0 }, recentRequests: [] });
 
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
@@ -59,6 +65,15 @@ export default function ProfilePage() {
       if (user.avatarUrl) setPreviewUrl(user.avatarUrl);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user || isAdmin) return;
+    let active = true;
+    requestJson<ProfileActivity>('/api/app/profile/activity')
+      .then((data) => { if (active) setActivity(data); })
+      .catch((error) => { console.error('[ProfilePage] Falha ao carregar atividade:', error); });
+    return () => { active = false; };
+  }, [isAdmin, user]);
 
   const [pwForm, setPwForm] = useState({
     currentPassword: '',
@@ -212,26 +227,16 @@ export default function ProfilePage() {
     }
   };
 
-  // Dados ilustrativos para Admin
-  const adminDashboardStats = {
-    totalClients: 47,
-    totalAppointments: 156,
-    totalServices: 23,
-  };
-
   const adminQuickLinks = [
     { label: 'Gerenciar Clientes', icon: Users, href: '/admin/clientes', color: 'from-[#5B4FE9] to-[#7c3aed]' },
     { label: 'Projetos Ativos', icon: Briefcase, href: '/admin/projetos', color: 'from-[#059669] to-[#10b981]' },
     { label: 'Central de Suporte', icon: HelpCircle, href: '/admin/suporte', color: 'from-[#db2777] to-[#ec4899]' },
   ];
 
-  const projectContext = useOptionalProject();
-  const project = projectContext?.project;
-
-  const userRequests = (project?.changeRequests || []).slice(0, 4).map((r) => ({
+  const userRequests = activity.recentRequests.map((r) => ({
     id: r.id,
     service: r.title,
-    date: r.createdAt,
+    date: r.created_at,
     status: r.status === 'concluido' ? 'Concluído' : r.status === 'em-andamento' ? 'Em andamento' : 'Pendente',
   }));
 
@@ -362,8 +367,8 @@ export default function ProfilePage() {
                           <Users className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-600">Total de Clientes</p>
-                          <p className="text-lg font-black text-[#5B4FE9]">{adminDashboardStats.totalClients}</p>
+                          <p className="text-xs font-semibold text-gray-600">Clientes</p>
+                          <p className="text-sm font-black text-[#5B4FE9]">Gerenciar</p>
                         </div>
                       </div>
                     </div>
@@ -377,7 +382,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-600">Agendamentos</p>
-                          <p className="text-lg font-black text-[#db2777]">{adminDashboardStats.totalAppointments}</p>
+                          <p className="text-sm font-black text-[#db2777]">Gerenciar</p>
                         </div>
                       </div>
                     </div>
@@ -390,8 +395,8 @@ export default function ProfilePage() {
                           <Briefcase className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-gray-600">Serviços Catálogo</p>
-                          <p className="text-lg font-black text-[#059669]">{adminDashboardStats.totalServices}</p>
+                          <p className="text-xs font-semibold text-gray-600">Serviços</p>
+                          <p className="text-sm font-black text-[#059669]">Gerenciar</p>
                         </div>
                       </div>
                     </div>
@@ -429,7 +434,7 @@ export default function ProfilePage() {
                 Histórico de Atividade
               </h3>
               <div className="text-center py-4 bg-gradient-to-r from-[#5B4FE9]/5 to-[#7c3aed]/5 rounded-2xl border border-[#5B4FE9]/10 mb-4">
-                <p className="text-3xl font-black text-[#5B4FE9]">{userRequests.length}</p>
+                <p className="text-3xl font-black text-[#5B4FE9]">{activity.summary.requests}</p>
                 <p className="text-xs text-gray-600 mt-1">Solicitações Registradas</p>
               </div>
               <div className="space-y-2">
