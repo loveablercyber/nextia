@@ -1113,6 +1113,56 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       const result = await client.query(
         `UPDATE public.commercial_services
          SET price_cents = $1, price_label = $2, recurring = $3, active = $4,
+        currency: 'BRL',
+        serviceSlug: selection.service.slug,
+        serviceName: selection.service.name,
+        templateSlug: selection.template?.slug || null,
+        planId: selection.plan?.id || null,
+        domain: body.domain || null,
+        oneTimeItems: selection.oneTimeItems,
+        monthlyItems: selection.monthlyItems,
+        oneTimeTotalCents: selection.oneTimeTotalCents,
+        monthlyTotalCents: selection.monthlyTotalCents,
+      });
+    }
+
+    if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT id, name, monthly_amount_cents, activation_amount_cents, active, sort_order, updated_at
+         FROM public.commercial_plans ${isAdminRoute ? '' : 'WHERE active = TRUE'} ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { plans: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/catalog/plans' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const monthly = Number(body.monthlyAmountCents);
+      const activation = Number(body.activationAmountCents);
+      const order = Number(body.sortOrder);
+      if (!String(body.id || '') || !Number.isInteger(monthly) || monthly <= 0 || !Number.isInteger(activation) || activation <= 0 || !Number.isInteger(order)) {
+        return json(res, 400, { error: 'Plano ou valores inválidos.' });
+      }
+      const result = await client.query(
+        `UPDATE public.commercial_plans SET monthly_amount_cents = $1, activation_amount_cents = $2,
+           active = $3, sort_order = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6 RETURNING *`,
+        [monthly, activation, body.active !== false, order, sessionProfile.id, body.id],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Plano não encontrado.' });
+      return json(res, 200, { plan: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/catalog/services' && req.method === 'PATCH') {
+      const body = await readJson(req);
+      const slug = String(body.slug || '').trim();
+      const priceCents = body.priceCents === null || body.priceCents === '' ? null : Number(body.priceCents);
+      const sortOrder = Number(body.sortOrder);
+      if (!slug || (priceCents !== null && (!Number.isInteger(priceCents) || priceCents < 0))) {
+        return json(res, 400, { error: 'Serviço ou preço inválido.' });
+      }
+      if (!Number.isInteger(sortOrder)) return json(res, 400, { error: 'Ordem inválida.' });
+      const result = await client.query(
+        `UPDATE public.commercial_services
+         SET price_cents = $1, price_label = $2, recurring = $3, active = $4,
              sort_order = $5, updated_at = NOW(), updated_by = $6
          WHERE slug = $7
          RETURNING slug, name, category, price_cents, price_label, recurring, active, sort_order, updated_at`,
@@ -1125,23 +1175,30 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
 
     if (url.pathname === '/api/commerce/orders' && req.method === 'GET') {
       if (!sessionProfile) return json(res, 401, { error: 'Faça login para consultar seus pedidos.' });
-      const result = await client.query(
-        `SELECT o.id, o.item_type, o.item_id, o.item_name, o.amount_cents, o.recurring, o.status,
-                o.checkout_url, o.created_at, o.updated_at, o.paid_at, o.subtotal_cents, o.total_cents,
-                o.currency, o.service_slug_snapshot, o.service_name_snapshot, o.plan_name_snapshot,
-                o.template_name_snapshot, o.domain_fqdn, o.engagement_id,
-                COALESCE(jsonb_agg(jsonb_build_object(
-                  'kind', i.item_kind, 'code', i.item_code, 'name', i.name_snapshot,
-                  'amountCents', i.total_amount_cents, 'billingCycle', i.billing_cycle,
-                  'metadata', i.metadata
-                ) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::jsonb) AS items
-         FROM public.commercial_orders o
-         LEFT JOIN public.commercial_order_items i ON i.order_id=o.id
-         WHERE o.user_id = $1
-         GROUP BY o.id ORDER BY o.created_at DESC`,
-        [sessionProfile.id],
-      );
-      return json(res, 200, { orders: result.rows });
+      try {
+        await ensureCommercialCatalogSchema(client);
+        await ensureAppSchema(client);
+        const result = await client.query(
+          `SELECT o.id, o.item_type, o.item_id, o.item_name, o.amount_cents, o.recurring, o.status,
+                  o.checkout_url, o.created_at, o.updated_at, o.paid_at, o.subtotal_cents, o.total_cents,
+                  o.currency, o.service_slug_snapshot, o.service_name_snapshot, o.plan_name_snapshot,
+                  o.template_name_snapshot, o.domain_fqdn, o.engagement_id,
+                  COALESCE(jsonb_agg(jsonb_build_object(
+                    'kind', i.item_kind, 'code', i.item_code, 'name', i.name_snapshot,
+                    'amountCents', i.total_amount_cents, 'billingCycle', i.billing_cycle,
+                    'metadata', i.metadata
+                  ) ORDER BY i.created_at) FILTER (WHERE i.id IS NOT NULL), '[]'::jsonb) AS items
+           FROM public.commercial_orders o
+           LEFT JOIN public.commercial_order_items i ON i.order_id=o.id
+           WHERE o.user_id = $1
+           GROUP BY o.id ORDER BY o.created_at DESC`,
+          [sessionProfile.id],
+        );
+        return json(res, 200, { orders: result.rows });
+      } catch (err) {
+        console.error('[Commerce Orders API Error]', err.message || err);
+        return json(res, 200, { orders: [] });
+      }
     }
 
     if (url.pathname === '/api/commerce/orders' && req.method === 'POST') {

@@ -108,6 +108,128 @@ export async function ensureAppSchema(client) {
       );
       CREATE INDEX IF NOT EXISTS quotes_created_at_idx ON public.quotes(created_at DESC);
 
+      CREATE TABLE IF NOT EXISTS public.service_engagements (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        public_code TEXT UNIQUE NOT NULL,
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        service_slug TEXT NOT NULL,
+        service_name_snapshot TEXT NOT NULL,
+        service_category TEXT NOT NULL,
+        segment_slug TEXT,
+        segment_name_snapshot TEXT,
+        template_id TEXT,
+        template_slug_snapshot TEXT,
+        template_name_snapshot TEXT,
+        plan_id TEXT,
+        plan_name_snapshot TEXT,
+        workflow_key TEXT NOT NULL,
+        workflow_version INTEGER NOT NULL DEFAULT 1,
+        execution_mode TEXT NOT NULL DEFAULT 'client_admin',
+        status TEXT NOT NULL DEFAULT 'awaiting_payment',
+        source_kind TEXT NOT NULL DEFAULT 'order',
+        source_order_id UUID,
+        source_order_item_id UUID,
+        source_contract_id UUID,
+        migration_state TEXT NOT NULL DEFAULT 'native',
+        activation_amount_cents INTEGER NOT NULL DEFAULT 0,
+        monthly_amount_cents INTEGER NOT NULL DEFAULT 0,
+        currency CHAR(3) NOT NULL DEFAULT 'BRL',
+        activated_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_service_engagements_user_created ON public.service_engagements(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS public.service_domains (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        engagement_id UUID NOT NULL REFERENCES public.service_engagements(id) ON DELETE CASCADE,
+        fqdn TEXT NOT NULL,
+        mode TEXT NOT NULL DEFAULT 'connect',
+        registration_fee_cents INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        dns_verified_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT unq_service_domains_engagement UNIQUE (engagement_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS public.commercial_order_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id UUID NOT NULL REFERENCES public.commercial_orders(id) ON DELETE CASCADE,
+        item_kind TEXT NOT NULL,
+        item_code TEXT NOT NULL,
+        name_snapshot TEXT NOT NULL,
+        unit_amount_cents INTEGER NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        total_amount_cents INTEGER NOT NULL DEFAULT 0,
+        recurring BOOLEAN NOT NULL DEFAULT FALSE,
+        billing_cycle TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.service_workflow_policies (
+        workflow_key TEXT PRIMARY KEY,
+        version INTEGER NOT NULL DEFAULT 1,
+        service_slug TEXT NOT NULL,
+        execution_mode TEXT NOT NULL DEFAULT 'client_admin',
+        requires_project BOOLEAN NOT NULL DEFAULT TRUE,
+        requires_briefing BOOLEAN NOT NULL DEFAULT TRUE,
+        requires_domain BOOLEAN NOT NULL DEFAULT TRUE,
+        modules JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.data_migration_issues (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        issue_code TEXT NOT NULL,
+        description TEXT NOT NULL,
+        evidence JSONB NOT NULL DEFAULT '{}'::jsonb,
+        status TEXT NOT NULL DEFAULT 'needs_review',
+        resolution_notes TEXT,
+        resolved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        resolved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      ALTER TABLE public.projects
+        ADD COLUMN IF NOT EXISTS engagement_id UUID REFERENCES public.service_engagements(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS source_order_id UUID,
+        ADD COLUMN IF NOT EXISTS source_contract_id UUID,
+        ADD COLUMN IF NOT EXISTS service_slug TEXT,
+        ADD COLUMN IF NOT EXISTS workflow_key TEXT,
+        ADD COLUMN IF NOT EXISTS workflow_version INTEGER NOT NULL DEFAULT 1;
+
+      ALTER TABLE public.commercial_orders
+        ADD COLUMN IF NOT EXISTS subtotal_cents INTEGER,
+        ADD COLUMN IF NOT EXISTS discount_cents INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS total_cents INTEGER,
+        ADD COLUMN IF NOT EXISTS currency CHAR(3) NOT NULL DEFAULT 'BRL',
+        ADD COLUMN IF NOT EXISTS pricing_quote_id UUID,
+        ADD COLUMN IF NOT EXISTS idempotency_key TEXT,
+        ADD COLUMN IF NOT EXISTS engagement_id UUID REFERENCES public.service_engagements(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS service_slug_snapshot TEXT,
+        ADD COLUMN IF NOT EXISTS service_name_snapshot TEXT,
+        ADD COLUMN IF NOT EXISTS plan_name_snapshot TEXT,
+        ADD COLUMN IF NOT EXISTS template_name_snapshot TEXT,
+        ADD COLUMN IF NOT EXISTS domain_fqdn TEXT,
+        ADD COLUMN IF NOT EXISTS failure_code TEXT,
+        ADD COLUMN IF NOT EXISTS failure_message TEXT;
+
+      INSERT INTO public.service_workflow_policies
+        (workflow_key, version, service_slug, execution_mode, requires_project, requires_briefing, requires_domain, modules)
+      VALUES
+        ('digital_site', 1, 'sites', 'client_admin', TRUE, TRUE, TRUE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
+        ('digital_ecommerce', 1, 'lojas-virtuais', 'client_admin', TRUE, TRUE, TRUE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
+        ('automation_ia', 1, 'automacao-ia', 'client_admin', TRUE, TRUE, FALSE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
+        ('techcare_maintenance', 1, 'techcare', 'client_technician_admin', TRUE, FALSE, FALSE, '["overview","project","change_requests","payments"]'::jsonb)
+      ON CONFLICT (workflow_key) DO NOTHING;
+
       CREATE TABLE IF NOT EXISTS public.notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -540,19 +662,25 @@ export async function handleAppApi(req, res, url, dependencies) {
 
     if (url.pathname === '/api/app/engagements' && req.method === 'GET') {
       if (!session) return json(res, 401, { error: 'Faça login para consultar seus serviços.' });
-      const engagementsRes = await client.query(
-        `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
-                p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent,
-                COALESCE(w.modules, '[]'::jsonb) AS capabilities
-         FROM public.service_engagements e
-         LEFT JOIN public.service_domains d ON d.engagement_id = e.id
-         LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
-         LEFT JOIN public.service_workflow_policies w ON w.workflow_key = e.workflow_key
-         WHERE e.user_id = $1
-         ORDER BY e.created_at DESC`,
-        [session.id],
-      );
-      return json(res, 200, { engagements: engagementsRes.rows });
+      try {
+        await ensureAppSchema(client);
+        const engagementsRes = await client.query(
+          `SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
+                  p.id AS project_id, p.name AS project_name, p.status AS project_status, p.progress_percent,
+                  COALESCE(w.modules, '[]'::jsonb) AS capabilities
+           FROM public.service_engagements e
+           LEFT JOIN public.service_domains d ON d.engagement_id = e.id
+           LEFT JOIN public.projects p ON p.engagement_id = e.id OR p.source_order_id = e.source_order_id
+           LEFT JOIN public.service_workflow_policies w ON w.workflow_key = e.workflow_key
+           WHERE e.user_id = $1
+           ORDER BY e.created_at DESC`,
+          [session.id],
+        );
+        return json(res, 200, { engagements: engagementsRes.rows });
+      } catch (err) {
+        console.error('[Engagements API Error]', err.message || err);
+        return json(res, 200, { engagements: [] });
+      }
     }
 
     const engagementModuleMatch = url.pathname.match(/^\/api\/app\/engagements\/([^/]+)\/(overview|briefing|files|requests|invoices)$/);
