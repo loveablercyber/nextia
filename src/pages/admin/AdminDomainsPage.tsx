@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Globe, Search, RefreshCw, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
+import { Globe, Search, RefreshCw, Edit3 } from 'lucide-react';
 import { requestJson } from '../../lib/appData';
 
 interface AdminDomain {

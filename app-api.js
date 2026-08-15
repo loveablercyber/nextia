@@ -692,10 +692,34 @@ export async function handleAppApi(req, res, url, dependencies) {
       } else if (url.pathname === '/api/admin/app/project' && req.method === 'POST') {
         await client.query('BEGIN');
         try {
+          const publicCode = `ENG-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+          const serviceSlug = String(body.template || '').includes('loja') || String(body.segment || '').toLowerCase().includes('e-commerce') ? 'lojas-virtuais' : 'sites';
+          const serviceCategory = 'digital';
+          const workflowKey = serviceSlug === 'lojas-virtuais' ? 'digital_ecommerce' : 'digital_site';
+
+          const eng = await client.query(
+            `INSERT INTO public.service_engagements
+               (public_code, user_id, service_slug, service_name_snapshot, service_category, workflow_key, status, source_kind, migration_state, activation_amount_cents, monthly_amount_cents)
+             VALUES ($1, $2, $3, $4, $5, $6, 'awaiting_briefing', 'manual_admin', 'exact', $7, $8)
+             RETURNING id`,
+            [
+              publicCode,
+              body.userId,
+              serviceSlug,
+              body.name || 'Projeto Digital',
+              serviceCategory,
+              workflowKey,
+              Math.round(Number(body.activationFee || 0) * 100),
+              Math.round(Number(body.monthlyFee || 0) * 100),
+            ],
+          );
+
+          const engagementId = eng.rows[0].id;
+
           const project = await client.query(
-            `INSERT INTO public.projects(user_id,name,template,segment,plan,monthly_fee,activation_fee,estimated_delivery)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-            [body.userId, body.name, body.template || '', body.segment || 'Geral', body.plan || 'Pro', Number(body.monthlyFee || 0), Number(body.activationFee || 0), body.estimatedDelivery],
+            `INSERT INTO public.projects(user_id,engagement_id,name,template,segment,plan,monthly_fee,activation_fee,estimated_delivery)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [body.userId, engagementId, body.name, body.template || '', body.segment || 'Geral', body.plan || 'Pro', Number(body.monthlyFee || 0), Number(body.activationFee || 0), body.estimatedDelivery],
           );
           const projectId = project.rows[0].id;
           const milestones = [

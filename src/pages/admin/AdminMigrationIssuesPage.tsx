@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Search, RefreshCw, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Search, RefreshCw } from 'lucide-react';
 import { requestJson } from '../../lib/appData';
 
 interface MigrationIssue {

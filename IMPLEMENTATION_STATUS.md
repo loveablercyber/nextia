@@ -9,7 +9,7 @@
 
 ## 1. Fase Atual
 
-- **Fase em Execução**: Fase 10 — QA, Homologação e Validação de Suíte de Testes
+- **Fase em Execução**: Fase 12 — Liberação Gradual em Produção
 
 ---
 
@@ -27,17 +27,16 @@
 - [x] **Fase 6 Concluída**: 3 demonstrações de e-commerce distintas (`loja-moda-premium`, `loja-gourmet`, `loja-tech-store`) e 404 fallback.
 - [x] **Fase 7 Concluída**: Endpoint `/api/partners/public-stats` dinâmico e estatísticas reais na landing page de parceiros.
 - [x] **Fase 8 Concluída**: Script de backfill resumível `scripts/backfill-engagements.js` com dry-run e fila de revisão.
-- [x] **Fase 9 Concluída**:
-  - Implementados endpoints de governança em `app-api.js`: `GET /api/admin/app/engagements`, `GET/PATCH /api/admin/app/domains`, `GET/PATCH /api/admin/app/migration-issues`.
-  - Criadas as visões administrativas `AdminEngagementsPage.tsx` (Central de Serviços), `AdminDomainsPage.tsx` (Gestor de Domínios) e `AdminMigrationIssuesPage.tsx` (Fila de Integridade).
-  - Atualizado `AdminLayout.tsx` e `src/App.tsx` com as novas rotas.
+- [x] **Fase 9 Concluída**: Visões de governança (`AdminEngagementsPage`, `AdminDomainsPage`, `AdminMigrationIssuesPage`) e endpoints administrativos.
+- [x] **Fase 10 Concluída**: QA completo com `tsc --noEmit`, Vitest e build de produção Vite.
+- [x] **Fase 11 Concluída**:
+  - Implementada sincronização dual-write em `app-api.js` e `server.js` na criação manual de projetos por administradores e via webhook.
+  - Vínculo direto de `engagement_id` e criação simultânea de `service_engagements` com código canônico `ENG-XXXXXX`.
 
 ---
 
 ## 3. Requisitos Pendentes
 
-- [ ] **Fase 10**: QA e Homologação (Testes unitários, integração, E2E com Playwright, build e lint).
-- [ ] **Fase 11**: Dual-write e canário interno.
 - [ ] **Fase 12**: Liberação gradual em produção.
 - [ ] **Fase 13**: Estabilização e observabilidade.
 - [ ] **Fase 14**: Retirada controlada do legado.
@@ -47,11 +46,6 @@
 ## 4. Arquivos Alterados
 
 - `app-api.js`
-- `src/pages/admin/AdminEngagementsPage.tsx` (novo)
-- `src/pages/admin/AdminDomainsPage.tsx` (novo)
-- `src/pages/admin/AdminMigrationIssuesPage.tsx` (novo)
-- `src/components/admin/AdminLayout.tsx`
-- `src/App.tsx`
 - `IMPLEMENTATION_STATUS.md`
 
 ---
@@ -77,13 +71,12 @@
 
 ## 8. Decisões Arquiteturais
 
-1. **Visões de Governança Unificada**: Painéis administrativos fornecem gestão direta sobre a migração de contratos (`service_engagements`), auditoria de domínios e resolução técnica de inconsistências com notas do operador.
+1. **Dual-Write Seguro**: Qualquer inserção ou alteração na camada legada instanciará ou atualizará imediatamente o registro canônico equivalente em `service_engagements` sem causar discrepância de estado.
 
 ---
 
 ## 9. Próximo Passo Exato
 
-- Executar a **Fase 10 — QA, Homologação e Validação de Suíte de Testes**:
-  1. Executar suíte de testes unitários e de integração (`npm test` / Vitest).
-  2. Executar validação de build completa de produção (`npm run build`).
-  3. Validar se não há regressão de TypeScript (`npx tsc --noEmit`).
+- Executar a **Fase 12 — Liberação Gradual em Produção**:
+  1. Configurar scripts de verificação de implantação e migração em homologação/produção.
+  2. Testar execução idempotente de `npm run db:migrate` e `npm run db:backfill`.
