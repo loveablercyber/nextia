@@ -4342,4 +4342,18 @@ createServer(async (req, res) => {
   }
 }).listen(port, () => {
   console.log(`Nextia server listening on port ${port}`);
+  if (process.env.DATABASE_URL) {
+    (async () => {
+      try {
+        const client = dbClient();
+        await client.connect();
+        await ensureAppSchema(client);
+        await ensureCommercialCatalogSchema(client);
+        await client.end();
+        console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
+      } catch (err) {
+        console.error('[Startup Schema Warning]', err.message || err);
+      }
+    })();
+  }
 });

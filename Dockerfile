@@ -28,11 +28,13 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 RUN apk add --no-cache postgresql-client
 
-# Copy compiled dist, server logic, and database schemas
+# Copy compiled dist, server logic, database schemas, scripts, and public assets
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./server.js
 COPY --from=builder /app/app-api.js ./app-api.js
 COPY --from=builder /app/database ./database
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
