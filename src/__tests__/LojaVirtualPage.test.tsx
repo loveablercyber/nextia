@@ -3,6 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import LojaVirtualPage from '../pages/LojaVirtualPage';
 
+vi.mock('../hooks/useServiceCatalog', () => ({
+  useServiceCatalog: () => [{ slug: 'lojas-virtuais', name: 'Lojas Virtuais', price: 1490, benefits: [] }],
+}));
+
+vi.mock('../hooks/useCommercialPlans', () => ({
+  useCommercialPlans: () => [],
+}));
+
 vi.stubGlobal('fetch', vi.fn(() =>
   Promise.resolve({
     ok: true,
@@ -35,7 +43,8 @@ describe('LojaVirtualPage Integration Test', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { level: 1 })).toBeDefined();
-    expect(screen.getByText(/pronta para vender online/i)).toBeDefined();
-  });
+    expect(await screen.findByRole('heading', { level: 1 })).toBeDefined();
+    expect(await screen.findByText(/pronta para vender online/i)).toBeDefined();
+    expect((await screen.findAllByText('Loja & Catálogo Digital')).length).toBeGreaterThan(0);
+  }, 15000);
 });
