@@ -1101,31 +1101,6 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       return json(res, 200, { plan: result.rows[0] });
     }
 
-    if (url.pathname === '/api/admin/catalog/services' && req.method === 'PATCH') {
-      const body = await readJson(req);
-      const slug = String(body.slug || '').trim();
-      const priceCents = body.priceCents === null || body.priceCents === '' ? null : Number(body.priceCents);
-      const sortOrder = Number(body.sortOrder);
-      if (!slug || (priceCents !== null && (!Number.isInteger(priceCents) || priceCents < 0))) {
-        return json(res, 400, { error: 'Serviço ou preço inválido.' });
-      }
-      if (!Number.isInteger(sortOrder)) return json(res, 400, { error: 'Ordem inválida.' });
-      const result = await client.query(
-        `UPDATE public.commercial_services
-         SET price_cents = $1, price_label = $2, recurring = $3, active = $4,
-        currency: 'BRL',
-        serviceSlug: selection.service.slug,
-        serviceName: selection.service.name,
-        templateSlug: selection.template?.slug || null,
-        planId: selection.plan?.id || null,
-        domain: body.domain || null,
-        oneTimeItems: selection.oneTimeItems,
-        monthlyItems: selection.monthlyItems,
-        oneTimeTotalCents: selection.oneTimeTotalCents,
-        monthlyTotalCents: selection.monthlyTotalCents,
-      });
-    }
-
     if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
       const result = await client.query(
         `SELECT id, name, monthly_amount_cents, activation_amount_cents, active, sort_order, updated_at
