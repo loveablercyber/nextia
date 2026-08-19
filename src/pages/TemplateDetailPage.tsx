@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import { templates, getTemplateOptionalFeatures } from '../data/templates';
+import { templates, getTemplateOptionalFeatures, getTemplateServiceSlug } from '../data/templates';
 import { plans } from '../data/plans';
 import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 
@@ -71,7 +71,13 @@ export default function TemplateDetailPage() {
 
   const currentFeatures = selectedPlanId === 'pro' && template ? template.features : selectedPlanObj.features;
 
-  const registerUrl = `/cadastro?template=${template.slug}&plano=${selectedPlanId}${selectedOptions.length > 0 ? `&options=${selectedOptions.join(',')}` : ''}`;
+  const registerParams = new URLSearchParams({
+    service: getTemplateServiceSlug(template),
+    template: template.slug,
+    plano: selectedPlanId,
+  });
+  if (selectedOptions.length > 0) registerParams.set('options', selectedOptions.join(','));
+  const registerUrl = `/cadastro?${registerParams.toString()}`;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">

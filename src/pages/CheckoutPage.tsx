@@ -422,13 +422,15 @@ export default function CheckoutPage() {
 
             <button
               onClick={submit}
-              disabled={loading || previewLoading || !preview}
+              disabled={loading || previewLoading}
               className="mt-8 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-lg bg-[#1677FF] px-5 text-lg font-bold disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
               {loading
                 ? 'Preparando pagamento...'
-                : !user
+                : !preview
+                  ? 'Recalcular e continuar'
+                  : !user
                   ? 'Entrar / Cadastrar para pagar'
                   : selection!.recurring
                       ? 'Continuar para assinatura'

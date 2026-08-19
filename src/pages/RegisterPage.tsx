@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle, UserCheck, Globe } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { templates, ALL_OPTIONAL_FEATURES, getTemplateOptionalFeatures } from '../data/templates';
+import { templates, ALL_OPTIONAL_FEATURES, getTemplateOptionalFeatures, getTemplateServiceSlug } from '../data/templates';
 import { plans } from '../data/plans';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,10 +16,16 @@ export default function RegisterPage() {
   const { user, register } = useAuth();
   const [searchParams] = useSearchParams();
   const templateSlug = searchParams.get('template');
+  const requestedService = searchParams.get('service');
   const planoParam = searchParams.get('plano') || 'pro';
-  const hasCommercialContext = Boolean(templateSlug || searchParams.has('plano') || searchParams.get('draft') || searchParams.get('redirect')?.startsWith('/checkout'));
+  const hasCommercialContext = Boolean(requestedService || templateSlug || searchParams.has('plano') || searchParams.get('draft') || searchParams.get('redirect')?.startsWith('/checkout'));
 
   const selectedTemplate = templates.find(t => t.slug === templateSlug);
+  const serviceSlug = requestedService === 'lojas-virtuais' || requestedService === 'sites-prontos'
+    ? requestedService
+    : selectedTemplate
+      ? getTemplateServiceSlug(selectedTemplate)
+      : 'sites';
   const selectedPlanObj = plans.find(p => p.id === planoParam.toLowerCase()) || plans.find(p => p.id === 'pro') || plans[0];
   const templateOptionalFeatures = getTemplateOptionalFeatures(selectedTemplate);
 
@@ -71,7 +77,7 @@ export default function RegisterPage() {
     }
     setError(null);
     const target = new URLSearchParams({
-      service: selectedTemplate ? 'lojas-virtuais' : 'sites',
+      service: serviceSlug,
       plan: selectedPlanObj.id,
       domain: domain.trim(),
       domainMode: domainType === 'registro' ? 'register' : 'connect',
@@ -123,7 +129,7 @@ export default function RegisterPage() {
       const draftParam = searchParams.get('draft');
       const redirectParam = searchParams.get('redirect');
       const checkoutParams = new URLSearchParams({
-        service: selectedTemplate ? 'lojas-virtuais' : 'sites',
+        service: serviceSlug,
         plan: selectedPlanObj.id,
         domain: domain.trim(),
         domainMode: domainType === 'registro' ? 'register' : 'connect',

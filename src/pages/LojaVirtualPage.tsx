@@ -111,7 +111,7 @@ export default function LojaVirtualPage() {
   const handleProceedToCheckout = () => {
     if (!selectedTemplate) return;
     const optionsQuery = selectedOptionIds.length > 0 ? `&options=${selectedOptionIds.join(',')}` : '';
-    navigate(`/cadastro?template=${selectedTemplate.slug}&plano=${selectedPlanId}${optionsQuery}`);
+    navigate(`/cadastro?service=lojas-virtuais&template=${selectedTemplate.slug}&plano=${selectedPlanId}${optionsQuery}`);
   };
 
   const recommendedPlan = (recProducts === 'large' || recPayments === 'custom')

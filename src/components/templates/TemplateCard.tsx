@@ -1,6 +1,6 @@
 import { Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Template } from '../../data/templates';
+import { getTemplateServiceSlug, type Template } from '../../data/templates';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import { TemplateIllustration } from './TemplateIllustration';
@@ -85,7 +85,7 @@ export default function TemplateCard({ template }: TemplateCardProps) {
             <Link to={`/templates/${template.slug}`} className="flex-1">
               <Button variant="outline" size="sm" fullWidth>Ver modelo</Button>
             </Link>
-            <Link to={`/cadastro?template=${template.slug}&plano=${template.recommendedPlan.toLowerCase()}`} className="flex-1">
+            <Link to={`/cadastro?service=${getTemplateServiceSlug(template)}&template=${template.slug}&plano=${template.recommendedPlan.toLowerCase()}`} className="flex-1">
               <Button variant="primary" size="sm" fullWidth>Escolher</Button>
             </Link>
           </div>

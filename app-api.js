@@ -225,6 +225,7 @@ export async function ensureAppSchema(client) {
         (workflow_key, version, service_slug, execution_mode, requires_project, requires_briefing, requires_domain, modules)
       VALUES
         ('digital_site', 1, 'sites', 'client_admin', TRUE, TRUE, TRUE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
+        ('digital_ready_site', 1, 'sites-prontos', 'client_admin', TRUE, TRUE, TRUE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
         ('digital_ecommerce', 1, 'lojas-virtuais', 'client_admin', TRUE, TRUE, TRUE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
         ('automation_ia', 1, 'automacao-ia', 'client_admin', TRUE, TRUE, FALSE, '["overview","project","briefing","files","change_requests","payments"]'::jsonb),
         ('techcare_maintenance', 1, 'techcare', 'client_technician_admin', TRUE, FALSE, FALSE, '["overview","project","change_requests","payments"]'::jsonb)

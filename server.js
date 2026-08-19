@@ -621,6 +621,66 @@ async function ensureCommercialCatalogSchema(client) {
   }
 }
 
+// Lista fechada e autoritativa dos opcionais exibidos pelos modelos comerciais.
+// O fallback mantém o checkout funcional enquanto o catálogo administrativo é ampliado.
+const OPTIONAL_PRICES = {
+  'opt-checkout-integrado': { monthly: 7900, activation: 0 },
+  'opt-calculo-frete': { monthly: 3900, activation: 0 },
+  'opt-cupons-whatsapp': { monthly: 1900, activation: 0 },
+  'opt-estoque-real': { monthly: 4900, activation: 0 },
+  'opt-moedas-idiomas': { monthly: 0, activation: 19900 },
+  'opt-chatbot': { monthly: 4900, activation: 0 },
+  'opt-reservas': { monthly: 2900, activation: 0 },
+  'opt-delivery': { monthly: 8900, activation: 0 },
+  'opt-pdv': { monthly: 9900, activation: 0 },
+  'opt-fidelidade': { monthly: 3900, activation: 0 },
+  'opt-idiomas': { monthly: 0, activation: 19900 },
+  'opt-fotos': { monthly: 0, activation: 29900 },
+  'opt-agendamento-salao': { monthly: 2900, activation: 0 },
+  'opt-lembrete-whatsapp': { monthly: 3900, activation: 0 },
+  'opt-fidelidade-salao': { monthly: 3900, activation: 0 },
+  'opt-galeria-trabalhos': { monthly: 1900, activation: 0 },
+  'opt-fotos-salao': { monthly: 0, activation: 29900 },
+  'opt-portal-cliente': { monthly: 5900, activation: 0 },
+  'opt-consulta-processual': { monthly: 4900, activation: 0 },
+  'opt-assinatura-digital': { monthly: 2900, activation: 0 },
+  'opt-upload-seguro': { monthly: 1900, activation: 0 },
+  'opt-agendamento-consultas': { monthly: 2900, activation: 0 },
+  'opt-agendamento-clinica': { monthly: 2900, activation: 0 },
+  'opt-prontuario-eletronico': { monthly: 4900, activation: 0 },
+  'opt-teleconsulta': { monthly: 6900, activation: 0 },
+  'opt-area-paciente': { monthly: 3900, activation: 0 },
+  'opt-receitas-digitais': { monthly: 2900, activation: 0 },
+  'opt-portal-contabil': { monthly: 5900, activation: 0 },
+  'opt-armazenamento-xml': { monthly: 3900, activation: 0 },
+  'opt-assinatura-contabil': { monthly: 2900, activation: 0 },
+  'opt-upload-contabil': { monthly: 1900, activation: 0 },
+  'opt-integracao-dominio': { monthly: 8900, activation: 0 },
+  'opt-area-restrita-contabil': { monthly: 4900, activation: 0 },
+  'opt-backup-nuvem': { monthly: 2900, activation: 0 },
+  'opt-orcamento-whatsapp': { monthly: 1900, activation: 0 },
+  'opt-acompanhamento-os': { monthly: 3900, activation: 0 },
+  'opt-historico-veiculo': { monthly: 2900, activation: 0 },
+  'opt-portal-corretor': { monthly: 6900, activation: 0 },
+  'opt-crm-imobiliario': { monthly: 9900, activation: 0 },
+  'opt-tour-360-premium': { monthly: 0, activation: 29900 },
+  'opt-zap-vivareal': { monthly: 8900, activation: 0 },
+  'opt-olx-imoveis': { monthly: 4900, activation: 0 },
+  'opt-captacao-auto': { monthly: 5900, activation: 0 },
+  'opt-avaliacao-online': { monthly: 3900, activation: 0 },
+  'opt-simulador-avancado': { monthly: 2900, activation: 0 },
+  'opt-assinatura-propostas': { monthly: 3900, activation: 0 },
+  'opt-area-cliente-proprietario': { monthly: 6900, activation: 0 },
+  'opt-comparador-favoritos': { monthly: 1900, activation: 0 },
+  'opt-alertas-imoveis': { monthly: 2900, activation: 0 },
+  'opt-rd-meta-google': { monthly: 7900, activation: 0 },
+  'opt-chatbot-imobiliario': { monthly: 4900, activation: 0 },
+};
+
+function addonDisplayName(code) {
+  return code.replace(/^opt-/, '').split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
 async function handleCatalogApi(req, res, url) {
   const client = dbClient();
   await client.connect();
@@ -645,9 +705,9 @@ async function handleCatalogApi(req, res, url) {
 
     if ((url.pathname === '/api/catalog/store-templates' || url.pathname === '/api/admin/catalog/store-templates') && req.method === 'GET') {
       const result = await client.query(
-        `SELECT id, slug, name, category, description, cover_image, preview_url, features, featured, active, sort_order, created_at, updated_at
+        `SELECT id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, created_at, updated_at
          FROM public.commercial_store_templates
-         ${isAdminRoute ? '' : 'WHERE active = TRUE'}
+         ${isAdminRoute ? '' : "WHERE active = TRUE AND service_slug = 'lojas-virtuais'"}
          ORDER BY sort_order, name`,
       );
       return json(res, 200, { templates: result.rows });
@@ -666,6 +726,9 @@ async function handleCatalogApi(req, res, url) {
       const featured = body.featured === true;
       const active = body.active !== false;
       const sortOrder = Number(body.sortOrder || 0);
+      const serviceSlug = String(body.serviceSlug || 'lojas-virtuais');
+      const priceCents = Math.max(0, Number(body.priceCents ?? 9900));
+      const activationFeeCents = Math.max(0, Number(body.activationFeeCents ?? 19700));
 
       if (!slug || !name || !description) {
         return json(res, 400, { error: 'Nome, slug e descrição são obrigatórios.' });
@@ -673,15 +736,16 @@ async function handleCatalogApi(req, res, url) {
 
       const result = await client.query(
         `INSERT INTO public.commercial_store_templates
-           (id, slug, name, category, description, cover_image, preview_url, features, featured, active, sort_order, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+           (id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
          ON CONFLICT (id) DO UPDATE SET
-           slug = EXCLUDED.slug, name = EXCLUDED.name, category = EXCLUDED.category,
+           slug = EXCLUDED.slug, service_slug = EXCLUDED.service_slug, name = EXCLUDED.name, category = EXCLUDED.category,
            description = EXCLUDED.description, cover_image = EXCLUDED.cover_image,
            preview_url = EXCLUDED.preview_url, features = EXCLUDED.features,
-           featured = EXCLUDED.featured, active = EXCLUDED.active, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+           featured = EXCLUDED.featured, active = EXCLUDED.active, price_cents = EXCLUDED.price_cents,
+           activation_fee_cents = EXCLUDED.activation_fee_cents, sort_order = EXCLUDED.sort_order, updated_at = NOW()
          RETURNING *`,
-        [id, slug, name, category, description, coverImage, previewUrl, JSON.stringify(features), featured, active, sortOrder],
+        [id, slug, serviceSlug, name, category, description, coverImage, previewUrl, JSON.stringify(features), featured, active, priceCents, activationFeeCents, sortOrder],
       );
       return json(res, 200, { template: result.rows[0] });
     }
@@ -709,21 +773,33 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
   let template = null;
   if (templateId) {
     const tRes = await client.query(
-      `SELECT id, slug, name, price_cents, activation_fee_cents FROM public.commercial_store_templates WHERE id = $1 OR slug = $1`,
+      `SELECT id, slug, service_slug, name, price_cents, activation_fee_cents FROM public.commercial_store_templates WHERE (id = $1 OR slug = $1) AND active = TRUE`,
       [templateId]
     );
     template = tRes.rows[0];
     if (!template) throw httpError(400, 'Modelo inexistente ou indisponível.', 'TEMPLATE_NOT_FOUND');
-    if (service.slug !== 'lojas-virtuais' && service.slug !== 'sites' && service.slug !== 'landing-pages') {
+    if (!['lojas-virtuais', 'sites-prontos', 'sites', 'landing-pages'].includes(service.slug)) {
       throw httpError(400, 'Este serviço não aceita modelo visual.', 'INCOMPATIBLE_TEMPLATE');
+    }
+    if (template.service_slug && template.service_slug !== service.slug) {
+      throw httpError(400, 'O modelo selecionado não pertence a este serviço.', 'INCOMPATIBLE_TEMPLATE');
     }
   }
 
   const oneTimeItems = [];
   const monthlyItems = [];
 
-  const baseActivation = plan ? plan.activation : (template ? (template.activation_fee_cents || 19700) : (service.price_cents || 19700));
-  const baseMonthly = plan ? plan.monthly : (template ? (template.price_cents || 9900) : 9900);
+  const useTemplatePricing = Boolean(template && (!plan || plan.id === 'pro'));
+  const baseActivation = useTemplatePricing
+    ? template.activation_fee_cents
+    : plan
+      ? plan.activation
+      : (service.price_cents || 19700);
+  const baseMonthly = useTemplatePricing
+    ? template.price_cents
+    : plan
+      ? plan.monthly
+      : 0;
 
   oneTimeItems.push({
     code: plan ? `activation-${plan.id}` : 'activation-base',
@@ -732,7 +808,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
     billingCycle: 'one_time'
   });
 
-  if (service.recurring) {
+  if (baseMonthly > 0 && (service.recurring || plan || template)) {
     monthlyItems.push({
       code: plan ? `plan-${plan.id}` : 'plan-base',
       name: plan ? `Assinatura Nextia ${plan.name}` : `Assinatura ${service.name}`,
@@ -772,10 +848,16 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       `SELECT code, name, amount_cents, billing_cycle FROM public.commercial_addons WHERE code = ANY($1) AND active = TRUE`,
       [requestedAddonCodes]
     );
-    if (aRes.rows.length !== requestedAddonCodes.length) {
-      throw httpError(400, 'Um ou mais opcionais são inválidos ou indisponíveis.', 'ADDON_NOT_FOUND');
-    }
-    for (const addon of aRes.rows) {
+    const addonsByCode = new Map(aRes.rows.map((addon) => [addon.code, addon]));
+    for (const code of requestedAddonCodes) {
+      const fallback = Object.hasOwn(OPTIONAL_PRICES, code) ? OPTIONAL_PRICES[code] : null;
+      const addon = addonsByCode.get(code) || (fallback ? {
+        code,
+        name: addonDisplayName(code),
+        amount_cents: fallback.monthly || fallback.activation,
+        billing_cycle: fallback.monthly > 0 ? 'monthly' : 'one_time',
+      } : null);
+      if (!addon) throw httpError(400, 'Um ou mais opcionais são inválidos ou indisponíveis.', 'ADDON_NOT_FOUND');
       const item = {
         code: addon.code,
         name: addon.name,
@@ -827,60 +909,6 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           planActivationCents = planRes.rows[0].activation_amount_cents;
         }
       }
-
-      const OPTIONAL_PRICES = {
-        'opt-checkout-integrado': { monthly: 7900, activation: 0 },
-        'opt-calculo-frete': { monthly: 3900, activation: 0 },
-        'opt-cupons-whatsapp': { monthly: 1900, activation: 0 },
-        'opt-estoque-real': { monthly: 4900, activation: 0 },
-        'opt-moedas-idiomas': { monthly: 0, activation: 19900 },
-        'opt-chatbot': { monthly: 4900, activation: 0 },
-        'opt-reservas': { monthly: 2900, activation: 0 },
-        'opt-delivery': { monthly: 8900, activation: 0 },
-        'opt-pdv': { monthly: 9900, activation: 0 },
-        'opt-fidelidade': { monthly: 3900, activation: 0 },
-        'opt-idiomas': { monthly: 0, activation: 19900 },
-        'opt-fotos': { monthly: 0, activation: 29900 },
-        'opt-agendamento-salao': { monthly: 2900, activation: 0 },
-        'opt-lembrete-whatsapp': { monthly: 3900, activation: 0 },
-        'opt-fidelidade-salao': { monthly: 3900, activation: 0 },
-        'opt-galeria-trabalhos': { monthly: 1900, activation: 0 },
-        'opt-fotos-salao': { monthly: 0, activation: 29900 },
-        'opt-portal-cliente': { monthly: 5900, activation: 0 },
-        'opt-consulta-processual': { monthly: 4900, activation: 0 },
-        'opt-assinatura-digital': { monthly: 2900, activation: 0 },
-        'opt-upload-seguro': { monthly: 1900, activation: 0 },
-        'opt-agendamento-consultas': { monthly: 2900, activation: 0 },
-        'opt-agendamento-clinica': { monthly: 2900, activation: 0 },
-        'opt-prontuario-eletronico': { monthly: 4900, activation: 0 },
-        'opt-teleconsulta': { monthly: 6900, activation: 0 },
-        'opt-area-paciente': { monthly: 3900, activation: 0 },
-        'opt-receitas-digitais': { monthly: 2900, activation: 0 },
-        'opt-portal-contabil': { monthly: 5900, activation: 0 },
-        'opt-armazenamento-xml': { monthly: 3900, activation: 0 },
-        'opt-assinatura-contabil': { monthly: 2900, activation: 0 },
-        'opt-upload-contabil': { monthly: 1900, activation: 0 },
-        'opt-integracao-dominio': { monthly: 8900, activation: 0 },
-        'opt-area-restrita-contabil': { monthly: 4900, activation: 0 },
-        'opt-backup-nuvem': { monthly: 2900, activation: 0 },
-        'opt-orcamento-whatsapp': { monthly: 1900, activation: 0 },
-        'opt-acompanhamento-os': { monthly: 3900, activation: 0 },
-        'opt-historico-veiculo': { monthly: 2900, activation: 0 },
-        'opt-portal-corretor': { monthly: 6900, activation: 0 },
-        'opt-crm-imobiliario': { monthly: 9900, activation: 0 },
-        'opt-tour-360-premium': { monthly: 0, activation: 29900 },
-        'opt-zap-vivareal': { monthly: 8900, activation: 0 },
-        'opt-olx-imoveis': { monthly: 4900, activation: 0 },
-        'opt-captacao-auto': { monthly: 5900, activation: 0 },
-        'opt-avaliacao-online': { monthly: 3900, activation: 0 },
-        'opt-simulador-avancado': { monthly: 2900, activation: 0 },
-        'opt-assinatura-propostas': { monthly: 3900, activation: 0 },
-        'opt-area-cliente-proprietario': { monthly: 6900, activation: 0 },
-        'opt-comparador-favoritos': { monthly: 1900, activation: 0 },
-        'opt-alertas-imoveis': { monthly: 2900, activation: 0 },
-        'opt-rd-meta-google': { monthly: 7900, activation: 0 },
-        'opt-chatbot-imobiliario': { monthly: 4900, activation: 0 },
-      };
 
       let optionalMonthlyCents = 0;
       let optionalActivationCents = 0;

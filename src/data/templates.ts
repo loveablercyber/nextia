@@ -605,3 +605,8 @@ export function getTemplateOptionalFeatures(template?: Template): OptionalFeatur
   if (!template) return RESTAURANTE_OPTIONAL_FEATURES;
   return template.optionalFeatures || RESTAURANTE_OPTIONAL_FEATURES;
 }
+
+/** Identifica o produto comercial correto sem confundir sites prontos com lojas virtuais. */
+export function getTemplateServiceSlug(template?: Template): 'sites-prontos' | 'lojas-virtuais' {
+  return template?.categorySlug === 'loja-virtual' ? 'lojas-virtuais' : 'sites-prontos';
+}
