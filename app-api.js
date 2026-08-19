@@ -182,6 +182,113 @@ export async function ensureAppSchema(client) {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS public.commercial_addons (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        amount_cents INTEGER NOT NULL DEFAULT 0,
+        billing_cycle TEXT NOT NULL DEFAULT 'one_time',
+        service_slug TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      INSERT INTO public.commercial_addons (code, name, description, amount_cents, billing_cycle, active)
+      VALUES ('domain-registration', 'Registro de domínio', 'Registro e delegação oficial de domínio por 1 ano (.com.br / .com)', 5000, 'one_time', true)
+      ON CONFLICT (code) DO UPDATE SET amount_cents = 5000, active = true;
+
+      CREATE TABLE IF NOT EXISTS public.commercial_pricing_quotes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        session_draft_id TEXT,
+        service_slug TEXT NOT NULL,
+        template_slug TEXT,
+        plan_id TEXT,
+        addon_codes JSONB NOT NULL DEFAULT '[]'::jsonb,
+        domain_name TEXT,
+        domain_mode TEXT,
+        one_time_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+        monthly_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+        one_time_total_cents INTEGER NOT NULL DEFAULT 0,
+        monthly_total_cents INTEGER NOT NULL DEFAULT 0,
+        pricing_version TEXT NOT NULL DEFAULT '2026-08-15.1',
+        consumed BOOLEAN NOT NULL DEFAULT false,
+        consumed_at TIMESTAMPTZ,
+        consumed_order_id UUID,
+        normalized_selection JSONB NOT NULL DEFAULT '{}'::jsonb,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      ALTER TABLE public.commercial_pricing_quotes
+        ADD COLUMN IF NOT EXISTS consumed_order_id UUID,
+        ADD COLUMN IF NOT EXISTS normalized_selection JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+      CREATE TABLE IF NOT EXISTS public.invoices (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        order_id UUID REFERENCES public.commercial_orders(id) ON DELETE SET NULL,
+        engagement_id UUID REFERENCES public.service_engagements(id) ON DELETE SET NULL,
+        invoice_number TEXT UNIQUE NOT NULL,
+        description TEXT NOT NULL,
+        subtotal_cents INTEGER NOT NULL DEFAULT 0,
+        tax_cents INTEGER NOT NULL DEFAULT 0,
+        total_cents INTEGER NOT NULL DEFAULT 0,
+        currency CHAR(3) NOT NULL DEFAULT 'BRL',
+        status TEXT NOT NULL DEFAULT 'pending',
+        type TEXT NOT NULL DEFAULT 'ativacao',
+        due_date TIMESTAMPTZ NOT NULL,
+        paid_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.invoice_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+        item_code TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL DEFAULT 0,
+        billing_cycle TEXT NOT NULL DEFAULT 'one_time',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS public.payment_transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL DEFAULT 'mercadopago',
+        provider_transaction_id TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL DEFAULT 0,
+        currency CHAR(3) NOT NULL DEFAULT 'BRL',
+        status TEXT NOT NULL DEFAULT 'pending',
+        payment_method TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT unq_payment_provider_tx UNIQUE (provider, provider_transaction_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS public.provider_webhook_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        provider TEXT NOT NULL DEFAULT 'mercadopago',
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        resource_id TEXT,
+        payload_hash TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        processed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT unq_provider_webhook UNIQUE (provider, event_id)
+      );
+
+      ALTER TABLE public.provider_webhook_events
+        ADD COLUMN IF NOT EXISTS resource_id TEXT;
+
       CREATE TABLE IF NOT EXISTS public.data_migration_issues (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         entity_type TEXT NOT NULL,

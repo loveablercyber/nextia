@@ -4340,8 +4340,9 @@ createServer(async (req, res) => {
     }
     return await serveStatic(req, res);
   } catch (err) {
-    console.error(err);
-    return json(res, 500, { error: 'Internal server error' });
+    const incidentId = randomUUID();
+    console.error(`[SERVER UNHANDLED EXCEPTION ${incidentId}]`, err);
+    return json(res, 500, { error: 'Internal server error', incidentId });
   }
 }).listen(port, () => {
   console.log(`Nextia server listening on port ${port}`);
