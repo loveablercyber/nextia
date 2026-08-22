@@ -85,14 +85,26 @@ export default function OrdersPage() {
       </header>
 
       {showSuccessBanner && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900 flex items-start gap-4">
-          <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-bold text-lg">Pedido registrado com sucesso!</h3>
-            <p className="mt-1 text-sm text-emerald-800">
-              Sua contratação foi gravada em nosso sistema. Clique no botão <strong>"Pagar"</strong> na tabela abaixo para concluir o pagamento via Pix ou cartão pelo Mercado Pago quando desejar.
-            </p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-lg text-emerald-950">Pedido registrado com sucesso no seu painel!</h3>
+              <p className="mt-1 text-sm text-emerald-800">
+                Sua contratação foi gravada. Você pode efetuar o pagamento via Pix ou Cartão agora ou a qualquer momento clicando em <strong>"Pagar com Pix / Cartão"</strong> abaixo.
+              </p>
+            </div>
           </div>
+          {orders[0]?.checkout_url && ['payment_pending', 'pending'].includes(orders[0]?.status) && (
+            <a
+              href={orders[0].checkout_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#1677FF] px-6 text-sm font-bold text-white shadow-md hover:bg-blue-600 transition-all"
+            >
+              <CreditCard className="h-4 w-4" /> Pagar Agora
+            </a>
+          )}
         </div>
       )}
 
@@ -171,14 +183,32 @@ export default function OrdersPage() {
               {orders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="p-4">
-                    <p className="font-bold text-slate-900">{order.service_name_snapshot || order.item_name}</p>
-                    <p className="text-xs text-slate-500">
-                      {[order.template_name_snapshot, order.plan_name_snapshot, order.domain_fqdn].filter(Boolean).join(' · ') || (order.recurring ? 'Assinatura mensal' : 'Serviço avulso')}
+                    <p className="font-black text-slate-900 text-base">
+                      {order.service_name_snapshot || order.item_name}
                     </p>
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                      {order.template_name_snapshot && (
+                        <span className="rounded-md bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
+                          Modelo: {order.template_name_snapshot}
+                        </span>
+                      )}
+                      {order.plan_name_snapshot && (
+                        <span className="rounded-md bg-purple-50 px-2 py-0.5 font-semibold text-purple-700">
+                          Plano: {order.plan_name_snapshot}
+                        </span>
+                      )}
+                      {order.domain_fqdn && (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-slate-700">
+                          Domínio: {order.domain_fqdn}
+                        </span>
+                      )}
+                    </div>
                     {order.items && order.items.length > 0 && (
-                      <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                      <ul className="mt-2.5 space-y-1 text-xs text-slate-500">
                         {order.items.filter((item) => item.amountCents > 0).map((item) => (
-                          <li key={`${item.billingCycle}-${item.code}`}>{item.name} — {money.format(item.amountCents / 100)}{item.billingCycle === 'monthly' ? '/mês' : ''}</li>
+                          <li key={`${item.billingCycle}-${item.code}`}>
+                            • {item.name} — {money.format(item.amountCents / 100)}{item.billingCycle === 'monthly' ? '/mês' : ''}
+                          </li>
                         ))}
                       </ul>
                     )}
@@ -202,12 +232,12 @@ export default function OrdersPage() {
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    {order.status === 'payment_pending' && order.checkout_url ? (
+                    {['payment_pending', 'pending'].includes(order.status) && order.checkout_url ? (
                       <a
                         href={order.checkout_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1677FF] px-4 text-xs font-bold text-white shadow-sm hover:bg-blue-600"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1677FF] px-4 text-xs font-bold text-white shadow-sm hover:bg-blue-600 transition-colors"
                       >
                         <CreditCard className="h-3.5 w-3.5" /> Pagar com Pix / Cartão <ExternalLink className="h-3.5 w-3.5" />
                       </a>

@@ -246,8 +246,8 @@ export default function CheckoutPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar a contratação.');
-      if (!data.checkoutUrl) throw new Error('O provedor não retornou o endereço de pagamento.');
-      window.location.assign(data.checkoutUrl);
+      // Redireciona para o painel de pedidos do cliente com o pedido registrado
+      navigate(`/painel/pedidos?success=1&orderId=${encodeURIComponent(data.orderId || '')}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao iniciar contratação.');
       setLoading(false);

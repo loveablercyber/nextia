@@ -801,9 +801,13 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       ? plan.monthly
       : 0;
 
+  const serviceTitle = service.name || service.slug;
+  const templateTitle = template?.name ? ` (${template.name})` : '';
+  const planTitle = plan?.name ? ` — Plano ${plan.name}` : '';
+
   oneTimeItems.push({
     code: plan ? `activation-${plan.id}` : 'activation-base',
-    name: plan ? `Ativação Nextia ${plan.name}` : `Ativação ${service.name}`,
+    name: `${serviceTitle}${templateTitle}${planTitle} — Ativação`,
     amountCents: baseActivation,
     billingCycle: 'one_time'
   });
@@ -811,7 +815,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
   if (baseMonthly > 0 && (service.recurring || plan || template)) {
     monthlyItems.push({
       code: plan ? `plan-${plan.id}` : 'plan-base',
-      name: plan ? `Assinatura Nextia ${plan.name}` : `Assinatura ${service.name}`,
+      name: `${serviceTitle}${templateTitle}${planTitle} — Mensalidade`,
       amountCents: baseMonthly,
       billingCycle: 'monthly'
     });
@@ -1282,16 +1286,23 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
         const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
         baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
 
+        const clearItemName = [
+          selection.service.name || selection.service.slug,
+          selection.template?.name ? `Modelo ${selection.template.name}` : null,
+          selection.plan?.name ? `Plano ${selection.plan.name}` : null,
+        ].filter(Boolean).join(' — ');
+
         await client.query(
           `INSERT INTO public.commercial_orders
             (id, user_id, item_id, item_name, amount_cents, subtotal_cents, total_cents, currency,
-             recurring, customer_notes, draft_id, pricing_quote_id, idempotency_key, store_snapshot)
-           VALUES ($1,$2,$3,$4,$5,$5,$5,'BRL',$6,$7,$8,$9,$10,$11)`,
+             recurring, customer_notes, draft_id, pricing_quote_id, idempotency_key, store_snapshot,
+             service_slug_snapshot, service_name_snapshot, plan_name_snapshot, template_name_snapshot, domain_fqdn, status)
+           VALUES ($1,$2,$3,$4,$5,$5,$5,'BRL',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'payment_pending')`,
           [
             orderId,
             sessionProfile.id,
             selection.service.slug,
-            `Contratação - ${selection.service.name || selection.service.slug}`,
+            clearItemName,
             finalAmountCents,
             true,
             String(body.notes || '').trim().slice(0, 2000) || null,
@@ -1299,8 +1310,63 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
             quoteId,
             idempotencyHeader,
             JSON.stringify(normalizedSelection),
+            selection.service.slug,
+            selection.service.name || selection.service.slug,
+            selection.plan?.name || null,
+            selection.template?.name || null,
+            selection.domain?.name || null,
           ],
         );
+
+        // Initialize service engagement in awaiting_payment status
+        try {
+          const policyResult = await client.query(
+            `SELECT * FROM public.service_workflow_policies WHERE service_slug = $1 ORDER BY version DESC LIMIT 1`,
+            [selection.service.slug],
+          );
+          const policy = policyResult.rows[0] || {
+            workflow_key: `flow_${selection.service.slug.replace(/-/g, '_')}`,
+            version: 1,
+            execution_mode: 'client_admin',
+            requires_project: ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'].includes(selection.service.slug),
+          };
+
+          const engagementResult = await client.query(
+            `INSERT INTO public.service_engagements
+              (public_code, user_id, service_slug, service_name_snapshot, service_category,
+               template_id, template_slug_snapshot, template_name_snapshot, plan_id, plan_name_snapshot,
+               workflow_key, workflow_version, execution_mode, status, source_kind, source_order_id,
+               activation_amount_cents, monthly_amount_cents, currency)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'awaiting_payment','order',$14,$15,$16,'BRL')
+             ON CONFLICT (source_order_id) WHERE source_order_id IS NOT NULL
+             DO UPDATE SET service_name_snapshot = EXCLUDED.service_name_snapshot, updated_at = NOW()
+             RETURNING id`,
+            [
+              `ENG-${randomUUID().slice(0, 8).toUpperCase()}`,
+              sessionProfile.id,
+              selection.service.slug,
+              selection.service.name || selection.service.slug,
+              'digital',
+              selection.template?.id || null,
+              selection.template?.slug || null,
+              selection.template?.name || null,
+              selection.plan?.id || null,
+              selection.plan?.name || null,
+              policy.workflow_key,
+              policy.version || 1,
+              policy.execution_mode || 'client_admin',
+              orderId,
+              finalAmountCents,
+              selection.monthlyTotalCents || 0,
+            ],
+          );
+          const newEngagementId = engagementResult.rows[0]?.id;
+          if (newEngagementId) {
+            await client.query('UPDATE public.commercial_orders SET engagement_id = $2 WHERE id = $1', [orderId, newEngagementId]);
+          }
+        } catch (engErr) {
+          console.warn('[Engagement Pre-create Warning]', engErr.message || engErr);
+        }
 
         await client.query(
           `INSERT INTO public.commercial_order_items
@@ -1334,7 +1400,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           `INSERT INTO public.invoices
             (id, user_id, order_id, invoice_number, description, subtotal_cents, total_cents, currency, status, type, due_date)
            VALUES ($1,$2,$3,$4,$5,$6,$6,'BRL','pending','ativacao',NOW() + INTERVAL '1 day')`,
-          [invoiceId, sessionProfile.id, orderId, `FAT-${orderId.slice(0, 8).toUpperCase()}`, `Contratação — ${selection.service.name}`, finalAmountCents],
+          [invoiceId, sessionProfile.id, orderId, `FAT-${orderId.slice(0, 8).toUpperCase()}`, `Contratação — ${clearItemName}`, finalAmountCents],
         );
         for (const item of selection.oneTimeItems) {
           await client.query(

@@ -15,6 +15,10 @@ interface ClientOrder {
   status: string;
   created_at: string;
   checkout_url?: string;
+  service_name_snapshot?: string;
+  plan_name_snapshot?: string;
+  template_name_snapshot?: string;
+  domain_fqdn?: string;
 }
 
 interface ClientContract {
@@ -258,12 +262,19 @@ export default function OverviewPage() {
               return (
                 <div key={o.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-xs font-bold text-slate-900 truncate">{o.item_name}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${st.color} ${st.bg}`}>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-black text-slate-900 truncate">
+                        {o.service_name_snapshot || o.item_name}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${st.color} ${st.bg}`}>
                         {st.label}
                       </span>
                     </div>
+                    {o.template_name_snapshot && (
+                      <p className="text-[11px] font-medium text-[#5B4FE9] truncate mb-1">
+                        Modelo: {o.template_name_snapshot} {o.plan_name_snapshot ? `(Plano ${o.plan_name_snapshot})` : ''}
+                      </p>
+                    )}
                     <p className="text-sm font-black text-slate-900">{formatCurrency(o.amount_cents)}</p>
                   </div>
                   <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center text-[11px]">
