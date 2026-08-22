@@ -1318,56 +1318,6 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           ],
         );
 
-        // Initialize service engagement in awaiting_payment status
-        try {
-          const policyResult = await client.query(
-            `SELECT * FROM public.service_workflow_policies WHERE service_slug = $1 ORDER BY version DESC LIMIT 1`,
-            [selection.service.slug],
-          );
-          const policy = policyResult.rows[0] || {
-            workflow_key: `flow_${selection.service.slug.replace(/-/g, '_')}`,
-            version: 1,
-            execution_mode: 'client_admin',
-            requires_project: ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'].includes(selection.service.slug),
-          };
-
-          const engagementResult = await client.query(
-            `INSERT INTO public.service_engagements
-              (public_code, user_id, service_slug, service_name_snapshot, service_category,
-               template_id, template_slug_snapshot, template_name_snapshot, plan_id, plan_name_snapshot,
-               workflow_key, workflow_version, execution_mode, status, source_kind, source_order_id,
-               activation_amount_cents, monthly_amount_cents, currency)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'awaiting_payment','order',$14,$15,$16,'BRL')
-             ON CONFLICT (source_order_id) WHERE source_order_id IS NOT NULL
-             DO UPDATE SET service_name_snapshot = EXCLUDED.service_name_snapshot, updated_at = NOW()
-             RETURNING id`,
-            [
-              `ENG-${randomUUID().slice(0, 8).toUpperCase()}`,
-              sessionProfile.id,
-              selection.service.slug,
-              selection.service.name || selection.service.slug,
-              'digital',
-              selection.template?.id || null,
-              selection.template?.slug || null,
-              selection.template?.name || null,
-              selection.plan?.id || null,
-              selection.plan?.name || null,
-              policy.workflow_key,
-              policy.version || 1,
-              policy.execution_mode || 'client_admin',
-              orderId,
-              finalAmountCents,
-              selection.monthlyTotalCents || 0,
-            ],
-          );
-          const newEngagementId = engagementResult.rows[0]?.id;
-          if (newEngagementId) {
-            await client.query('UPDATE public.commercial_orders SET engagement_id = $2 WHERE id = $1', [orderId, newEngagementId]);
-          }
-        } catch (engErr) {
-          console.warn('[Engagement Pre-create Warning]', engErr.message || engErr);
-        }
-
         await client.query(
           `INSERT INTO public.commercial_order_items
             (order_id, item_kind, item_code, name_snapshot, quantity, unit_amount_cents, total_amount_cents, billing_cycle, metadata)
@@ -1427,67 +1377,108 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           );
           if (replay.rows[0]) return json(res, 200, { orderId: replay.rows[0].id, checkoutUrl: replay.rows[0].checkout_url, status: replay.rows[0].status, quoteId: replay.rows[0].pricing_quote_id, idempotentReplay: true });
         }
-        console.error('[COMMERCE ORDER ERROR]', err);
-        return json(res, 500, { error: 'Falha ao criar o pedido.' });
+        console.error('[COMMERCE ORDER ERROR]', err.message || err, err.stack);
+        return json(res, 500, { error: err.message || 'Falha ao criar o pedido.' });
       }
 
+      // Pre-initialize service engagement in background/after commit
       try {
-        const externalReference = `order:${orderId}`;
-        const oneTimePayload = {
-          items: (selection.oneTimeItems.length > 0 ? selection.oneTimeItems : selection.monthlyItems).map((i) => ({
-            id: i.code,
-            title: i.name,
-            quantity: 1,
-            unit_price: i.amountCents / 100,
-            currency_id: 'BRL',
-          })),
-          payer: { name: sessionProfile.name, email: sessionProfile.email },
-          external_reference: externalReference,
-          back_urls: {
-            success: `${baseUrl}/checkout?status=success&order=${orderId}`,
-            failure: `${baseUrl}/checkout?status=failure&order=${orderId}`,
-            pending: `${baseUrl}/checkout?status=pending&order=${orderId}`,
-          },
-          auto_return: 'approved',
-          notification_url: `${baseUrl}/api/commerce/webhook`,
+        const policyResult = await client.query(
+          `SELECT * FROM public.service_workflow_policies WHERE service_slug = $1 ORDER BY version DESC LIMIT 1`,
+          [selection.service.slug],
+        );
+        const policy = policyResult.rows[0] || {
+          workflow_key: `flow_${selection.service.slug.replace(/-/g, '_')}`,
+          version: 1,
+          execution_mode: 'client_admin',
+          requires_project: ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'].includes(selection.service.slug),
         };
 
-        const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'X-Idempotency-Key': `order-${idempotencyHeader}`,
-          },
-          body: JSON.stringify(oneTimePayload),
-        });
-
-        const providerData = await providerResponse.json();
-        if (!providerResponse.ok || !providerData.init_point) {
-          await client.query(
-            `UPDATE public.commercial_orders SET status = 'failed', failure_code = 'PROVIDER_PREFERENCE_FAILED',
-             failure_message = $2, updated_at = NOW() WHERE id = $1`,
-            [orderId, String(providerData?.message || 'Mercado Pago não criou a preferência').slice(0, 500)],
-          );
-          return json(res, 502, { error: 'Não foi possível iniciar o pagamento. Tente novamente.' });
-        }
-
-        await client.query(
-          `UPDATE public.commercial_orders SET status = 'payment_pending', provider_reference = $2,
-             checkout_url = $3, updated_at = NOW() WHERE id = $1`,
-          [orderId, String(providerData.id), providerData.init_point],
+        const engagementResult = await client.query(
+          `INSERT INTO public.service_engagements
+            (public_code, user_id, service_slug, service_name_snapshot, service_category,
+             template_id, template_slug_snapshot, template_name_snapshot, plan_id, plan_name_snapshot,
+             workflow_key, workflow_version, execution_mode, status, source_kind, source_order_id,
+             activation_amount_cents, monthly_amount_cents, currency)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'awaiting_payment','order',$14,$15,$16,'BRL')
+           RETURNING id`,
+          [
+            `ENG-${randomUUID().slice(0, 8).toUpperCase()}`,
+            sessionProfile.id,
+            selection.service.slug,
+            selection.service.name || selection.service.slug,
+            'digital',
+            selection.template?.id || null,
+            selection.template?.slug || null,
+            selection.template?.name || null,
+            selection.plan?.id || null,
+            selection.plan?.name || null,
+            policy.workflow_key,
+            policy.version || 1,
+            policy.execution_mode || 'client_admin',
+            orderId,
+            finalAmountCents,
+            selection.monthlyTotalCents || 0,
+          ],
         );
-
-        return json(res, 201, { orderId, checkoutUrl: providerData.init_point, quoteId });
-      } catch (err) {
-        await client.query(
-          `UPDATE public.commercial_orders SET status = 'failed', failure_code = 'PROVIDER_UNAVAILABLE',
-           failure_message = $2, updated_at = NOW() WHERE id = $1`,
-          [orderId, String(err.message || err).slice(0, 500)],
-        ).catch(() => undefined);
-        console.error('[COMMERCE PROVIDER ERROR]', err);
-        return json(res, 502, { error: 'Serviço de pagamento temporariamente indisponível.' });
+        const newEngagementId = engagementResult.rows[0]?.id;
+        if (newEngagementId) {
+          await client.query('UPDATE public.commercial_orders SET engagement_id = $2 WHERE id = $1', [orderId, newEngagementId]);
+        }
+      } catch (engErr) {
+        console.warn('[Engagement Pre-create Warning]', engErr.message || engErr);
       }
+
+      let checkoutUrl = null;
+      if (accessToken) {
+        try {
+          const externalReference = `order:${orderId}`;
+          const oneTimePayload = {
+            items: (selection.oneTimeItems.length > 0 ? selection.oneTimeItems : selection.monthlyItems).map((i) => ({
+              id: i.code,
+              title: i.name,
+              quantity: 1,
+              unit_price: i.amountCents / 100,
+              currency_id: 'BRL',
+            })),
+            payer: { name: sessionProfile.name, email: sessionProfile.email },
+            external_reference: externalReference,
+            back_urls: {
+              success: `${baseUrl}/checkout?status=success&order=${orderId}`,
+              failure: `${baseUrl}/checkout?status=failure&order=${orderId}`,
+              pending: `${baseUrl}/checkout?status=pending&order=${orderId}`,
+            },
+            auto_return: 'approved',
+            notification_url: `${baseUrl}/api/commerce/webhook`,
+          };
+
+          const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'X-Idempotency-Key': `order-${idempotencyHeader}`,
+            },
+            body: JSON.stringify(oneTimePayload),
+          });
+
+          const providerData = await providerResponse.json();
+          if (providerResponse.ok && providerData.init_point) {
+            checkoutUrl = providerData.init_point;
+            await client.query(
+              `UPDATE public.commercial_orders SET status = 'payment_pending', provider_reference = $2,
+                 checkout_url = $3, updated_at = NOW() WHERE id = $1`,
+              [orderId, String(providerData.id), checkoutUrl],
+            );
+          } else {
+            console.warn('[Mercado Pago Preference Warning]', providerData?.message || providerData);
+          }
+        } catch (err) {
+          console.warn('[Mercado Pago Preference Error]', err.message || err);
+        }
+      }
+
+      return json(res, 201, { orderId, checkoutUrl, quoteId, status: 'payment_pending' });
     }
 
     if (url.pathname === '/api/commerce/plan-contracts' && req.method === 'GET') {
