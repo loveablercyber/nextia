@@ -1757,8 +1757,42 @@ export const LOCAL_SERVICES_DATA: Record<string, LocalServiceData> = {
   },
 };
 
+const SERVICE_ALIASES: Record<string, string> = {
+  'criacao-de-sites': 'criacao-de-sites',
+  'criacao-de-site': 'criacao-de-sites',
+  'criacao-sites': 'criacao-de-sites',
+  'criacaodesites': 'criacao-de-sites',
+  'sites': 'criacao-de-sites',
+  'site': 'criacao-de-sites',
+  'loja-virtual': 'loja-virtual',
+  'lojas-virtuais': 'loja-virtual',
+  'lojavirtual': 'loja-virtual',
+  'ecommerce': 'loja-virtual',
+  'e-commerce': 'loja-virtual',
+  'whatsapp-ia': 'whatsapp-ia',
+  'ia-whatsapp': 'whatsapp-ia',
+  'whatsappia': 'whatsapp-ia',
+  'automacao-whatsapp': 'whatsapp-ia',
+  'suporte-ti': 'suporte-ti',
+  'suporte': 'suporte-ti',
+  'suporteti': 'suporte-ti',
+  'techcare': 'suporte-ti',
+  'automacao': 'automacao',
+  'automacao-empresarial': 'automacao',
+  'automacao-ia': 'automacao',
+  'desenvolvimento-de-sistemas': 'desenvolvimento-de-sistemas',
+  'desenvolvimento-sistemas': 'desenvolvimento-de-sistemas',
+  'desenvolvimentodesistemas': 'desenvolvimento-de-sistemas',
+  'sistemas': 'desenvolvimento-de-sistemas',
+  'software': 'desenvolvimento-de-sistemas',
+};
+
 export function getLocalServiceData(citySlug: string, serviceSlug: string): LocalServiceData | null {
-  const key = `${String(citySlug || '').toLowerCase().trim()}/${String(serviceSlug || '').toLowerCase().trim()}`;
+  const normalizedCity = String(citySlug || '').toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+  let normalizedService = String(serviceSlug || '').toLowerCase().trim().replace(/_/g, '-');
+  normalizedService = SERVICE_ALIASES[normalizedService] || normalizedService;
+
+  const key = `${normalizedCity}/${normalizedService}`;
   return LOCAL_SERVICES_DATA[key] || null;
 }
 

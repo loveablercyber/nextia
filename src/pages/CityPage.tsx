@@ -5,8 +5,20 @@ export default function CityPage() {
   const { citySlug } = useParams<{ citySlug?: string }>();
   const location = useLocation();
 
-  // If matched via explicit route or dynamic route
-  const currentSlug = (citySlug || location.pathname.replace(/^\//, '')).toLowerCase().trim();
+  const segments = location.pathname
+    .split('/')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
 
-  return <CityLandingPage citySlug={currentSlug} />;
+  let currentSlug = citySlug || '';
+
+  if (!currentSlug) {
+    if (segments[0] === 'cidade') {
+      currentSlug = segments[1] || '';
+    } else {
+      currentSlug = segments[0] || '';
+    }
+  }
+
+  return <CityLandingPage citySlug={currentSlug.toLowerCase().trim()} />;
 }
