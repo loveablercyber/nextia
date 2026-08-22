@@ -25,6 +25,7 @@ import SolucoesPage from './pages/SolucoesPage';
 import ServicePage from './pages/ServicePage';
 import ServiceRequestPage from './pages/ServiceRequestPage';
 import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
+import CityPage from './pages/CityPage';
 import Seo from './components/seo/Seo';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 
@@ -202,6 +203,9 @@ function AppRoutes() {
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
+      <Route path="/bauru" element={<CityPage />} />
+      <Route path="/marilia" element={<CityPage />} />
+      <Route path="/cidade/:citySlug" element={<CityPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />

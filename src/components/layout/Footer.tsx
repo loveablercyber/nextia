@@ -68,10 +68,20 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Navegação */}
+          {/* Navegação & Cidades */}
           <div>
-            <h3 className="mb-4 text-base font-bold text-white">Empresa</h3>
+            <h3 className="mb-4 text-base font-bold text-white">Empresa & Cidades</h3>
             <ul className="space-y-3 text-base">
+              <li>
+                <Link to="/bauru" className="text-[#35B7FF] hover:underline font-semibold transition-colors">
+                  Sites em Bauru / SP
+                </Link>
+              </li>
+              <li>
+                <Link to="/marilia" className="text-[#35B7FF] hover:underline font-semibold transition-colors">
+                  Sites em Marília / SP
+                </Link>
+              </li>
               <li>
                 <Link to="/planos" className="hover:text-white transition-colors">
                   Planos Mensais
@@ -90,11 +100,6 @@ export default function Footer() {
               <li>
                 <Link to="/contato" className="hover:text-white transition-colors">
                   Fale Conosco
-                </Link>
-              </li>
-              <li>
-                <Link to="/login" className="hover:text-white transition-colors">
-                  Área do Cliente
                 </Link>
               </li>
             </ul>
