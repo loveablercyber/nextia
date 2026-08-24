@@ -44,6 +44,7 @@ export default function CheckoutPage() {
   const draftId = params.get('draft');
   const [draft, setDraft] = useState<StoreDraftData | null>(null);
   const [loadingDraft, setLoadingDraft] = useState<boolean>(Boolean(draftId));
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!draftId) return;
@@ -139,7 +140,6 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [preview, setPreview] = useState<CommercePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const returnStatus = params.get('status');
@@ -178,18 +178,36 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
+    let active = true;
     if (!selection || (isDigital && domain.trim().length < 4)) {
-      setPreview(null);
-      return;
+      const resetTimer = window.setTimeout(() => {
+        if (active) setPreview(null);
+      }, 0);
+      return () => {
+        active = false;
+        window.clearTimeout(resetTimer);
+      };
     }
     const timer = window.setTimeout(() => {
       setPreviewLoading(true);
-      createPreview().catch((previewError) => {
-        setPreview(null);
-        setError(previewError instanceof Error ? previewError.message : 'Falha ao calcular contratação.');
-      }).finally(() => setPreviewLoading(false));
+      createPreview()
+        .then((data) => {
+          if (active) setPreview(data);
+        })
+        .catch((previewError) => {
+          if (active) {
+            setPreview(null);
+            setError(previewError instanceof Error ? previewError.message : 'Falha ao calcular contratação.');
+          }
+        })
+        .finally(() => {
+          if (active) setPreviewLoading(false);
+        });
     }, 400);
-    return () => window.clearTimeout(timer);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
     // createPreview is intentionally driven by primitive commercial selections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domain, domainMode, draft?.id, isDigital, selection?.id, selection?.kind]);
