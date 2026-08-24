@@ -1009,103 +1009,136 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
     }
 
     if (url.pathname === '/api/catalog/addons' && req.method === 'GET') {
-      const serviceSlug = url.searchParams.get('service');
-      const result = await client.query(
-        `SELECT code, name, description, amount_cents, billing_cycle, service_slug
-         FROM public.commercial_addons WHERE active = TRUE ${serviceSlug ? 'AND (service_slug IS NULL OR service_slug = $1)' : ''} ORDER BY name`,
-        serviceSlug ? [serviceSlug] : []
-      );
-      return json(res, 200, { addons: result.rows });
+      try {
+        const serviceSlug = url.searchParams.get('service');
+        const result = await client.query(
+          `SELECT code, name, description, amount_cents, billing_cycle, service_slug
+           FROM public.commercial_addons WHERE active = TRUE ${serviceSlug ? 'AND (service_slug IS NULL OR service_slug = $1)' : ''} ORDER BY name`,
+          serviceSlug ? [serviceSlug] : []
+        );
+        return json(res, 200, { addons: result.rows || [] });
+      } catch (err) {
+        const incidentId = randomUUID();
+        console.error(`[API CATALOG ADDONS ERROR ${incidentId}]`, {
+          message: err.message,
+          code: err.code,
+          table: err.table,
+          stack: err.stack,
+        });
+        return json(res, 200, { addons: [] });
+      }
     }
 
     if (url.pathname === '/api/commerce/preview' && req.method === 'POST') {
-      const body = await readJson(req);
-      let draft = null;
-      if (body.draftId) {
-        const draftResult = await client.query(
-          `SELECT * FROM public.commercial_store_drafts
-           WHERE id = $1 AND (user_id IS NULL OR user_id = $2)`,
-          [body.draftId, sessionProfile?.id || null],
-        );
-        draft = draftResult.rows[0];
-        if (!draft) return json(res, 404, { error: 'Rascunho de contratação não encontrado.' });
-        if (sessionProfile && !draft.user_id) {
-          await client.query('UPDATE public.commercial_store_drafts SET user_id = $2, updated_at = NOW() WHERE id = $1', [draft.id, sessionProfile.id]);
+      try {
+        const body = await readJson(req);
+        let draft = null;
+        if (body.draftId) {
+          const draftResult = await client.query(
+            `SELECT * FROM public.commercial_store_drafts
+             WHERE id = $1 AND (user_id IS NULL OR user_id = $2)`,
+            [body.draftId, sessionProfile?.id || null],
+          );
+          draft = draftResult.rows[0];
+          if (!draft) return json(res, 404, { error: 'Rascunho de contratação não encontrado.', code: 'DRAFT_NOT_FOUND' });
+          if (sessionProfile && !draft.user_id) {
+            await client.query('UPDATE public.commercial_store_drafts SET user_id = $2, updated_at = NOW() WHERE id = $1', [draft.id, sessionProfile.id]);
+          }
         }
-      }
-      const domain = body.domain?.name ? { ...body.domain, name: normalizeDomainName(body.domain.name) } : null;
-      const selection = await calculateCommercialSelection(client, {
-        serviceSlug: body.serviceSlug || draft?.service_slug,
-        planId: body.planId || draft?.plan_id,
-        templateId: body.templateId || draft?.model_id,
-        addonCodes: draft ? [] : body.addonCodes || [],
-        domain,
-      });
-      if (draft) {
-        const domainFee = domain?.mode === 'register' ? 5000 : 0;
-        const baseActivation = selection.oneTimeTotalCents - domainFee;
-        const optionalActivation = Math.max(0, Number(draft.snapshot_activation_cents || 0) - baseActivation);
-        const optionalMonthly = Math.max(0, Number(draft.snapshot_monthly_cents || 0) - selection.monthlyTotalCents);
-        if (optionalActivation > 0) selection.oneTimeItems.push({ code: 'store-options-activation', name: 'Opcionais da loja — ativação', amountCents: optionalActivation, billingCycle: 'one_time' });
-        if (optionalMonthly > 0) selection.monthlyItems.push({ code: 'store-options-monthly', name: 'Opcionais da loja — mensalidade', amountCents: optionalMonthly, billingCycle: 'monthly' });
-        selection.oneTimeTotalCents += optionalActivation;
-        selection.monthlyTotalCents += optionalMonthly;
-      }
+        const domain = body.domain?.name ? { ...body.domain, name: normalizeDomainName(body.domain.name) } : null;
+        const selection = await calculateCommercialSelection(client, {
+          serviceSlug: body.serviceSlug || draft?.service_slug,
+          planId: body.planId || draft?.plan_id,
+          templateId: body.templateId || draft?.model_id,
+          addonCodes: draft ? [] : body.addonCodes || [],
+          domain,
+        });
+        if (draft) {
+          const domainFee = domain?.mode === 'register' ? 5000 : 0;
+          const baseActivation = selection.oneTimeTotalCents - domainFee;
+          const optionalActivation = Math.max(0, Number(draft.snapshot_activation_cents || 0) - baseActivation);
+          const optionalMonthly = Math.max(0, Number(draft.snapshot_monthly_cents || 0) - selection.monthlyTotalCents);
+          if (optionalActivation > 0) selection.oneTimeItems.push({ code: 'store-options-activation', name: 'Opcionais da loja — ativação', amountCents: optionalActivation, billingCycle: 'one_time' });
+          if (optionalMonthly > 0) selection.monthlyItems.push({ code: 'store-options-monthly', name: 'Opcionais da loja — mensalidade', amountCents: optionalMonthly, billingCycle: 'monthly' });
+          selection.oneTimeTotalCents += optionalActivation;
+          selection.monthlyTotalCents += optionalMonthly;
+        }
 
-      const quoteId = randomUUID();
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        const quoteId = randomUUID();
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-      await client.query(
-        `INSERT INTO public.commercial_pricing_quotes
-           (id, user_id, session_draft_id, service_slug, template_slug, plan_id, addon_codes, domain_name, domain_mode,
-            one_time_items, monthly_items, one_time_total_cents, monthly_total_cents, pricing_version, expires_at, normalized_selection)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '2026-08-15.1', $14, $15)`,
-        [
+        await client.query(
+          `INSERT INTO public.commercial_pricing_quotes
+             (id, user_id, session_draft_id, service_slug, template_slug, plan_id, addon_codes, domain_name, domain_mode,
+              one_time_items, monthly_items, one_time_total_cents, monthly_total_cents, pricing_version, expires_at, normalized_selection)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, '2026-08-15.1', $14, $15)`,
+          [
+            quoteId,
+            sessionProfile?.id || null,
+            body.draftId || null,
+            selection.service.slug,
+            selection.template?.slug || null,
+            selection.plan?.id || null,
+            JSON.stringify(body.addonCodes || []),
+            domain?.name || null,
+            domain?.mode || null,
+            JSON.stringify(selection.oneTimeItems),
+            JSON.stringify(selection.monthlyItems),
+            selection.oneTimeTotalCents,
+            selection.monthlyTotalCents,
+            expiresAt,
+            JSON.stringify({
+              serviceSlug: selection.service.slug,
+              serviceName: selection.service.name,
+              planId: selection.plan?.id || null,
+              planName: selection.plan?.name || null,
+              templateId: selection.template?.id || null,
+              templateSlug: selection.template?.slug || null,
+              templateName: selection.template?.name || null,
+              addonCodes: body.addonCodes || [],
+              domain,
+              oneTimeTotalCents: selection.oneTimeTotalCents,
+              monthlyTotalCents: selection.monthlyTotalCents,
+            }),
+          ],
+        );
+
+        return json(res, 200, {
           quoteId,
-          sessionProfile?.id || null,
-          body.draftId || null,
-          selection.service.slug,
-          selection.template?.slug || null,
-          selection.plan?.id || null,
-          JSON.stringify(body.addonCodes || []),
-          domain?.name || null,
-          domain?.mode || null,
-          JSON.stringify(selection.oneTimeItems),
-          JSON.stringify(selection.monthlyItems),
-          selection.oneTimeTotalCents,
-          selection.monthlyTotalCents,
           expiresAt,
-          JSON.stringify({
-            serviceSlug: selection.service.slug,
-            serviceName: selection.service.name,
-            planId: selection.plan?.id || null,
-            planName: selection.plan?.name || null,
-            templateId: selection.template?.id || null,
-            templateSlug: selection.template?.slug || null,
-            templateName: selection.template?.name || null,
-            addonCodes: body.addonCodes || [],
-            domain,
-            oneTimeTotalCents: selection.oneTimeTotalCents,
-            monthlyTotalCents: selection.monthlyTotalCents,
-          }),
-        ],
-      );
-
-      return json(res, 200, {
-        quoteId,
-        expiresAt,
-        pricingVersion: '2026-08-15.1',
-        currency: 'BRL',
-        serviceSlug: selection.service.slug,
-        serviceName: selection.service.name,
-        templateSlug: selection.template?.slug || null,
-        planId: selection.plan?.id || null,
-        domain: body.domain || null,
-        oneTimeItems: selection.oneTimeItems,
-        monthlyItems: selection.monthlyItems,
-        oneTimeTotalCents: selection.oneTimeTotalCents,
-        monthlyTotalCents: selection.monthlyTotalCents,
-      });
+          pricingVersion: '2026-08-15.1',
+          currency: 'BRL',
+          serviceSlug: selection.service.slug,
+          serviceName: selection.service.name,
+          templateSlug: selection.template?.slug || null,
+          planId: selection.plan?.id || null,
+          domain: body.domain || null,
+          oneTimeItems: selection.oneTimeItems,
+          monthlyItems: selection.monthlyItems,
+          oneTimeTotalCents: selection.oneTimeTotalCents,
+          monthlyTotalCents: selection.monthlyTotalCents,
+        });
+      } catch (err) {
+        if (err.statusCode) {
+          return json(res, err.statusCode, { error: err.message, code: err.code || 'VALIDATION_ERROR' });
+        }
+        const incidentId = randomUUID();
+        console.error(`[COMMERCE PREVIEW EXCEPTION ${incidentId}]`, {
+          endpoint: '/api/commerce/preview',
+          incidentId,
+          userId: sessionProfile?.id || null,
+          pgCode: err.code,
+          constraint: err.constraint,
+          table: err.table,
+          message: err.message,
+          stack: err.stack,
+        });
+        return json(res, 500, {
+          error: 'Não foi possível calcular a contratação.',
+          code: 'COMMERCE_PREVIEW_FAILED',
+          incidentId,
+        });
+      }
     }
 
     if ((url.pathname === '/api/catalog/plans' || url.pathname === '/api/admin/catalog/plans') && req.method === 'GET') {
@@ -1377,8 +1410,25 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           );
           if (replay.rows[0]) return json(res, 200, { orderId: replay.rows[0].id, checkoutUrl: replay.rows[0].checkout_url, status: replay.rows[0].status, quoteId: replay.rows[0].pricing_quote_id, idempotentReplay: true });
         }
-        console.error('[COMMERCE ORDER ERROR]', err.message || err, err.stack);
-        return json(res, 500, { error: err.message || 'Falha ao criar o pedido.' });
+        if (err.statusCode) {
+          return json(res, err.statusCode, { error: err.message, code: err.code || 'COMMERCE_ORDER_FAILED' });
+        }
+        const incidentId = randomUUID();
+        console.error(`[COMMERCE ORDER EXCEPTION ${incidentId}]`, {
+          endpoint: '/api/commerce/orders',
+          incidentId,
+          userId: sessionProfile?.id || null,
+          pgCode: err.code,
+          constraint: err.constraint,
+          table: err.table,
+          message: err.message,
+          stack: err.stack,
+        });
+        return json(res, 500, {
+          error: 'Falha ao criar o pedido. Tente novamente ou entre em contato com nosso suporte.',
+          code: 'COMMERCE_ORDER_FAILED',
+          incidentId,
+        });
       }
 
       // Pre-initialize service engagement in background/after commit
@@ -4504,7 +4554,17 @@ createServer(async (req, res) => {
     return await serveStatic(req, res);
   } catch (err) {
     const incidentId = randomUUID();
-    console.error(`[SERVER UNHANDLED EXCEPTION ${incidentId}]`, err);
+    console.error(`[SERVER UNHANDLED EXCEPTION ${incidentId}]`, {
+      incidentId,
+      url: req.url,
+      method: req.method,
+      pgCode: err.code,
+      constraint: err.constraint,
+      table: err.table,
+      detail: err.detail,
+      message: err.message,
+      stack: err.stack,
+    });
     return json(res, 500, { error: 'Internal server error', incidentId });
   }
 }).listen(port, () => {

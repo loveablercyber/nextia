@@ -11,6 +11,7 @@ const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 
 interface StoreDraftData {
   id: string;
+  service_slug?: string;
   model_id: string;
   model_name?: string;
   model_cover?: string;
@@ -47,11 +48,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!draftId) return;
     fetch(`/api/commerce/store-drafts/${draftId}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Rascunho não encontrado.'))))
       .then((data) => {
         if (data.draft) setDraft(data.draft);
       })
-      .catch(() => {})
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Falha ao carregar rascunho de contratação.');
+      })
       .finally(() => setLoadingDraft(false));
   }, [draftId]);
 
@@ -75,7 +78,7 @@ export default function CheckoutPage() {
 
       return {
         id: draft.id,
-        slug: 'lojas-virtuais',
+        slug: draft.service_slug || 'lojas-virtuais',
         name: `Loja Virtual — ${draft.model_name || 'Personalizada'}`,
         summary: `Contratação com Modelo ${draft.model_name || 'selecionado'} e configuração completa pela Nextia.`,
         price: draft.snapshot_monthly_cents / 100,
@@ -144,9 +147,9 @@ export default function CheckoutPage() {
   const createPreview = async () => {
     if (!selection) throw new Error('Seleção comercial inválida.');
     const serviceSlug = selection.kind === 'draft'
-      ? 'lojas-virtuais'
+      ? (draft?.service_slug || 'lojas-virtuais')
       : selection.kind === 'plan'
-        ? params.get('service')
+        ? (params.get('service') || 'sites-prontos')
         : selection.slug;
     if (!serviceSlug) throw new Error('Escolha o serviço relacionado a este plano antes de continuar.');
     const response = await fetch('/api/commerce/preview', {
@@ -163,7 +166,13 @@ export default function CheckoutPage() {
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Não foi possível calcular a contratação.');
+    if (!response.ok) {
+      const errMessage = data.incidentId
+        ? `${data.error || 'Não foi possível calcular a contratação.'} (Protocolo: ${data.incidentId})`
+        : data.error || 'Não foi possível calcular a contratação.';
+      throw new Error(errMessage);
+    }
+    setError('');
     setPreview(data);
     return data as CommercePreview;
   };

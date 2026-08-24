@@ -271,12 +271,27 @@ export default function LojaVirtualPage() {
                         DESTAQUE
                       </div>
                     )}
-                    <div className="aspect-[16/10] overflow-hidden bg-slate-100 relative">
-                      <img
-                        src={model.cover_image}
-                        alt={model.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                    <div className="aspect-[16/10] overflow-hidden bg-slate-900 relative">
+                      {model.cover_image && model.cover_image.trim() !== '' ? (
+                        <img
+                          src={model.cover_image}
+                          alt={model.name}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) {
+                              parent.classList.add('flex', 'items-center', 'justify-center', 'bg-gradient-to-br', 'from-slate-800', 'to-slate-900');
+                            }
+                          }}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex flex-col items-center justify-center bg-gradient-to-br from-[#0B1E38] to-[#163868] text-white p-4 text-center">
+                          <Store className="h-10 w-10 text-[#35B7FF] mb-1 opacity-70" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">{model.name}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-6">
                       <span className="text-xs font-bold uppercase tracking-wider text-[#1677FF]">{model.category}</span>

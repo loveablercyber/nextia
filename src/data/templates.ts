@@ -169,7 +169,7 @@ export const templates: Template[] = [
     description:
       "Template completo para restaurantes com cardápio digital, reservas online e galeria de fotos. Ideal para atrair mais clientes e aumentar as reservas pelo site.",
     shortDescription: "Cardápio digital, reservas e galeria de fotos.",
-    coverImage: "",
+    coverImage: "/images/templates/restaurante-premium.webp",
     price: 79,
     activationFee: 197,
     featured: true,
@@ -209,7 +209,7 @@ export const templates: Template[] = [
     description:
       "Template moderno para salões de beleza e barbearias com agendamento online, portfólio de serviços e integração com redes sociais. Conquiste mais clientes com uma presença digital incrível.",
     shortDescription: "Agendamento online, portfólio e redes sociais.",
-    coverImage: "",
+    coverImage: "/images/templates/salao-elegance.webp",
     price: 69,
     activationFee: 197,
     featured: true,
@@ -249,7 +249,7 @@ export const templates: Template[] = [
     description:
       "Template elegante para prestadores de serviços, consultores e profissionais liberais. Apresente seus serviços, conquiste autoridade e gere mais leads qualificados.",
     shortDescription: "Apresentação de serviços, portfólio e geração de leads.",
-    coverImage: "",
+    coverImage: "/images/templates/servicos-profissionais.webp",
     price: 59,
     activationFee: 197,
     featured: true,
@@ -288,7 +288,7 @@ export const templates: Template[] = [
     description:
       "Template para lojas e negócios que querem exibir seus produtos com elegância. Catálogo digital com filtros, fotos e integração com WhatsApp para vendas.",
     shortDescription: "Catálogo de produtos com WhatsApp e filtros.",
-    coverImage: "",
+    coverImage: "/images/templates/loja-catalogo.webp",
     price: 89,
     activationFee: 247,
     featured: false,
@@ -317,7 +317,7 @@ export const templates: Template[] = [
     description:
       "Template sofisticado para clínicas, consultórios e centros de estética. Transmita confiança e profissionalismo, com agendamento e apresentação de tratamentos.",
     shortDescription: "Agendamento, tratamentos e credibilidade médica.",
-    coverImage: "",
+    coverImage: "/images/templates/clinica-estetica.webp",
     price: 89,
     activationFee: 247,
     featured: false,
@@ -353,7 +353,7 @@ export const templates: Template[] = [
     description:
       "Template sério e profissional para contadores e escritórios contábeis. Mostre sua expertise, gere confiança e atraia novos clientes empresariais.",
     shortDescription: "Credibilidade e geração de leads para contadores.",
-    coverImage: "",
+    coverImage: "/images/templates/contabilidade.webp",
     price: 69,
     activationFee: 197,
     featured: false,
@@ -387,7 +387,7 @@ export const templates: Template[] = [
     description:
       "Template completo para imobiliárias com listagem de imóveis, filtros de busca e formulários de contato. Profissionalize sua captação e vendas.",
     shortDescription: "Listagem de imóveis, filtros e captação de leads.",
-    coverImage: "",
+    coverImage: "/images/templates/imobiliaria.webp",
     price: 129,
     activationFee: 297,
     featured: false,
@@ -416,7 +416,7 @@ export const templates: Template[] = [
     description:
       "Template direto ao ponto para oficinas mecânicas e auto centers. Apresente seus serviços, facilite o contato pelo WhatsApp e conquiste mais clientes.",
     shortDescription: "Serviços, orçamento rápido e WhatsApp.",
-    coverImage: "",
+    coverImage: "/images/templates/oficina-mecanica.webp",
     price: 59,
     activationFee: 197,
     featured: false,
@@ -444,7 +444,7 @@ export const templates: Template[] = [
     description:
       "Plataforma completa e sofisticada para imobiliárias de alto padrão, construtoras e corretoras. Busca avançada por geolocalização, simulador de financiamento, tour virtual 360°, agendamento de visitas e captação de leads de altíssimo valor.",
     shortDescription: "Plataforma de alto padrão com busca avançada, simulador e tour 360°.",
-    coverImage: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=800&auto=format&fit=crop",
+    coverImage: "/images/templates/imobiliaria-premium.webp",
     price: 149,
     activationFee: 397,
     featured: true,
@@ -487,7 +487,7 @@ export const templates: Template[] = [
     description:
       "E-commerce de moda completo com lookbook interativo, provador virtual, cálculo automático de frete e checkout transparente via Mercado Pago.",
     shortDescription: "E-commerce de moda com lookbook e checkout integrado.",
-    coverImage: "",
+    coverImage: "/images/templates/loja-moda-premium.webp",
     price: 99,
     activationFee: 247,
     featured: true,
@@ -518,7 +518,7 @@ export const templates: Template[] = [
     description:
       "Catálogo virtual para produtos alimentícios, doces finos, bebidas e cestas gourmet com pedidos pelo WhatsApp e pagamento por Pix automático.",
     shortDescription: "Catálogo alimentício com WhatsApp e Pix automático.",
-    coverImage: "",
+    coverImage: "/images/templates/loja-gourmet.webp",
     price: 59,
     activationFee: 197,
     featured: true,
@@ -547,7 +547,7 @@ export const templates: Template[] = [
     description:
       "Loja virtual robusta para eletrônicos, informática e variedades com ficha técnica avançada, busca com auto-complete e múltiplos gateways de pagamento.",
     shortDescription: "Loja virtual de eletrônicos com busca rápida e variados gateways.",
-    coverImage: "",
+    coverImage: "/images/templates/loja-tech-store.webp",
     price: 159,
     activationFee: 297,
     featured: true,

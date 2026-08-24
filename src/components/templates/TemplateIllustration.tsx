@@ -1,10 +1,28 @@
+import React, { useState } from 'react';
+
 interface IllustrationProps {
   category: string;
   slug?: string;
   coverImage?: string;
 }
 
-export function TemplateIllustration({ category, slug }: IllustrationProps) {
+export function TemplateIllustration({ category, slug, coverImage }: IllustrationProps) {
+  const [imageError, setImageError] = useState(false);
+
+  if (coverImage && coverImage.trim() !== '' && !imageError) {
+    return (
+      <div className="h-full w-full overflow-hidden bg-slate-900">
+        <img
+          src={coverImage}
+          alt={`Modelo ${slug || category}`}
+          loading="lazy"
+          onError={() => setImageError(true)}
+          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+        />
+      </div>
+    );
+  }
+
   if (slug === 'imobiliaria-premium') {
     return <ImobiliariaPremiumIllustration />;
   }
