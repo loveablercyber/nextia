@@ -22,6 +22,7 @@ import TechCarePage from './pages/TechCarePage';
 import RedesWifiPage from './pages/RedesWifiPage';
 import CamerasSegurancaPage from './pages/CamerasSegurancaPage';
 import SolucoesPage from './pages/SolucoesPage';
+import SegmentPage from './pages/SegmentPage';
 import ServicePage from './pages/ServicePage';
 import ServiceRequestPage from './pages/ServiceRequestPage';
 import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
@@ -193,6 +194,7 @@ function AppRoutes() {
       <Route path="/cameras-seguranca" element={<CamerasSegurancaPage />} />
       <Route path="/backup" element={<ServicePage />} />
       <Route path="/solucoes" element={<SolucoesPage />} />
+      <Route path="/solucoes/:segmentSlug" element={<SegmentPage />} />
       <Route path="/solicitar-servico" element={<ServiceRequestPage />} />
       <Route path="/termos" element={<TermosPage />} />
       <Route path="/privacidade" element={<PrivacidadePage />} />

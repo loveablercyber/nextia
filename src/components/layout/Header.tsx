@@ -37,6 +37,7 @@ export default function Header() {
               {group.links.map(([label, to]) => <Link key={to} to={to} onClick={() => { setMobileOpen(false); setOpenGroup(null); }} className="block min-h-11 px-3 py-2.5 text-base font-semibold hover:bg-[#EAF3FF] hover:text-[#1677FF]">{label}</Link>)}
             </div>
           </div>)}
+          <Link to="/solucoes" className="flex min-h-11 items-center px-3 text-base font-semibold">Soluções</Link>
           <Link to="/planos" className="flex min-h-11 items-center px-3 text-base font-semibold">Planos</Link>
           <Link to="/parceiros" className="flex min-h-11 items-center px-3 text-base font-semibold">Parceiros</Link>
           <Link to="/contato" className="flex min-h-11 items-center px-3 text-base font-semibold">Contato</Link>
@@ -59,7 +60,8 @@ export default function Header() {
             <button onClick={() => setOpenGroup(openGroup === group.label ? null : group.label)} className="flex min-h-12 w-full items-center justify-between px-3 text-left text-lg font-bold" aria-expanded={openGroup === group.label}>{group.label}<ChevronDown className={clsx('h-5 w-5 transition-transform', openGroup === group.label && 'rotate-180')} /></button>
             {openGroup === group.label && <div className="mb-2 border-l-2 border-[#1677FF] pl-3">{group.links.map(([label, to]) => <Link key={to} to={to} onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center px-3 text-lg text-slate-700">{label}</Link>)}</div>}
           </div>)}
-          <Link to="/planos" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Planos</Link>
+          <Link to="/solucoes" onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Soluções por Segmento</Link>
+          <Link to="/planos" onClick={() => setMobileOpen(false)} className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Planos</Link>
           <Link to="/parceiros" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Parceiros</Link>
           <Link to="/contato" className="flex min-h-12 items-center border-t border-slate-100 px-3 text-lg font-bold">Contato</Link>
         </nav>

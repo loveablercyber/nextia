@@ -18,10 +18,23 @@
   <url><loc>https://nextia.dev.br/cameras-seguranca</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nextia.dev.br/backup</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nextia.dev.br/planos</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://nextia.dev.br/solucoes</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://nextia.dev.br/contato</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   
-  <!-- Páginas de Expansão Local — Bauru -->
+  <!-- Páginas de Expansão por Segmento / Nicho (Etapa 3) -->
+  <url><loc>https://nextia.dev.br/solucoes/contabilidade</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/pizzarias</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/advocacia</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/clinicas</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/dentistas</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/imobiliarias</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/pet-shops</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/restaurantes</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/academias</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/lojas</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/solucoes/prestadores-de-servicos</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+
+  <!-- Páginas de Expansão Local — Bauru (Etapa 1 & 2) -->
   <url><loc>https://nextia.dev.br/bauru</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://nextia.dev.br/bauru/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://nextia.dev.br/bauru/loja-virtual</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
@@ -30,7 +43,7 @@
   <url><loc>https://nextia.dev.br/bauru/automacao</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nextia.dev.br/bauru/desenvolvimento-de-sistemas</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 
-  <!-- Páginas de Expansão Local — Marília -->
+  <!-- Páginas de Expansão Local — Marília (Etapa 1 & 2) -->
   <url><loc>https://nextia.dev.br/marilia</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://nextia.dev.br/marilia/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://nextia.dev.br/marilia/loja-virtual</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
