@@ -203,7 +203,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
         }`}
       >
         <a 
-          href={getWhatsAppLink(data.hero.whatsappMessage)} 
+          href={getWhatsAppLink('geral', data.hero.whatsappMessage)}
           target="_blank" 
           rel="noopener noreferrer"
           onClick={() => handleWhatsAppClick('sticky_bar')}
@@ -272,7 +272,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
               <ArrowRight className="w-5 h-5 ml-2" />
             </a>
             <a 
-              href={getWhatsAppLink(data.hero.whatsappMessage)} 
+              href={getWhatsAppLink('geral', data.hero.whatsappMessage)}
               target="_blank" 
               rel="noopener noreferrer"
               onClick={() => handleWhatsAppClick('hero')}
@@ -459,13 +459,17 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
               {matchingTemplates.map((template, idx) => (
                 <div key={idx} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                   <div className="aspect-[4/3] bg-slate-100 p-6 flex items-center justify-center border-b border-slate-200">
-                    <TemplateIllustration templateId={template.id} className="w-full h-full max-h-64 object-contain" />
+                    <TemplateIllustration
+                      category={template.categorySlug}
+                      slug={template.slug}
+                      coverImage={template.coverImage}
+                    />
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-xl font-bold text-slate-900">{template.name}</h3>
-                        <p className="text-sm text-slate-500 mt-1">{template.category} • {template.style}</p>
+                        <p className="text-sm text-slate-500 mt-1">{template.category} • {template.shortDescription}</p>
                       </div>
                       <div className="bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full text-sm">
                         R$ {template.price.toLocaleString('pt-BR')}
@@ -500,7 +504,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
             
             <div className="space-y-6">
               <a 
-                href={getWhatsAppLink(data.hero.whatsappMessage)} 
+                href={getWhatsAppLink('geral', data.hero.whatsappMessage)}
                 target="_blank" 
                 rel="noopener noreferrer"
                 onClick={() => handleWhatsAppClick('form_side')}
@@ -698,7 +702,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <a 
-              href={getWhatsAppLink(data.hero.whatsappMessage)} 
+              href={getWhatsAppLink('geral', data.hero.whatsappMessage)}
               target="_blank" 
               rel="noopener noreferrer"
               onClick={() => handleWhatsAppClick('footer_cta')}
