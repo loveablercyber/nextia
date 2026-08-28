@@ -36,6 +36,7 @@ import { getLocalServiceData } from '../../data/localServices';
 import { templates } from '../../data/templates';
 import { TemplateIllustration } from '../templates/TemplateIllustration';
 import { getWhatsAppLink, trackEvent } from '../../utils/whatsapp';
+import { getLocalNicheServiceData } from '../../data/localNicheServices';
 
 interface LocalServiceLandingPageProps {
   citySlug: string;
@@ -566,16 +567,30 @@ export default function LocalServiceLandingPage({ citySlug, serviceSlug }: Local
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {serviceData.segments.map((seg, sIdx) => (
-              <div
-                key={sIdx}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#2563FF]/30 hover:shadow-md"
-              >
-                <span className="text-2xl">{seg.icon}</span>
-                <h3 className="mt-2 text-base font-bold text-[#10152B]">{seg.name}</h3>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">{seg.desc}</p>
-              </div>
-            ))}
+            {serviceData.segments.map((seg, sIdx) => {
+              // Check if a niche page exists for this segment + current service in this city
+              const segSlug = seg.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+              const nicheData = getLocalNicheServiceData(serviceData.citySlug, segSlug, serviceData.serviceSlug);
+              const nicheLink = nicheData?.status === 'published' ? `/${serviceData.citySlug}/${nicheData.segmentSlug}/${nicheData.serviceSlug}` : null;
+
+              const card = (
+                <div
+                  key={sIdx}
+                  className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#2563FF]/30 hover:shadow-md${nicheLink ? ' cursor-pointer' : ''}`}
+                >
+                  <span className="text-2xl">{seg.icon}</span>
+                  <h3 className="mt-2 text-base font-bold text-[#10152B]">{seg.name}</h3>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">{seg.desc}</p>
+                  {nicheLink && (
+                    <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#2563FF]">
+                      Ver solução específica <ArrowRight className="h-3 w-3" />
+                    </span>
+                  )}
+                </div>
+              );
+
+              return nicheLink ? <Link key={sIdx} to={nicheLink} className="block">{card}</Link> : card;
+            })}
           </div>
         </div>
       </section>

@@ -63,6 +63,7 @@ import { SEGMENTS } from '../../data/segments';
 import { templates } from '../../data/templates';
 import { TemplateIllustration } from '../templates/TemplateIllustration';
 import { getWhatsAppLink, trackEvent } from '../../utils/whatsapp';
+import { getAllPublishedLocalNicheServices } from '../../data/localNicheServices';
 
 interface SegmentLandingPageProps {
   segment: SegmentData;
@@ -1086,6 +1087,26 @@ export default function SegmentLandingPage({ segment }: SegmentLandingPageProps)
                     </Link>
                   ))}
                 </div>
+                {/* Etapa 4: Niche service pages for this segment */}
+                {(() => {
+                  const nichePages = getAllPublishedLocalNicheServices().filter(
+                    (n) => n.segmentSlug === segment.slug
+                  );
+                  if (nichePages.length === 0) return null;
+                  return (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {nichePages.map((niche, nIdx) => (
+                        <Link
+                          key={nIdx}
+                          to={`/${niche.citySlug}/${niche.segmentSlug}/${niche.serviceSlug}`}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 font-semibold transition-colors"
+                        >
+                          {niche.serviceName} em {niche.cityName}
+                        </Link>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

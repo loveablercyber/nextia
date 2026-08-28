@@ -28,6 +28,7 @@ import ServiceRequestPage from './pages/ServiceRequestPage';
 import { TermosPage, PrivacidadePage, CookiesPage } from './pages/LegalPages';
 import CityPage from './pages/CityPage';
 import LocalServicePage from './pages/LocalServicePage';
+import LocalNicheServicePage from './pages/LocalNicheServicePage';
 import Seo from './components/seo/Seo';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 
@@ -207,10 +208,13 @@ function AppRoutes() {
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
       <Route path="/bauru" element={<CityPage />} />
+      <Route path="/bauru/:segmentSlug/:serviceSlug" element={<LocalNicheServicePage />} />
       <Route path="/bauru/:serviceSlug" element={<LocalServicePage />} />
       <Route path="/marilia" element={<CityPage />} />
+      <Route path="/marilia/:segmentSlug/:serviceSlug" element={<LocalNicheServicePage />} />
       <Route path="/marilia/:serviceSlug" element={<LocalServicePage />} />
       <Route path="/cidade/:citySlug" element={<CityPage />} />
+      <Route path="/cidade/:citySlug/:segmentSlug/:serviceSlug" element={<LocalNicheServicePage />} />
       <Route path="/cidade/:citySlug/:serviceSlug" element={<LocalServicePage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/login" element={<LoginPage />} />

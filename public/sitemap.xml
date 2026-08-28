@@ -51,4 +51,13 @@
   <url><loc>https://nextia.dev.br/marilia/suporte-ti</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nextia.dev.br/marilia/automacao</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://nextia.dev.br/marilia/desenvolvimento-de-sistemas</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+
+  <!-- Páginas de Nicho Local — Etapa 4 (Cidade + Segmento + Serviço) -->
+  <url><loc>https://nextia.dev.br/bauru/contabilidade/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/contabilidade/whatsapp-ia</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/contabilidade/automacao</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/pizzarias/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/pizzarias/whatsapp-ia</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/clinicas/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://nextia.dev.br/bauru/imobiliarias/criacao-de-sites</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
 </urlset>
