@@ -216,6 +216,7 @@ function AppRoutes() {
       <Route path="/cidade/:citySlug" element={<CityPage />} />
       <Route path="/cidade/:citySlug/:segmentSlug/:serviceSlug" element={<LocalNicheServicePage />} />
       <Route path="/cidade/:citySlug/:serviceSlug" element={<LocalServicePage />} />
+      <Route path="/:citySlug/:segmentSlug/:serviceSlug" element={<LocalNicheServicePage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<RegisterPage />} />

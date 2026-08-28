@@ -8,18 +8,22 @@ export default function LocalNicheServicePage() {
   const params = useParams<{ citySlug?: string; segmentSlug?: string; serviceSlug?: string }>();
   const location = useLocation();
 
-  // Resolve city slug from params or from pathname (for direct routes like /bauru/:segment/:service)
+  // Extract path segments reliably: e.g. /bauru/contabilidade/criacao-de-sites -> ['bauru', 'contabilidade', 'criacao-de-sites']
+  // or /cidade/bauru/contabilidade/criacao-de-sites -> ['cidade', 'bauru', 'contabilidade', 'criacao-de-sites']
+  const parts = location.pathname.split('/').map((s) => s.trim().toLowerCase()).filter(Boolean);
+
   let citySlug = params.citySlug || '';
   let segmentSlug = params.segmentSlug || '';
   let serviceSlug = params.serviceSlug || '';
 
-  if (!citySlug) {
-    const parts = location.pathname.split('/').filter(Boolean);
-    if (parts.length >= 3) {
-      citySlug = parts[0];
-      segmentSlug = parts[1];
-      serviceSlug = parts[2];
-    }
+  if (parts[0] === 'cidade') {
+    citySlug = parts[1] || '';
+    segmentSlug = parts[2] || '';
+    serviceSlug = parts[3] || '';
+  } else if (parts.length >= 3) {
+    citySlug = parts[0] || '';
+    segmentSlug = parts[1] || '';
+    serviceSlug = parts[2] || '';
   }
 
   const data = getLocalNicheServiceData(citySlug, segmentSlug, serviceSlug);
