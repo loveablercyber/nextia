@@ -36,6 +36,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/pedidos', icon: Briefcase, label: 'Pedidos e Assinaturas' },
       { to: '/admin/orcamentos', icon: FileText, label: 'Orçamentos (Quotes)' },
       { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },
+      { to: '/admin/modelos', icon: FileText, label: 'Modelos de Sites' },
       { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
     ],
   },

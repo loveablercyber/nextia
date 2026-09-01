@@ -39,40 +39,9 @@ export interface Testimonial {
   rating: number;
 }
 
-const testimonials: Testimonial[] = [
-  {
-    name: "Carlos Mendes",
-    company: "Restaurante Sabor & Arte",
-    role: "Proprietário",
-    text: "Em menos de 5 dias meu restaurante já tinha um site profissional. As reservas online aumentaram 40% no primeiro mês!",
-    avatar: "CM",
-    rating: 5,
-  },
-  {
-    name: "Fernanda Oliveira",
-    company: "Salão Beleza & Charme",
-    role: "Proprietária",
-    text: "Minha agenda de agendamentos está sempre cheia agora. O site ficou lindo e os clientes adoraram!",
-    avatar: "FO",
-    rating: 5,
-  },
-  {
-    name: "Ricardo Alves",
-    company: "RA Consultoria Contábil",
-    role: "Contador",
-    text: "Profissionalismo que meus clientes notam. O site passou credibilidade imediata e já captei 3 novos clientes no primeiro mês.",
-    avatar: "RA",
-    rating: 5,
-  },
-  {
-    name: "Mariana Costa",
-    company: "Studio MC - Estética",
-    role: "Esteticista",
-    text: "Excelente custo-benefício. Antes eu pagava caro por mês e o suporte era péssimo. Com a Nextia é diferente!",
-    avatar: "MC",
-    rating: 5,
-  },
-];
+// Depoimentos só podem ser associados após autorização e aprovação formal.
+// A coleção permanece vazia enquanto não houver registros reais verificáveis.
+const testimonials: Testimonial[] = [];
 
 // Recurso Opcionais (Addons) Específicos por Segmento
 export const RESTAURANTE_OPTIONAL_FEATURES: OptionalFeature[] = [
@@ -197,7 +166,7 @@ export const templates: Template[] = [
     recommendedPlan: "Pro",
     estimatedDays: 5,
     demoUrl: "/demo/restaurante-premium",
-    testimonials: [testimonials[0], testimonials[3]],
+    testimonials,
     optionalFeatures: RESTAURANTE_OPTIONAL_FEATURES,
   },
   {
@@ -237,7 +206,7 @@ export const templates: Template[] = [
     recommendedPlan: "Pro",
     estimatedDays: 5,
     demoUrl: "/demo/salao-elegance",
-    testimonials: [testimonials[1], testimonials[3]],
+    testimonials,
     optionalFeatures: SALAO_OPTIONAL_FEATURES,
   },
   {
@@ -276,7 +245,7 @@ export const templates: Template[] = [
     recommendedPlan: "Start",
     estimatedDays: 4,
     demoUrl: "/demo/servicos-profissionais",
-    testimonials: [testimonials[2], testimonials[0]],
+    testimonials,
     optionalFeatures: SERVICOS_PROFISSIONAIS_OPTIONAL_FEATURES,
   },
   {
@@ -305,7 +274,7 @@ export const templates: Template[] = [
     recommendedPlan: "Business",
     estimatedDays: 6,
     demoUrl: "/demo/loja-catalogo",
-    testimonials: [testimonials[3]],
+    testimonials,
     optionalFeatures: LOJA_OPTIONAL_FEATURES,
   },
   {
@@ -341,7 +310,7 @@ export const templates: Template[] = [
     recommendedPlan: "Pro",
     estimatedDays: 6,
     demoUrl: "/demo/clinica-estetica",
-    testimonials: [testimonials[1]],
+    testimonials,
     optionalFeatures: CLINICA_OPTIONAL_FEATURES,
   },
   {
@@ -375,7 +344,7 @@ export const templates: Template[] = [
     recommendedPlan: "Start",
     estimatedDays: 4,
     demoUrl: "/demo/contabilidade",
-    testimonials: [testimonials[2]],
+    testimonials,
     optionalFeatures: CONTABILIDADE_OPTIONAL_FEATURES,
   },
   {
@@ -404,7 +373,7 @@ export const templates: Template[] = [
     recommendedPlan: "Business",
     estimatedDays: 7,
     demoUrl: "/demo/imobiliaria",
-    testimonials: [testimonials[0]],
+    testimonials,
     optionalFeatures: IMOBILIARIA_OPTIONAL_FEATURES,
   },
   {
@@ -432,7 +401,7 @@ export const templates: Template[] = [
     recommendedPlan: "Start",
     estimatedDays: 3,
     demoUrl: "/demo/oficina-mecanica",
-    testimonials: [testimonials[3]],
+    testimonials,
     optionalFeatures: OFICINA_OPTIONAL_FEATURES,
   },
   {
@@ -475,7 +444,7 @@ export const templates: Template[] = [
     recommendedPlan: "Business",
     estimatedDays: 5,
     demoUrl: "/demo/imobiliaria-premium",
-    testimonials: [testimonials[0], testimonials[2]],
+    testimonials,
     optionalFeatures: IMOBILIARIA_PREMIUM_OPTIONAL_FEATURES,
   },
   {
@@ -506,7 +475,7 @@ export const templates: Template[] = [
     recommendedPlan: "Pro",
     estimatedDays: 5,
     demoUrl: "/demo/loja-moda-premium",
-    testimonials: [testimonials[1]],
+    testimonials,
     optionalFeatures: LOJA_OPTIONAL_FEATURES,
   },
   {
@@ -535,7 +504,7 @@ export const templates: Template[] = [
     recommendedPlan: "Start",
     estimatedDays: 4,
     demoUrl: "/demo/loja-gourmet",
-    testimonials: [testimonials[0]],
+    testimonials,
     optionalFeatures: LOJA_OPTIONAL_FEATURES,
   },
   {
@@ -564,7 +533,7 @@ export const templates: Template[] = [
     recommendedPlan: "Business",
     estimatedDays: 7,
     demoUrl: "/demo/loja-tech-store",
-    testimonials: [testimonials[2]],
+    testimonials,
     optionalFeatures: LOJA_OPTIONAL_FEATURES,
   },
 ];

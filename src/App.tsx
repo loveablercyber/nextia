@@ -4,6 +4,9 @@ import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import TemplatesPage from './pages/TemplatesPage';
 import TemplateDetailPage from './pages/TemplateDetailPage';
+import PortfolioPage from './pages/PortfolioPage';
+import PortfolioDetailPage from './pages/PortfolioDetailPage';
+import CasesPage from './pages/CasesPage';
 import PlansPage from './pages/PlansPage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import CustomProjectPage from './pages/CustomProjectPage';
@@ -74,6 +77,7 @@ import TechnicianServiceOrderPage from './pages/technician/TechnicianServiceOrde
 import EquipmentPage from './pages/dashboard/EquipmentPage';
 import AdminTechnicalResourcesPage from './pages/admin/AdminTechnicalResourcesPage';
 import AdminCatalogPage from './pages/admin/AdminCatalogPage';
+import AdminModelsPage from './pages/admin/AdminModelsPage';
 import AdminOrdersPage from './pages/admin/AdminOrdersPage';
 import AdminPlansPage from './pages/admin/AdminPlansPage';
 import AdminTechniciansPage from './pages/admin/AdminTechniciansPage';
@@ -178,6 +182,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/sites-prontos" element={<TemplatesPage />} />
+      <Route path="/modelos" element={<TemplatesPage />} />
       <Route path="/sites" element={<ServicePage />} />
       <Route path="/landing-pages" element={<ServicePage />} />
       <Route path="/lojas-virtuais" element={<LojaVirtualPage />} />
@@ -201,6 +206,10 @@ function AppRoutes() {
       <Route path="/privacidade" element={<PrivacidadePage />} />
       <Route path="/cookies" element={<CookiesPage />} />
       <Route path="/templates/:slug" element={<TemplateDetailPage />} />
+      <Route path="/modelos/:slug" element={<TemplateDetailPage />} />
+      <Route path="/portfolio" element={<PortfolioPage />} />
+      <Route path="/portfolio/:slug" element={<PortfolioDetailPage />} />
+      <Route path="/cases" element={<CasesPage />} />
       <Route path="/demo/:slug" element={<TemplateDemoPage />} />
       <Route path="/planos" element={<PlansPage />} />
       <Route path="/como-funciona" element={<HowItWorksPage />} />
@@ -445,6 +454,7 @@ function AppRoutes() {
           </AdminContainer>
         }
       />
+      <Route path="/admin/modelos" element={<AdminContainer title="Modelos de Sites"><AdminModelsPage /></AdminContainer>} />
       <Route
         path="/admin/backup"
         element={

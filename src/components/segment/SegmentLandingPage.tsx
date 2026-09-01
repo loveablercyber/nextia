@@ -669,7 +669,7 @@ export default function SegmentLandingPage({ segment }: SegmentLandingPageProps)
                         Ver Demonstração
                       </Link>
                       <Link
-                        to={`/checkout?service=sites-prontos&template=${tpl.id}`}
+                        to={`/modelos/${tpl.slug}?segment=${segment.slug}`}
                         className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1677FF] hover:bg-[#1D4ED8] py-2.5 text-xs font-bold text-white shadow-md transition-colors"
                       >
                         Quero este modelo

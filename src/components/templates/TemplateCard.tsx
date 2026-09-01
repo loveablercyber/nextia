@@ -1,96 +1,39 @@
-import { Star } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Check, ExternalLink, Eye } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { getTemplateServiceSlug, type Template } from '../../data/templates';
+import { getTemplateMetadata } from '../../data/templateMetadata';
+import { trackEvent } from '../../utils/whatsapp';
 import Badge from '../ui/Badge';
-import Button from '../ui/Button';
 import { TemplateIllustration } from './TemplateIllustration';
 
-interface TemplateCardProps {
-  template: Template;
-}
+export default function TemplateCard({ template }: { template: Template }) {
+  const location = useLocation();
+  const metadata = getTemplateMetadata(template);
+  const detailParams = new URLSearchParams(location.search);
+  const detailUrl = `/modelos/${template.slug}${detailParams.size ? `?${detailParams}` : ''}`;
+  const checkoutParams = new URLSearchParams(detailParams);
+  checkoutParams.set('service', getTemplateServiceSlug(template));
+  checkoutParams.set('template', template.slug);
+  checkoutParams.set('plano', template.recommendedPlan.toLowerCase());
+  checkoutParams.set('source_page', 'template');
 
-export default function TemplateCard({ template }: TemplateCardProps) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover group flex flex-col">
-      {/* Cover Image / Illustration */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#eef2ff] to-[#f5f3ff] aspect-[16/10]">
-        <TemplateIllustration category={template.categorySlug} slug={template.slug} coverImage={template.coverImage} />
-        {template.badge && (
-          <div className="absolute top-3 left-3">
-            <Badge variant="gradient">{template.badge}</Badge>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
-          <Link
-            to={`/templates/${template.slug}`}
-            className="opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 bg-white text-[#5B4FE9] font-semibold px-4 py-2 rounded-xl text-sm shadow-lg"
-          >
-            Ver detalhes
-          </Link>
-        </div>
+  return <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(30,27,75,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(91,79,233,.16)]">
+    <Link to={detailUrl} aria-label={`Ver detalhes do modelo ${template.name}`} className="relative block aspect-[16/10] overflow-hidden bg-slate-100">
+      <TemplateIllustration category={template.categorySlug} slug={template.slug} coverImage={template.coverImage} />
+      <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-[#5B4FE9] shadow">Modelo disponível</span>
+      <span className="absolute inset-x-4 bottom-4 flex translate-y-3 items-center justify-center gap-2 rounded-xl bg-[#11132B]/90 py-3 text-sm font-extrabold text-white opacity-0 backdrop-blur transition group-hover:translate-y-0 group-hover:opacity-100"><Eye className="h-4 w-4" /> Ver detalhes</span>
+    </Link>
+    <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-wrap gap-2"><Badge variant="primary" size="sm">{template.category}</Badge><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{metadata.style}</span></div>
+      <h2 className="mt-3 text-xl font-black text-slate-950">{template.name}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{template.shortDescription}</p>
+      <div className="mt-4 flex flex-wrap gap-2">{metadata.tags.slice(0, 4).map(tag => <span key={tag} className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600">{tag}</span>)}</div>
+      <ul className="mt-5 flex-1 space-y-2">{template.features.slice(0, 3).map(feature => <li key={feature} className="flex gap-2 text-sm text-slate-600"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{feature}</li>)}</ul>
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        {template.demoUrl && template.demoUrl !== '#' && <Link to={template.demoUrl} onClick={() => trackEvent('open_template_demo', { template_id: template.slug, segment: template.categorySlug, type: metadata.type })} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#5B4FE9]/30 text-sm font-extrabold text-[#5145D7]"><ExternalLink className="h-4 w-4" /> Demo</Link>}
+        <Link to={detailUrl} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 text-sm font-extrabold text-slate-800">Ver detalhes</Link>
       </div>
-
-      {/* Content */}
-      <div className="p-5 flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div>
-            <Badge variant="primary" size="sm">{template.category}</Badge>
-            <h3 className="text-gray-900 font-bold text-lg mt-2 leading-tight">{template.name}</h3>
-          </div>
-        </div>
-
-        <p className="text-gray-500 text-sm mb-4 leading-relaxed">{template.shortDescription}</p>
-
-        {/* Features preview */}
-        <ul className="space-y-1 mb-4 flex-1">
-          {template.features.slice(0, 4).map((f) => (
-            <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-2.5 h-2.5 text-green-600" fill="currentColor" viewBox="0 0 12 12">
-                  <path d="M3.707 5.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L5 6.586 3.707 5.293z" />
-                </svg>
-              </span>
-              {f}
-            </li>
-          ))}
-          {template.features.length > 4 && (
-            <li className="text-xs text-gray-400 pl-6">+{template.features.length - 4} recursos incluídos</li>
-          )}
-        </ul>
-
-        {/* Rating */}
-        <div className="flex items-center gap-1 mb-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-          ))}
-          <span className="text-xs text-gray-400 ml-1">({template.testimonials.length} avaliações)</span>
-        </div>
-
-        {/* Price */}
-        <div className="border-t border-gray-50 pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <span className="text-xs text-gray-400">a partir de</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-gray-900">R$ {template.price}</span>
-                <span className="text-sm text-gray-400">/mês</span>
-              </div>
-              <span className="text-xs text-gray-400">Taxa de ativação: R$ {template.activationFee}</span>
-            </div>
-            <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-              ~{template.estimatedDays} dias
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Link to={`/templates/${template.slug}`} className="flex-1">
-              <Button variant="outline" size="sm" fullWidth>Ver modelo</Button>
-            </Link>
-            <Link to={`/cadastro?service=${getTemplateServiceSlug(template)}&template=${template.slug}&plano=${template.recommendedPlan.toLowerCase()}`} className="flex-1">
-              <Button variant="primary" size="sm" fullWidth>Escolher</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
+      <Link to={`/cadastro?${checkoutParams}`} onClick={() => trackEvent('select_template', { template_id: template.slug, segment: template.categorySlug, type: metadata.type })} className="mt-2 inline-flex min-h-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#5B4FE9] to-[#7C3AED] px-4 text-sm font-black text-white shadow-lg shadow-violet-200">Quero este modelo</Link>
     </div>
-  );
+  </article>;
 }

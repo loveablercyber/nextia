@@ -636,7 +636,7 @@ export default function LocalServiceLandingPage({ citySlug, serviceSlug }: Local
                         Ver demonstração
                       </Link>
                       <Link
-                        to={`/checkout?service=sites-prontos&template=${tpl.slug}&plan=pro`}
+                        to={`/modelos/${tpl.slug}?city=${serviceData.citySlug}&service=${serviceData.serviceSlug}`}
                         className="flex min-h-10 w-full items-center justify-center rounded-xl bg-[#2563FF] text-xs font-bold text-white hover:bg-[#1D4ED8] transition-colors"
                       >
                         Quero este modelo

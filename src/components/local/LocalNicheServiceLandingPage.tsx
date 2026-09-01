@@ -452,7 +452,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Modelos otimizados para {data.segmentName}</h2>
-              <p className="text-lg text-slate-600 max-w-3xl mx-auto">Soluções prontas, testadas e que geram resultados para o seu nicho.</p>
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">Bases profissionais que podem ser personalizadas para a identidade e as necessidades do seu nicho.</p>
             </div>
             
             <div className="grid md:grid-cols-2 gap-8">
@@ -480,7 +480,7 @@ export default function LocalNicheServiceLandingPage({ data }: { data: LocalNich
                       <Link to={`/demo/${template.slug}`} className="flex items-center justify-center px-4 py-2 border border-slate-300 rounded-xl font-medium text-slate-700 hover:bg-slate-50 min-h-[44px]">
                         Ver modelo
                       </Link>
-                      <Link to={`/checkout?template=${template.slug}`} className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 min-h-[44px]">
+                      <Link to={`/modelos/${template.slug}?city=${data.citySlug}&segment=${data.segmentSlug}&service=${data.serviceSlug}`} className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 min-h-[44px]">
                         Quero este modelo
                       </Link>
                     </div>
