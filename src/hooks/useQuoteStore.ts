@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { type QuoteFormData, initialFormData, calculateQuote } from '../data/quoteCalculator';
+import { getAttribution } from '../lib/leadAttribution';
 
 // State store for the wizard backed by the local PostgreSQL API.
 export function useQuoteStore(prefill: Partial<QuoteFormData> = {}, initialStep = 1) {
@@ -64,6 +65,8 @@ export function useQuoteStore(prefill: Partial<QuoteFormData> = {}, initialStep 
           recommended_plan: quoteResult.recommendedPlan,
           city: formData.city,
           notes: formData.notes,
+          // Atribuicao de origem (UTMs, referrer, first/last touch)
+          ...getAttribution(),
         }),
       });
       const data = await response.json().catch(() => ({}));

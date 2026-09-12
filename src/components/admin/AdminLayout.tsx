@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -47,6 +47,17 @@ const navGroups: NavGroup[] = [
       { to: '/admin/usuarios/novo', icon: UserCog, label: 'Cadastrar Usuário' },
       { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
       { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
+    ],
+  },
+  {
+    title: 'CRM',
+    items: [
+      { to: '/admin/crm', icon: BarChart3, label: 'Dashboard CRM' },
+      { to: '/admin/crm/leads', icon: Users, label: 'Leads' },
+      { to: '/admin/crm/opportunities', icon: Zap, label: 'Oportunidades' },
+      { to: '/admin/crm/activities', icon: MessageSquare, label: 'Atividades e Follow-ups' },
+      { to: '/admin/crm/proposals', icon: FileText, label: 'Propostas' },
+      { to: '/admin/crm/settings', icon: Settings, label: 'Configurações' },
     ],
   },
   {

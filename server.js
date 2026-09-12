@@ -10,6 +10,7 @@ import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
 import { v2 as cloudinary } from 'cloudinary';
 import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
+import { handleCrmApi, isCrmApiPath } from './crm-api.js';
 
 const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
@@ -1029,6 +1030,32 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       }
     }
 
+    const pricingQuoteMatch = url.pathname.match(/^\/api\/commerce\/pricing-quotes\/([0-9a-f-]+)$/i);
+    if (pricingQuoteMatch && req.method === 'GET') {
+      if (!sessionProfile) return json(res, 401, { error: 'Entre na conta vinculada a proposta para continuar.' });
+      const quoteResult = await client.query(
+        `SELECT q.* FROM public.commercial_pricing_quotes q
+         WHERE q.id=$1 AND q.user_id=$2 AND q.consumed=FALSE AND q.expires_at>NOW()`,
+        [pricingQuoteMatch[1], sessionProfile.id],
+      );
+      const quote = quoteResult.rows[0];
+      if (!quote) return json(res, 404, { error: 'Cotacao expirada, utilizada ou nao vinculada a esta conta.', code: 'INVALID_QUOTE' });
+      const normalized = quote.normalized_selection || {};
+      return json(res, 200, {
+        quoteId: quote.id,
+        expiresAt: quote.expires_at,
+        serviceSlug: quote.service_slug,
+        serviceName: normalized.serviceName || quote.service_slug,
+        templateSlug: quote.template_slug,
+        planId: quote.plan_id,
+        oneTimeItems: quote.one_time_items || [],
+        monthlyItems: quote.monthly_items || [],
+        oneTimeTotalCents: Number(quote.one_time_total_cents),
+        monthlyTotalCents: Number(quote.monthly_total_cents),
+        proposalId: quote.crm_proposal_id || null,
+      });
+    }
+
     if (url.pathname === '/api/commerce/preview' && req.method === 'POST') {
       try {
         const body = await readJson(req);
@@ -1315,6 +1342,15 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
         }
 
         orderId = randomUUID();
+        let crmLeadId = null;
+        if (quoteRecord.crm_proposal_id) {
+          const crmRelation = await client.query(
+            `SELECT o.lead_id FROM public.crm_proposals p
+             JOIN public.crm_opportunities o ON o.id=p.opportunity_id WHERE p.id=$1`,
+            [quoteRecord.crm_proposal_id],
+          );
+          crmLeadId = crmRelation.rows[0]?.lead_id || null;
+        }
         const protocol = String(req.headers['x-forwarded-proto'] || (process.env.NODE_ENV === 'production' ? 'https' : 'http')).split(',')[0].trim();
         const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
         baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
@@ -1329,8 +1365,9 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
           `INSERT INTO public.commercial_orders
             (id, user_id, item_id, item_name, amount_cents, subtotal_cents, total_cents, currency,
              recurring, customer_notes, draft_id, pricing_quote_id, idempotency_key, store_snapshot,
-             service_slug_snapshot, service_name_snapshot, plan_name_snapshot, template_name_snapshot, domain_fqdn, status)
-           VALUES ($1,$2,$3,$4,$5,$5,$5,'BRL',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'payment_pending')`,
+             service_slug_snapshot, service_name_snapshot, plan_name_snapshot, template_name_snapshot, domain_fqdn,
+             crm_proposal_id, crm_lead_id, status)
+           VALUES ($1,$2,$3,$4,$5,$5,$5,'BRL',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'payment_pending')`,
           [
             orderId,
             sessionProfile.id,
@@ -1348,6 +1385,8 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
             selection.plan?.name || null,
             selection.template?.name || null,
             selection.domain?.name || null,
+            quoteRecord.crm_proposal_id || null,
+            crmLeadId,
           ],
         );
 
@@ -1910,6 +1949,51 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
                   `INSERT INTO public.milestones(project_id,title,description,position,estimated_at)
                    VALUES ($1,$2,$3,$4,NOW()+($5 || ' days')::interval)`,
                   [projectResult.rows[0].id, title, description, position, days],
+                );
+              }
+            }
+          }
+
+          if (order.crm_proposal_id) {
+            const proposalResult = await client.query(
+              `SELECT p.id, p.opportunity_id, o.stage_id, o.pipeline_id, o.lead_id
+               FROM public.crm_proposals p JOIN public.crm_opportunities o ON o.id=p.opportunity_id
+               WHERE p.id=$1 FOR UPDATE OF p, o`,
+              [order.crm_proposal_id],
+            );
+            const proposal = proposalResult.rows[0];
+            if (proposal) {
+              const wonStage = await client.query(
+                `SELECT id FROM public.crm_pipeline_stages
+                 WHERE pipeline_id=$1 AND is_won=TRUE AND is_active=TRUE ORDER BY position LIMIT 1`,
+                [proposal.pipeline_id],
+              );
+              const wonStageId = wonStage.rows[0]?.id;
+              await client.query(
+                `UPDATE public.crm_proposals SET status='accepted', accepted_at=COALESCE(accepted_at,NOW()), updated_at=NOW() WHERE id=$1`,
+                [proposal.id],
+              );
+              await client.query(
+                `INSERT INTO public.crm_proposal_history(proposal_id,action,metadata)
+                 VALUES ($1,'payment_confirmed',$2)`,
+                [proposal.id, JSON.stringify({ orderId, providerPaymentId: resourceId })],
+              );
+              if (wonStageId && proposal.stage_id !== wonStageId) {
+                await client.query(
+                  `UPDATE public.crm_opportunities SET stage_id=$2,status='won',probability=100,won_at=COALESCE(won_at,NOW()),
+                     lost_at=NULL,lost_reason_id=NULL,lost_notes=NULL,stage_entered_at=NOW(),version=version+1,updated_at=NOW() WHERE id=$1`,
+                  [proposal.opportunity_id, wonStageId],
+                );
+                await client.query(
+                  `INSERT INTO public.crm_opportunity_stage_history(opportunity_id,from_stage_id,to_stage_id,metadata)
+                   VALUES ($1,$2,$3,$4)`,
+                  [proposal.opportunity_id, proposal.stage_id, wonStageId, JSON.stringify({ source: 'payment', orderId })],
+                );
+              }
+              if (proposal.lead_id) {
+                await client.query(
+                  `UPDATE public.crm_leads SET status='won',converted_at=COALESCE(converted_at,NOW()),updated_at=NOW() WHERE id=$1`,
+                  [proposal.lead_id],
                 );
               }
             }
@@ -4504,6 +4588,9 @@ createServer(async (req, res) => {
     }
     if (isAppApiPath(url.pathname)) {
       return await handleAppApi(req, res, url, { dbClient, ensurePartnerSchema, getSessionProfile, json, readJson });
+    }
+    if (isCrmApiPath(url.pathname)) {
+      return await handleCrmApi(req, res, url, { dbClient, getSessionProfile, json, readJson, calculateCommercialSelection });
     }
     if (url.pathname.startsWith('/api/catalog/') || url.pathname.startsWith('/api/admin/catalog') || url.pathname.startsWith('/api/admin/commerce') || url.pathname.startsWith('/api/commerce/')) {
       return await handleCatalogApi(req, res, url);

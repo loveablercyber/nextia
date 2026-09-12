@@ -28,6 +28,9 @@ interface CommercePreview {
   monthlyItems: Array<{ code: string; name: string; amountCents: number }>;
   oneTimeTotalCents: number;
   monthlyTotalCents: number;
+  serviceSlug?: string;
+  serviceName?: string;
+  proposalId?: string | null;
 }
 
 const DIGITAL_SLUGS = ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'];
@@ -42,9 +45,12 @@ export default function CheckoutPage() {
   const plans = useCommercialPlans();
 
   const draftId = params.get('draft');
+  const linkedQuoteId = params.get('quote');
   const [draft, setDraft] = useState<StoreDraftData | null>(null);
-  const [loadingDraft, setLoadingDraft] = useState<boolean>(Boolean(draftId));
+  const [linkedQuote, setLinkedQuote] = useState<CommercePreview | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState<boolean>(Boolean(draftId || (linkedQuoteId && user)));
   const [error, setError] = useState('');
+  const [preview, setPreview] = useState<CommercePreview | null>(null);
 
   useEffect(() => {
     if (!draftId) return;
@@ -59,10 +65,39 @@ export default function CheckoutPage() {
       .finally(() => setLoadingDraft(false));
   }, [draftId]);
 
+  useEffect(() => {
+    if (!linkedQuoteId) return;
+    if (!user) return;
+    fetch(`/api/commerce/pricing-quotes/${linkedQuoteId}`, { credentials: 'include', cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Cotacao da proposta nao encontrada.');
+        setLinkedQuote(data);
+        setPreview(data);
+      })
+      .catch((quoteError) => setError(quoteError instanceof Error ? quoteError.message : 'Falha ao carregar proposta.'))
+      .finally(() => setLoadingDraft(false));
+  }, [linkedQuoteId, user]);
+
   const service = useMemo(() => services.find((item) => item.slug === params.get('service')), [params, services]);
   const plan = useMemo(() => plans.find((item) => item.id === params.get('plan') && item.price > 0), [params, plans]);
 
   const selection = useMemo(() => {
+    if (linkedQuote) {
+      return {
+        id: linkedQuote.quoteId,
+        slug: linkedQuote.serviceSlug || 'servico',
+        name: linkedQuote.serviceName || 'Proposta Nextia',
+        summary: 'Condicoes comerciais aprovadas e vinculadas a sua conta.',
+        price: linkedQuote.monthlyTotalCents / 100,
+        activationFee: linkedQuote.oneTimeTotalCents / 100,
+        recurring: linkedQuote.monthlyTotalCents > 0,
+        optionals: [] as OptionalFeature[],
+        benefits: linkedQuote.oneTimeItems.concat(linkedQuote.monthlyItems).map((item) => item.name),
+        path: '/painel',
+        kind: 'proposal' as const,
+      };
+    }
     if (draft) {
       let optionIds: string[] = [];
       try {
@@ -127,10 +162,11 @@ export default function CheckoutPage() {
       };
     }
     return null;
-  }, [draft, service, plan]);
+  }, [draft, linkedQuote, service, plan]);
 
   const isDigital = useMemo(() => {
     if (!selection) return false;
+    if (selection.kind === 'proposal') return false;
     if (selection.kind === 'draft') return true;
     return DIGITAL_SLUGS.includes(selection.slug);
   }, [selection]);
@@ -140,12 +176,12 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<CommercePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const returnStatus = params.get('status');
 
   const createPreview = async () => {
     if (!selection) throw new Error('Seleção comercial inválida.');
+    if (linkedQuote) return linkedQuote;
     const serviceSlug = selection.kind === 'draft'
       ? (draft?.service_slug || 'lojas-virtuais')
       : selection.kind === 'plan'
@@ -179,7 +215,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let active = true;
-    if (!selection || (isDigital && domain.trim().length < 4)) {
+    if (linkedQuoteId || !selection || (isDigital && domain.trim().length < 4)) {
       const resetTimer = window.setTimeout(() => {
         if (active) setPreview(null);
       }, 0);
@@ -210,7 +246,7 @@ export default function CheckoutPage() {
     };
     // createPreview is intentionally driven by primitive commercial selections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domain, domainMode, draft?.id, isDigital, selection?.id, selection?.kind]);
+  }, [domain, domainMode, draft?.id, isDigital, linkedQuoteId, selection?.id, selection?.kind]);
 
   if (loadingDraft) {
     return (
@@ -220,7 +256,16 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!selection && !returnStatus) return <Navigate to="/solucoes" replace />;
+  if (linkedQuoteId && !user) {
+    const redirect = encodeURIComponent(`${location.pathname}${location.search}`);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+  }
+  if (!selection && !returnStatus) {
+    if (error) {
+      return <main className="min-h-[70vh] bg-[#F4F8FC] px-5 pt-32"><div role="alert" className="mx-auto max-w-xl border border-red-200 bg-white p-6 text-red-700">{error}</div></main>;
+    }
+    return <Navigate to="/solucoes" replace />;
+  }
   if (returnStatus) {
     return (
       <main className="min-h-[70vh] bg-[#F4F8FC] px-5 pb-20 pt-32">

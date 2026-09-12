@@ -1,6 +1,8 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { ensureCrmSchema } from './crm-api.js';
 
 let appSchemaPromise;
+const publicLeadRateLimit = new Map();
 
 export async function ensureAppSchema(client) {
   if (!appSchemaPromise) {
@@ -411,10 +413,80 @@ function requireAdmin(session, json, res) {
 
 export function isAppApiPath(pathname) {
   return pathname === '/api/quotes'
+    || pathname === '/api/leads'
     || pathname.startsWith('/api/payments/')
     || pathname.startsWith('/api/app/')
     || pathname.startsWith('/api/admin/app/')
     || pathname.startsWith('/api/notifications');
+}
+
+function allowPublicLeadRequest(req) {
+  const now = Date.now();
+  const key = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+  const recent = (publicLeadRateLimit.get(key) || []).filter((timestamp) => now - timestamp < 60_000);
+  if (recent.length >= 10) return false;
+  recent.push(now);
+  publicLeadRateLimit.set(key, recent);
+  if (publicLeadRateLimit.size > 2_000) {
+    for (const [candidate, timestamps] of publicLeadRateLimit) {
+      if (!timestamps.some((timestamp) => now - timestamp < 60_000)) publicLeadRateLimit.delete(candidate);
+    }
+  }
+  return true;
+}
+
+// Cada conversao vira um registro proprio. Coincidencias sao sinalizadas para revisao
+// e nunca mescladas silenciosamente, preservando origem e historico de cada entrada.
+async function insertPublicCrmLead(client, data) {
+  const email = String(data.email || '').trim().toLowerCase();
+  const phone = String(data.phone || '').trim();
+  if (!email && !phone) return null;
+  await ensureCrmSchema(client);
+
+  const a = data.attribution || {};
+  const str = (v) => (v === null || v === undefined ? '' : String(v).trim());
+  const lastSource = str(a.last_touch_source) || str(a.utm_source) || str(data.source) || 'direto';
+  const leadId = randomUUID();
+  const result = await client.query(
+    `INSERT INTO public.crm_leads
+       (id, public_code, name, email, phone, whatsapp, company_name, city_slug, segment_slug, service_slug,
+        source, source_detail, medium, campaign,
+        utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+        first_touch_source, first_touch_at, last_touch_source, last_touch_at,
+        landing_page, conversion_page, referrer, notes, metadata, status)
+     VALUES ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),$22,$23,$24,$25,$26,'new')
+     RETURNING id, public_code`,
+    [leadId, 'LEAD-' + randomUUID().slice(0, 8).toUpperCase(), String(data.name || '').trim().slice(0, 300),
+      email || null, phone || null, data.company || null, data.citySlug || null,
+      data.segmentSlug || null, data.serviceSlug || null, data.source || 'website', data.sourceDetail || null,
+      str(a.utm_medium) || null, str(a.utm_campaign) || null,
+      str(a.utm_source) || null, str(a.utm_medium) || null, str(a.utm_campaign) || null,
+      str(a.utm_content) || null, str(a.utm_term) || null,
+      str(a.first_touch_source) || lastSource, str(a.first_touch_at) || new Date().toISOString(),
+      lastSource, str(a.landing_page) || str(a.conversion_page) || null, str(a.conversion_page) || null,
+      str(a.referrer) || null, data.notes || null, JSON.stringify(data.metadata || {})],
+  );
+  await client.query(
+    `INSERT INTO public.crm_lead_duplicate_candidates(lead_id,candidate_lead_id,match_reason)
+     SELECT current.id, candidate.id,
+       CASE WHEN current.email_normalized<>'' AND current.email_normalized=candidate.email_normalized
+                  AND current.phone_normalized<>'' AND current.phone_normalized=candidate.phone_normalized
+            THEN 'email_phone'
+            WHEN current.email_normalized<>'' AND current.email_normalized=candidate.email_normalized THEN 'email'
+            ELSE 'phone' END
+     FROM public.crm_leads current JOIN public.crm_leads candidate ON candidate.id<>current.id
+      AND candidate.archived_at IS NULL
+      AND ((current.email_normalized<>'' AND current.email_normalized=candidate.email_normalized)
+        OR (current.phone_normalized<>'' AND current.phone_normalized=candidate.phone_normalized))
+     WHERE current.id=$1 ON CONFLICT (lead_id,candidate_lead_id) DO NOTHING`,
+    [leadId],
+  );
+  await client.query(
+    `INSERT INTO public.crm_lead_history(lead_id,action,to_status,metadata)
+     VALUES ($1,'captured','new',$2)`,
+    [leadId, JSON.stringify({ source: data.source || 'website' })],
+  );
+  return result.rows[0];
 }
 
 export async function handleAppApi(req, res, url, dependencies) {
@@ -423,6 +495,39 @@ export async function handleAppApi(req, res, url, dependencies) {
   await client.connect();
   try {
     await ensureAppSchema(client);
+
+    // ===== LEAD PUBLICO (CRM) - nao autenticado =====
+    if (url.pathname === '/api/leads' && req.method === 'POST') {
+      if (!allowPublicLeadRequest(req)) return json(res, 429, { error: 'Muitas tentativas. Aguarde um minuto.' });
+      const body = await readJson(req);
+      if (body.website) return json(res, 201, { ok: true });
+      const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
+      const phone = String(body.phone || body.whatsapp || '').trim();
+      if (!name || (!email && !phone)) return json(res, 400, { error: 'Informe nome e e-mail ou WhatsApp.' });
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'E-mail invalido.' });
+      try {
+        const lead = await insertPublicCrmLead(client, {
+          name: name.slice(0, 300),
+          email,
+          phone,
+          company: String(body.company || body.company_name || '').trim() || null,
+          citySlug: String(body.city_slug || '').trim() || null,
+          segmentSlug: String(body.segment_slug || body.segment || '').trim() || null,
+          serviceSlug: String(body.service_slug || '').trim() || null,
+          source: String(body.source || '').trim() || 'website',
+          sourceDetail: String(body.source_detail || '').trim() || null,
+          notes: String(body.notes || '').trim().slice(0, 5000) || null,
+          attribution: body,
+          metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
+        });
+        return json(res, 201, { ok: true, lead_public_code: lead?.public_code || null });
+      } catch (err) {
+        console.error('[LEADS] Captura de lead publico falhou:', err.message);
+        return json(res, 500, { error: 'Nao foi possível registrar o lead.' });
+      }
+    }
+
 
     if (url.pathname === '/api/quotes' && req.method === 'POST') {
       const body = await readJson(req);
@@ -442,6 +547,32 @@ export async function handleAppApi(req, res, url, dependencies) {
           body.contact_company || '', body.city || '', body.notes || '', Number(body.estimated_min || 0),
           Number(body.estimated_max || 0), body.recommended_plan || null],
       );
+      // Sincroniza o orcamento com o CRM como lead (best-effort, nunca bloqueia o envio)
+      try {
+        await insertPublicCrmLead(client, {
+          name,
+          email,
+          phone,
+          company: body.contact_company || null,
+          segmentSlug: body.segment || null,
+          serviceSlug: body.project_type || null,
+          source: 'quote_form',
+          sourceDetail: 'Orçamento via wizard',
+          notes: body.notes || null,
+          attribution: body,
+          metadata: {
+            quote_id: result.rows[0].id,
+            pages: Number(body.pages || 0),
+            estimated_min: Number(body.estimated_min || 0),
+            estimated_max: Number(body.estimated_max || 0),
+            recommended_plan: body.recommended_plan || null,
+            urgency: body.urgency || null,
+            budget_range: body.budget_range || null,
+          },
+        });
+      } catch (err) {
+        console.error('[LEADS] Sincronizacao quote -> CRM falhou:', err.message);
+      }
       return json(res, 201, { quote: result.rows[0] });
     }
 

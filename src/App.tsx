@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
+import { captureAttribution } from './lib/leadAttribution';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import TemplatesPage from './pages/TemplatesPage';
@@ -87,6 +88,14 @@ import AdminTechnicianGovernancePage from './pages/admin/AdminTechnicianGovernan
 import AdminUserCreatePage from './pages/admin/AdminUserCreatePage';
 import AdminTechnicalServicesPage from './pages/admin/AdminTechnicalServicesPage';
 
+// CRM Pages
+const AdminCrmDashboardPage = lazy(() => import('./pages/crm/AdminCrmDashboardPage'));
+const AdminLeadsPage = lazy(() => import('./pages/crm/AdminLeadsPage'));
+const AdminOpportunitiesPage = lazy(() => import('./pages/crm/AdminOpportunitiesPage'));
+const AdminActivitiesPage = lazy(() => import('./pages/crm/AdminActivitiesPage'));
+const AdminProposalsPage = lazy(() => import('./pages/crm/AdminProposalsPage'));
+const AdminCrmSettingsPage = lazy(() => import('./pages/crm/AdminCrmSettingsPage'));
+
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
 import ClientSupportPage from './pages/dashboard/ClientSupportPage';
@@ -110,10 +119,12 @@ const AdminPartnersPage = lazy(() => import('./pages/admin/AdminPartnersPage'));
 const AdminPartnerCommissionsPage = lazy(() => import('./pages/admin/AdminPartnerCommissionsPage'));
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);
+    // Captura UTMs/referrer no primeiro load e a cada navegacao
+    captureAttribution();
+  }, [pathname, search]);
   return null;
 }
 
@@ -524,6 +535,72 @@ function AppRoutes() {
         element={
           <AdminContainer title="Fila de Integridade de Dados">
             <AdminMigrationIssuesPage />
+          </AdminContainer>
+        }
+      />
+
+      {/* ===== CRM Routes ===== */}
+      <Route
+        path="/admin/crm"
+        element={
+          <AdminContainer title="CRM — Nextia">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando CRM...</div>}><AdminCrmDashboardPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/leads"
+        element={
+          <AdminContainer title="CRM — Leads">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminLeadsPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/leads/:id"
+        element={
+          <AdminContainer title="CRM — Detalhes do Lead">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminLeadsPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/opportunities"
+        element={
+          <AdminContainer title="CRM — Oportunidades">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminOpportunitiesPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/pipeline"
+        element={
+          <AdminContainer title="CRM — Funil Comercial">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminOpportunitiesPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/activities"
+        element={
+          <AdminContainer title="CRM — Atividades e Follow-ups">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminActivitiesPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/proposals"
+        element={
+          <AdminContainer title="CRM — Propostas">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminProposalsPage /></Suspense>
+          </AdminContainer>
+        }
+      />
+      <Route
+        path="/admin/crm/settings"
+        element={
+          <AdminContainer title="CRM — Configurações">
+            <Suspense fallback={<div className="text-white text-center py-20">Carregando...</div>}><AdminCrmSettingsPage /></Suspense>
           </AdminContainer>
         }
       />
