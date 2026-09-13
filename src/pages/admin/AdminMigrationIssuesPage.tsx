@@ -53,7 +53,7 @@ export default function AdminMigrationIssuesPage() {
       setResolvingIssue(null);
       setNotes('');
       await loadData();
-    } catch (err) {
+    } catch {
       alert('Falha ao atualizar ocorrência.');
     }
   };

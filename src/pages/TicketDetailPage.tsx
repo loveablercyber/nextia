@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { 
   Zap, MessageCircle, Send, CheckCircle2, Clock, 
@@ -42,7 +42,7 @@ export default function TicketDetailPage() {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
 
-  const fetchTicket = async () => {
+  const fetchTicket = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -67,13 +67,13 @@ export default function TicketDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, token]);
 
   useEffect(() => {
     if (id) {
       fetchTicket();
     }
-  }, [id, token]);
+  }, [id, fetchTicket]);
 
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();

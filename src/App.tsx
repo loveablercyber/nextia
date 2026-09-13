@@ -95,6 +95,10 @@ const AdminOpportunitiesPage = lazy(() => import('./pages/crm/AdminOpportunities
 const AdminActivitiesPage = lazy(() => import('./pages/crm/AdminActivitiesPage'));
 const AdminProposalsPage = lazy(() => import('./pages/crm/AdminProposalsPage'));
 const AdminCrmSettingsPage = lazy(() => import('./pages/crm/AdminCrmSettingsPage'));
+const AdminAutomationsPage = lazy(() => import('./pages/automation/AdminAutomationsPage'));
+const AdminAutomationRunsPage = lazy(() => import('./pages/automation/AdminAutomationRunsPage'));
+const AdminApprovalsPage = lazy(() => import('./pages/automation/AdminApprovalsPage'));
+const AdminAiPage = lazy(() => import('./pages/automation/AdminAiPage'));
 
 // Support & Tickets Pages
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -429,6 +433,10 @@ function AppRoutes() {
       <Route path="/admin/indicadores-tecnicos" element={<AdminContainer title="Indicadores Técnicos"><AdminTechnicalAnalyticsPage /></AdminContainer>}/>
       <Route path="/admin/usuarios/novo" element={<AdminContainer title="Cadastrar Usuário"><AdminUserCreatePage /></AdminContainer>}/>
       <Route path="/admin/servicos-tecnicos" element={<AdminContainer title="Serviços Técnicos"><AdminTechnicalServicesPage /></AdminContainer>}/>
+      <Route path="/admin/automacoes" element={<AdminContainer title="Automações"><AdminAutomationsPage /></AdminContainer>}/>
+      <Route path="/admin/automacoes/execucoes" element={<AdminContainer title="Execuções de automação"><AdminAutomationRunsPage /></AdminContainer>}/>
+      <Route path="/admin/automacoes/aprovacoes" element={<AdminContainer title="Aprovações"><AdminApprovalsPage /></AdminContainer>}/>
+      <Route path="/admin/ia" element={<AdminContainer title="Inteligência Artificial"><AdminAiPage /></AdminContainer>}/>
       <Route
         path="/admin/tecnicos"
         element={<AdminContainer title="Gestão de Técnicos"><AdminTechniciansPage /></AdminContainer>}

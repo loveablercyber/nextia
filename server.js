@@ -11,6 +11,8 @@ import { Client } from 'pg';
 import { v2 as cloudinary } from 'cloudinary';
 import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
 import { handleCrmApi, isCrmApiPath } from './crm-api.js';
+import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from './automation-api.js';
+import { AutomationWorker } from './automation-engine.js';
 
 const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
@@ -1844,19 +1846,22 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
 
         const invoiceResult = await client.query('SELECT id FROM public.invoices WHERE order_id = $1 ORDER BY created_at LIMIT 1', [orderId]);
         const invoiceId = invoiceResult.rows[0]?.id || null;
+        let paymentTransactionId = null;
         if (invoiceId) {
           await client.query(
             `UPDATE public.invoices SET status = $2, paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END, updated_at = NOW()
              WHERE id = $1`,
             [invoiceId, approved ? 'paid' : 'pending'],
           );
-          await client.query(
+          const paymentTransactionResult = await client.query(
             `INSERT INTO public.payment_transactions
               (invoice_id,user_id,provider,provider_transaction_id,amount_cents,currency,status,payment_method,metadata)
              VALUES ($1,$2,'mercadopago',$3,$4,$5,$6,$7,$8)
-             ON CONFLICT (provider,provider_transaction_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()`,
+             ON CONFLICT (provider,provider_transaction_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+             RETURNING id`,
             [invoiceId, order.user_id, resourceId, Number(order.total_cents ?? order.amount_cents), order.currency || 'BRL', approved ? 'approved' : 'pending', providerData.payment_method_id || null, JSON.stringify({ providerStatus: providerData.status })],
           );
+          paymentTransactionId = paymentTransactionResult.rows[0]?.id || null;
         }
 
         let engagementId = order.engagement_id;
@@ -2005,6 +2010,22 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
              ON CONFLICT (idempotency_key) DO NOTHING`,
             [engagementId, JSON.stringify({ engagementId, orderId, serviceSlug: service.slug }), `engagement-activated:${engagementId}`],
           );
+          if (paymentTransactionId) {
+            await client.query(
+              `INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
+               VALUES ('payment_transaction',$1,'payment.confirmed',$2,$3)
+               ON CONFLICT (idempotency_key) DO NOTHING`,
+              [paymentTransactionId, JSON.stringify({ transactionId: paymentTransactionId, invoiceId, orderId, engagementId, serviceSlug: service.slug }), `payment.confirmed:${paymentTransactionId}`],
+            );
+          }
+          if (order.crm_proposal_id) {
+            await client.query(
+              `INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
+               VALUES ('crm_proposal',$1,'deal.won',$2,$3)
+               ON CONFLICT (idempotency_key) DO NOTHING`,
+              [order.crm_proposal_id, JSON.stringify({ orderId, transactionId: paymentTransactionId, source: 'payment' }), `deal.won:proposal:${order.crm_proposal_id}`],
+            );
+          }
           await client.query(
             `INSERT INTO public.notifications(user_id,title,message,type)
              VALUES ($1,'Serviço contratado',$2,'project')`,
@@ -4592,6 +4613,9 @@ createServer(async (req, res) => {
     if (isCrmApiPath(url.pathname)) {
       return await handleCrmApi(req, res, url, { dbClient, getSessionProfile, json, readJson, calculateCommercialSelection });
     }
+    if (isAutomationApiPath(url.pathname)) {
+      return await handleAutomationApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
     if (url.pathname.startsWith('/api/catalog/') || url.pathname.startsWith('/api/admin/catalog') || url.pathname.startsWith('/api/admin/commerce') || url.pathname.startsWith('/api/commerce/')) {
       return await handleCatalogApi(req, res, url);
     }
@@ -4663,8 +4687,21 @@ createServer(async (req, res) => {
         await client.connect();
         await ensureAppSchema(client);
         await ensureCommercialCatalogSchema(client);
+        await ensureAutomationSchema(client);
         await client.end();
         console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
+        if (process.env.AUTOMATION_WORKER_ENABLED !== 'false') {
+          const worker = new AutomationWorker(dbClient, {
+            intervalMs: process.env.AUTOMATION_POLL_INTERVAL_MS,
+            batchSize: process.env.AUTOMATION_BATCH_SIZE,
+            maxAttempts: process.env.AUTOMATION_MAX_ATTEMPTS,
+          });
+          worker.start();
+          const stopWorker = () => worker.stop();
+          process.once('SIGTERM', stopWorker);
+          process.once('SIGINT', stopWorker);
+          console.log('[Automation] Worker PostgreSQL iniciado.');
+        }
       } catch (err) {
         console.error('[Startup Schema Warning]', err.message || err);
       }

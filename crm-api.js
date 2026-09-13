@@ -52,11 +52,11 @@ async function audit(client, actorId, action, entityType, entityId, metadata = {
   );
 }
 
-async function emitEvent(client, aggregateType, aggregateId, eventType, payload = {}) {
+async function emitEvent(client, aggregateType, aggregateId, eventType, payload = {}, idempotencyKey = null) {
   await client.query(
     `INSERT INTO public.outbox_events(aggregate_type, aggregate_id, event_type, payload, idempotency_key)
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT (idempotency_key) DO NOTHING`,
-    [aggregateType, aggregateId, eventType, JSON.stringify(payload), `${eventType}:${aggregateId}:${randomUUID()}`],
+    [aggregateType, aggregateId, eventType, JSON.stringify(payload), idempotencyKey || `${eventType}:${aggregateId}`],
   );
 }
 
@@ -95,14 +95,25 @@ export function isCrmApiPath(pathname) {
 export async function handleCrmApi(req, res, url, dependencies) {
   const { dbClient, getSessionProfile, json, readJson, calculateCommercialSelection } = dependencies;
   const client = dbClient();
+  let mutationTransaction = false;
   await client.connect();
   try {
     await ensureCrmSchema(client);
     const sessionProfile = await getSessionProfile(req, client);
     if (!sessionProfile) return json(res, 401, { error: 'Nao autenticado.' });
     if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso restrito a administradores.' });
-    return await crmRouter(req, res, url, { client, sessionProfile, json, readJson, calculateCommercialSelection });
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method || 'GET')) {
+      await client.query('BEGIN');
+      mutationTransaction = true;
+    }
+    const response = await crmRouter(req, res, url, { client, sessionProfile, json, readJson, calculateCommercialSelection });
+    if (mutationTransaction) {
+      await client.query('COMMIT');
+      mutationTransaction = false;
+    }
+    return response;
   } catch (error) {
+    if (mutationTransaction) await client.query('ROLLBACK').catch(() => undefined);
     console.error('[CRM API]', error);
     return json(res, error.statusCode || 500, {
       error: error.statusCode ? error.message : 'Falha interna no CRM.',
@@ -178,7 +189,6 @@ async function crmRouter(req, res, url, context) {
     if (!email && !phone) throw httpError(400, 'Informe e-mail ou telefone.', 'VALIDATION_ERROR');
     const leadId = randomUUID();
     const publicCode = `LEAD-${randomUUID().slice(0, 8).toUpperCase()}`;
-    await client.query('BEGIN');
     try {
       const result = await client.query(
         `INSERT INTO public.crm_leads
@@ -194,11 +204,9 @@ async function crmRouter(req, res, url, context) {
       await client.query(`INSERT INTO public.crm_lead_history(lead_id, action, to_status, actor_id) VALUES ($1,'created','new',$2)`, [leadId, sessionProfile.id]);
       await flagDuplicates(client, leadId);
       await audit(client, sessionProfile.id, 'crm.lead.created', 'crm_lead', leadId, { publicCode });
-      await emitEvent(client, 'crm_lead', leadId, 'crm.lead.created', { publicCode });
-      await client.query('COMMIT');
+      await emitEvent(client, 'crm_lead', leadId, 'lead.created', { publicCode });
       return json(res, 201, { lead: result.rows[0] });
     } catch (error) {
-      await client.query('ROLLBACK');
       throw error;
     }
   }
@@ -229,6 +237,7 @@ async function crmRouter(req, res, url, context) {
     }
     await flagDuplicates(client, leadId);
     await audit(client, sessionProfile.id, 'crm.lead.updated', 'crm_lead', leadId, { status });
+    await emitEvent(client, 'crm_lead', leadId, status === 'qualified' && current.rows[0].status !== 'qualified' ? 'lead.qualified' : 'lead.updated', { status }, `lead.${status === 'qualified' && current.rows[0].status !== 'qualified' ? 'qualified' : 'updated'}:${leadId}:${result.rows[0].updated_at}`);
     return json(res, 200, { lead: result.rows[0] });
   }
 
@@ -252,6 +261,7 @@ async function crmRouter(req, res, url, context) {
     const result = await client.query(`UPDATE public.crm_leads SET assigned_user_id=$2, updated_at=NOW() WHERE id=$1 AND archived_at IS NULL RETURNING *`, [leadId, assignedUserId]);
     if (!result.rows[0]) throw httpError(404, 'Lead nao encontrado.', 'NOT_FOUND');
     await audit(client, sessionProfile.id, 'crm.lead.assigned', 'crm_lead', leadId, { assignedUserId });
+    await emitEvent(client, 'crm_lead', leadId, 'lead.assigned', { assignedUserId }, `lead.assigned:${leadId}:${result.rows[0].updated_at}`);
     return json(res, 200, { lead: result.rows[0] });
   }
 
@@ -295,7 +305,6 @@ async function crmRouter(req, res, url, context) {
     if (leadId && !inherited.rows[0]) throw httpError(404, 'Lead nao encontrado.', 'NOT_FOUND');
     const opportunityId = randomUUID();
     const publicCode = `OPP-${randomUUID().slice(0, 8).toUpperCase()}`;
-    await client.query('BEGIN');
     try {
       const result = await client.query(
         `INSERT INTO public.crm_opportunities
@@ -314,11 +323,9 @@ async function crmRouter(req, res, url, context) {
       await client.query(`INSERT INTO public.crm_opportunity_stage_history(opportunity_id,to_stage_id,changed_by,metadata) VALUES ($1,$2,$3,'{"reason":"created"}')`, [opportunityId, stage.rows[0].id, sessionProfile.id]);
       if (leadId) await client.query(`UPDATE public.crm_leads SET status=CASE WHEN status='new' THEN 'qualified' ELSE status END, qualified_at=COALESCE(qualified_at,NOW()), updated_at=NOW() WHERE id=$1`, [leadId]);
       await audit(client, sessionProfile.id, 'crm.opportunity.created', 'crm_opportunity', opportunityId, { publicCode });
-      await emitEvent(client, 'crm_opportunity', opportunityId, 'crm.opportunity.created', { leadId });
-      await client.query('COMMIT');
+      await emitEvent(client, 'crm_opportunity', opportunityId, 'opportunity.created', { leadId });
       return json(res, 201, { opportunity: result.rows[0] });
     } catch (error) {
-      await client.query('ROLLBACK');
       throw error;
     }
   }
@@ -327,7 +334,6 @@ async function crmRouter(req, res, url, context) {
     const body = await readJson(req);
     const opportunityId = uuid(body.opportunityId, 'Oportunidade');
     const newStageId = uuid(body.newStageId, 'Estagio');
-    await client.query('BEGIN');
     try {
       const current = await client.query(`SELECT * FROM public.crm_opportunities WHERE id=$1 FOR UPDATE`, [opportunityId]);
       if (!current.rows[0]) throw httpError(404, 'Oportunidade nao encontrada.', 'NOT_FOUND');
@@ -351,11 +357,12 @@ async function crmRouter(req, res, url, context) {
         await client.query(`UPDATE public.crm_leads SET status=$2, converted_at=CASE WHEN $2='won' THEN COALESCE(converted_at,NOW()) ELSE converted_at END, updated_at=NOW() WHERE id=$1`, [current.rows[0].lead_id, nextStatus]);
       }
       await audit(client, sessionProfile.id, 'crm.opportunity.stage_changed', 'crm_opportunity', opportunityId, { fromStageId: current.rows[0].stage_id, toStageId: newStageId });
-      await emitEvent(client, 'crm_opportunity', opportunityId, `crm.opportunity.${nextStatus}`, { newStageId });
-      await client.query('COMMIT');
+      await emitEvent(client, 'crm_opportunity', opportunityId, 'opportunity.stage_changed', { newStageId, status: nextStatus }, `opportunity.stage_changed:${opportunityId}:${updated.rows[0].version}`);
+      if (nextStatus === 'won' || nextStatus === 'lost') {
+        await emitEvent(client, 'crm_opportunity', opportunityId, `deal.${nextStatus}`, { newStageId }, `deal.${nextStatus}:${opportunityId}`);
+      }
       return json(res, 200, { opportunity: updated.rows[0] });
     } catch (error) {
-      await client.query('ROLLBACK');
       throw error;
     }
   }
@@ -411,6 +418,7 @@ async function crmRouter(req, res, url, context) {
     );
     if (leadId) await client.query(`UPDATE public.crm_leads SET last_contact_at=NOW(), first_contact_at=COALESCE(first_contact_at,NOW()), status=CASE WHEN status='new' THEN 'contact' ELSE status END, updated_at=NOW() WHERE id=$1`, [leadId]);
     await audit(client, sessionProfile.id, 'crm.activity.created', 'crm_activity', result.rows[0].id, { type });
+    await emitEvent(client, 'crm_activity', result.rows[0].id, 'activity.created', { leadId, opportunityId, type });
     return json(res, 201, { activity: result.rows[0] });
   }
 
@@ -420,6 +428,7 @@ async function crmRouter(req, res, url, context) {
     const result = await client.query(`UPDATE public.crm_activities SET status='completed', outcome=$2, completed_at=NOW(), updated_at=NOW() WHERE id=$1 AND status='pending' RETURNING *`, [activityId, optionalString(body.outcome)]);
     if (!result.rows[0]) throw httpError(404, 'Atividade pendente nao encontrada.', 'NOT_FOUND');
     await audit(client, sessionProfile.id, 'crm.activity.completed', 'crm_activity', activityId);
+    await emitEvent(client, 'crm_activity', activityId, 'activity.completed', { leadId: result.rows[0].lead_id, opportunityId: result.rows[0].opportunity_id });
     return json(res, 200, { activity: result.rows[0] });
   }
 
@@ -482,6 +491,7 @@ async function crmRouter(req, res, url, context) {
     );
     await client.query(`INSERT INTO public.crm_proposal_history(proposal_id,action,actor_id,metadata) VALUES ($1,'created',$2,$3)`, [proposalId, sessionProfile.id, JSON.stringify({ pricingVersion: 'catalog-current' })]);
     await audit(client, sessionProfile.id, 'crm.proposal.created', 'crm_proposal', proposalId, { opportunityId });
+    await emitEvent(client, 'crm_proposal', proposalId, 'proposal.created', { opportunityId });
     return json(res, 201, { proposal: result.rows[0] });
   }
 
@@ -494,7 +504,7 @@ async function crmRouter(req, res, url, context) {
     );
     if (!result.rows[0]) throw httpError(409, 'Somente proposta em rascunho e valida pode ser enviada.');
     await client.query(`INSERT INTO public.crm_proposal_history(proposal_id,action,actor_id) VALUES ($1,'sent',$2)`, [proposalId, sessionProfile.id]);
-    await emitEvent(client, 'crm_proposal', proposalId, 'crm.proposal.sent', { publicCode: result.rows[0].public_code });
+    await emitEvent(client, 'crm_proposal', proposalId, 'proposal.sent', { publicCode: result.rows[0].public_code });
     return json(res, 200, { proposal: result.rows[0] });
   }
 
@@ -507,7 +517,7 @@ async function crmRouter(req, res, url, context) {
     );
     if (!result.rows[0]) throw httpError(409, 'A proposta nao esta enviada, ja foi encerrada ou expirou.');
     await client.query(`INSERT INTO public.crm_proposal_history(proposal_id,action,actor_id,metadata) VALUES ($1,'accepted_manual',$2,'{"source":"admin"}')`, [proposalId, sessionProfile.id]);
-    await emitEvent(client, 'crm_proposal', proposalId, 'crm.proposal.accepted', { source: 'admin' });
+    await emitEvent(client, 'crm_proposal', proposalId, 'proposal.accepted', { source: 'admin' });
     return json(res, 200, { proposal: result.rows[0] });
   }
 

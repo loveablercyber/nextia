@@ -12,7 +12,6 @@ import {
   Pause,
   Play,
   Save,
-  XCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";

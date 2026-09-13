@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
 type Hour={weekday:number;start_time:string;end_time:string}; type Off={starts_at:string;ends_at:string;reason?:string};

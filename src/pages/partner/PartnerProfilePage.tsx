@@ -75,7 +75,7 @@ export default function PartnerProfilePage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err) {
+    } catch {
       setPasswordError('Ocorreu um erro ao alterar a senha.');
     }
   };

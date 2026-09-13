@@ -54,7 +54,7 @@ export default function AdminDomainsPage() {
       });
       setEditingDomain(null);
       await loadData();
-    } catch (err) {
+    } catch {
       alert('Falha ao atualizar domínio.');
     }
   };

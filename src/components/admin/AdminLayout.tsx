@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings, Workflow, Bot, ShieldCheck
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -58,6 +58,15 @@ const navGroups: NavGroup[] = [
       { to: '/admin/crm/activities', icon: MessageSquare, label: 'Atividades e Follow-ups' },
       { to: '/admin/crm/proposals', icon: FileText, label: 'Propostas' },
       { to: '/admin/crm/settings', icon: Settings, label: 'Configurações' },
+    ],
+  },
+  {
+    title: 'Automação & IA',
+    items: [
+      { to: '/admin/automacoes', icon: Workflow, label: 'Automações', exact: true },
+      { to: '/admin/automacoes/execucoes', icon: BarChart3, label: 'Execuções e erros' },
+      { to: '/admin/automacoes/aprovacoes', icon: ShieldCheck, label: 'Aprovações' },
+      { to: '/admin/ia', icon: Bot, label: 'Inteligência Artificial' },
     ],
   },
   {

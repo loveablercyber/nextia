@@ -1213,7 +1213,6 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
 
 export default function TemplateDemoPage() {
   const { slug } = useParams();
-  
   if (slug && !DEMO_CONFIGS[slug]) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white text-center font-sans">
@@ -1238,7 +1237,10 @@ export default function TemplateDemoPage() {
     );
   }
 
-  const activeSlug = slug || 'restaurante-premium';
+  return <TemplateDemoContent activeSlug={slug || 'restaurante-premium'} />;
+}
+
+function TemplateDemoContent({ activeSlug }: { activeSlug: string }) {
   const config = DEMO_CONFIGS[activeSlug];
 
   const [lang, setLang] = useState<'pt' | 'en' | 'es'>('pt');
@@ -1525,7 +1527,7 @@ export default function TemplateDemoPage() {
         text: config.chatbot.welcome[lang]
       }
     ]);
-  }, [lang, activeSlug]);
+  }, [lang, config.chatbot.welcome]);
 
   const handleBotQuickReply = (question: string, reply: string) => {
     setChatMessages(prev => [

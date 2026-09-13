@@ -447,7 +447,9 @@ async function insertPublicCrmLead(client, data) {
   const str = (v) => (v === null || v === undefined ? '' : String(v).trim());
   const lastSource = str(a.last_touch_source) || str(a.utm_source) || str(data.source) || 'direto';
   const leadId = randomUUID();
-  const result = await client.query(
+  await client.query('BEGIN');
+  try {
+    const result = await client.query(
     `INSERT INTO public.crm_leads
        (id, public_code, name, email, phone, whatsapp, company_name, city_slug, segment_slug, service_slug,
         source, source_detail, medium, campaign,
@@ -486,7 +488,18 @@ async function insertPublicCrmLead(client, data) {
      VALUES ($1,'captured','new',$2)`,
     [leadId, JSON.stringify({ source: data.source || 'website' })],
   );
-  return result.rows[0];
+  await client.query(
+    `INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
+     VALUES ('crm_lead',$1,'lead.created',$2,$3)
+     ON CONFLICT (idempotency_key) DO NOTHING`,
+    [leadId, JSON.stringify({ source: data.source || 'website', publicCode: result.rows[0].public_code }), `lead.created:${leadId}`],
+  );
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
 }
 
 export async function handleAppApi(req, res, url, dependencies) {
@@ -661,6 +674,12 @@ export async function handleAppApi(req, res, url, dependencies) {
           `INSERT INTO public.notifications(user_id, title, message, type)
            SELECT id, 'Pagamento recebido', $1, 'payment' FROM public.profiles WHERE role = 'admin'`,
           [`${payment.client_name || 'Cliente'} pagou a fatura "${payment.description}".`],
+        );
+        await client.query(
+          `INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
+           VALUES ('payment',$1,'payment.confirmed',$2,$3)
+           ON CONFLICT (idempotency_key) DO NOTHING`,
+          [payment.id, JSON.stringify({ paymentId: payment.id, userId: payment.user_id, providerPaymentId: String(resourceId) }), `payment.confirmed:${payment.id}`],
         );
         await client.query('COMMIT');
         console.log(`[PAYMENTS] Payment ${paymentId} confirmed by Mercado Pago transaction ${resourceId}`);

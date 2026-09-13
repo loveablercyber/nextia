@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import {
-  CheckCircle2,
-  Clock3,
   HardDrive,
   Loader2,
   Star,

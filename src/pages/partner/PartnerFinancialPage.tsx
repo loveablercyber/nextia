@@ -49,7 +49,7 @@ export default function PartnerFinancialPage() {
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
+    const value = e.target.value.replace(/\D/g, '');
     if (value === '') {
       setWithdrawAmount('');
       return;
