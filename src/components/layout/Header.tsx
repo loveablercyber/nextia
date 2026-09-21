@@ -28,23 +28,23 @@ export default function Header() {
 
   return <>
     <header className={clsx('fixed inset-x-0 top-0 z-50 border-b transition-colors', transparent ? 'border-white/60 bg-white/75 text-[#10152B] backdrop-blur-xl' : 'border-slate-200 bg-white/95 text-[#10152B] backdrop-blur-md')}>
-      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 sm:px-8">
-        <Link to="/" className="flex min-h-11 items-center gap-2" aria-label="Nextia - início"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1677FF]"><Zap className="h-5 w-5 text-white" /></span><span className="text-2xl font-black">Nextia</span></Link>
+      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 sm:px-8 xl:px-4">
+        <Link to="/" className="flex min-h-11 shrink-0 items-center gap-2" aria-label="Nextia - início"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1677FF]"><Zap className="h-5 w-5 text-white" /></span><span className="text-2xl font-black">Nextia</span></Link>
         <nav className="hidden items-center gap-1 xl:flex" aria-label="Navegação principal">
           {groups.map((group) => <div key={group.label} className="group relative">
-            <button className="flex min-h-11 items-center gap-1 px-3 text-base font-semibold">{group.label}<ChevronDown className="h-4 w-4" /></button>
+            <button className="flex min-h-11 items-center gap-1 whitespace-nowrap px-2 text-base font-semibold">{group.label}<ChevronDown className="h-4 w-4" /></button>
             <div className="invisible absolute left-0 top-full w-64 translate-y-1 border border-slate-200 bg-white p-2 text-[#07162B] opacity-0 shadow-xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
               {group.links.map(([label, to]) => <Link key={to} to={to} onClick={() => { setMobileOpen(false); setOpenGroup(null); }} className="block min-h-11 px-3 py-2.5 text-base font-semibold hover:bg-[#EAF3FF] hover:text-[#1677FF]">{label}</Link>)}
             </div>
           </div>)}
-          <Link to="/solucoes" className="flex min-h-11 items-center px-3 text-base font-semibold">Soluções</Link>
-          <Link to="/planos" className="flex min-h-11 items-center px-3 text-base font-semibold">Planos</Link>
-          <Link to="/parceiros" className="flex min-h-11 items-center px-3 text-base font-semibold">Parceiros</Link>
-          <Link to="/contato" className="flex min-h-11 items-center px-3 text-base font-semibold">Contato</Link>
+          <Link to="/solucoes" className="flex min-h-11 items-center whitespace-nowrap px-2 text-base font-semibold">Soluções</Link>
+          <Link to="/planos" className="flex min-h-11 items-center whitespace-nowrap px-2 text-base font-semibold">Planos</Link>
+          <Link to="/parceiros" className="flex min-h-11 items-center whitespace-nowrap px-2 text-base font-semibold">Parceiros</Link>
+          <Link to="/contato" className="flex min-h-11 items-center whitespace-nowrap px-2 text-base font-semibold">Contato</Link>
         </nav>
         <div className="hidden items-center gap-2 xl:flex">
-          <Link to={user ? '/painel' : '/login'} className="inline-flex min-h-11 items-center px-4 text-base font-bold">{user ? 'Meu painel' : 'Entrar'}</Link>
-          <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-lg bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-5 text-base font-bold text-white hover:opacity-90">Quero meu site</a>
+          <Link to={user ? '/painel' : '/login'} className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-3 text-base font-bold">{user ? 'Meu painel' : 'Entrar'}</Link>
+          <a href={getWhatsAppLink('geral')} target="_blank" rel="noreferrer" className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-lg bg-gradient-to-r from-[#2563FF] to-[#753AFF] px-4 text-base font-bold text-white hover:opacity-90">Quero meu site</a>
         </div>
         <button onClick={() => setMobileOpen(true)} className="flex h-11 w-11 items-center justify-center xl:hidden" aria-label="Abrir menu"><Menu className="h-7 w-7" /></button>
       </div>
