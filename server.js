@@ -704,75 +704,6 @@ function addonDisplayName(code) {
   return code.replace(/^opt-/, '').split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 }
 
-async function handleCatalogApi(req, res, url) {
-  const client = dbClient();
-  await client.connect();
-  try {
-    await ensureCommercialCatalogSchema(client);
-    await ensureAppSchema(client);
-    const sessionProfile = await getSessionProfile(req, client);
-    const isAdminRoute = url.pathname.startsWith('/api/admin/');
-    if (isAdminRoute && sessionProfile?.role !== 'admin') {
-      return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
-    }
-
-    if ((url.pathname === '/api/catalog/services' || url.pathname === '/api/admin/catalog/services') && req.method === 'GET') {
-      const result = await client.query(
-        `SELECT slug, name, category, price_cents, price_label, recurring, active, sort_order, updated_at
-         FROM public.commercial_services
-         ${isAdminRoute ? '' : 'WHERE active = TRUE'}
-         ORDER BY sort_order, name`,
-      );
-      return json(res, 200, { services: result.rows });
-    }
-
-    if ((url.pathname === '/api/catalog/store-templates' || url.pathname === '/api/admin/catalog/store-templates') && req.method === 'GET') {
-      const result = await client.query(
-        `SELECT id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, created_at, updated_at
-         FROM public.commercial_store_templates
-         ${isAdminRoute ? '' : "WHERE active = TRUE AND service_slug = 'lojas-virtuais'"}
-         ORDER BY sort_order, name`,
-      );
-      return json(res, 200, { templates: result.rows });
-    }
-
-    if (url.pathname === '/api/admin/catalog/store-templates' && req.method === 'POST') {
-      const body = await readJson(req);
-      const id = String(body.id || `tpl-${randomUUID().slice(0, 8)}`);
-      const slug = String(body.slug || body.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const name = String(body.name || '').trim();
-      const category = String(body.category || 'Geral').trim();
-      const description = String(body.description || '').trim();
-      const coverImage = String(body.coverImage || '').trim();
-      const previewUrl = String(body.previewUrl || '').trim();
-      const features = Array.isArray(body.features) ? body.features : [];
-      const featured = body.featured === true;
-      const active = body.active !== false;
-      const sortOrder = Number(body.sortOrder || 0);
-      const serviceSlug = String(body.serviceSlug || 'lojas-virtuais');
-      const priceCents = Math.max(0, Number(body.priceCents ?? 9900));
-      const activationFeeCents = Math.max(0, Number(body.activationFeeCents ?? 19700));
-
-      if (!slug || !name || !description) {
-        return json(res, 400, { error: 'Nome, slug e descrição são obrigatórios.' });
-      }
-
-      const result = await client.query(
-        `INSERT INTO public.commercial_store_templates
-           (id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
-         ON CONFLICT (id) DO UPDATE SET
-           slug = EXCLUDED.slug, service_slug = EXCLUDED.service_slug, name = EXCLUDED.name, category = EXCLUDED.category,
-           description = EXCLUDED.description, cover_image = EXCLUDED.cover_image,
-           preview_url = EXCLUDED.preview_url, features = EXCLUDED.features,
-           featured = EXCLUDED.featured, active = EXCLUDED.active, price_cents = EXCLUDED.price_cents,
-           activation_fee_cents = EXCLUDED.activation_fee_cents, sort_order = EXCLUDED.sort_order, updated_at = NOW()
-         RETURNING *`,
-        [id, slug, serviceSlug, name, category, description, coverImage, previewUrl, JSON.stringify(features), featured, active, priceCents, activationFeeCents, sortOrder],
-      );
-      return json(res, 200, { template: result.rows[0] });
-    }
-
 async function calculateCommercialSelection(client, { serviceSlug, planId, templateId, addonCodes = [], domain }) {
   const normalizedServiceSlug = String(serviceSlug || '').trim();
   if (!normalizedServiceSlug) throw httpError(400, 'Serviço obrigatório.', 'SERVICE_REQUIRED');
@@ -912,6 +843,75 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
     monthlyTotalCents
   };
 }
+
+async function handleCatalogApi(req, res, url) {
+  const client = dbClient();
+  await client.connect();
+  try {
+    await ensureCommercialCatalogSchema(client);
+    await ensureAppSchema(client);
+    const sessionProfile = await getSessionProfile(req, client);
+    const isAdminRoute = url.pathname.startsWith('/api/admin/');
+    if (isAdminRoute && sessionProfile?.role !== 'admin') {
+      return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+    }
+
+    if ((url.pathname === '/api/catalog/services' || url.pathname === '/api/admin/catalog/services') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT slug, name, category, price_cents, price_label, recurring, active, sort_order, updated_at
+         FROM public.commercial_services
+         ${isAdminRoute ? '' : 'WHERE active = TRUE'}
+         ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { services: result.rows });
+    }
+
+    if ((url.pathname === '/api/catalog/store-templates' || url.pathname === '/api/admin/catalog/store-templates') && req.method === 'GET') {
+      const result = await client.query(
+        `SELECT id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, created_at, updated_at
+         FROM public.commercial_store_templates
+         ${isAdminRoute ? '' : "WHERE active = TRUE AND service_slug = 'lojas-virtuais'"}
+         ORDER BY sort_order, name`,
+      );
+      return json(res, 200, { templates: result.rows });
+    }
+
+    if (url.pathname === '/api/admin/catalog/store-templates' && req.method === 'POST') {
+      const body = await readJson(req);
+      const id = String(body.id || `tpl-${randomUUID().slice(0, 8)}`);
+      const slug = String(body.slug || body.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const name = String(body.name || '').trim();
+      const category = String(body.category || 'Geral').trim();
+      const description = String(body.description || '').trim();
+      const coverImage = String(body.coverImage || '').trim();
+      const previewUrl = String(body.previewUrl || '').trim();
+      const features = Array.isArray(body.features) ? body.features : [];
+      const featured = body.featured === true;
+      const active = body.active !== false;
+      const sortOrder = Number(body.sortOrder || 0);
+      const serviceSlug = String(body.serviceSlug || 'lojas-virtuais');
+      const priceCents = Math.max(0, Number(body.priceCents ?? 9900));
+      const activationFeeCents = Math.max(0, Number(body.activationFeeCents ?? 19700));
+
+      if (!slug || !name || !description) {
+        return json(res, 400, { error: 'Nome, slug e descrição são obrigatórios.' });
+      }
+
+      const result = await client.query(
+        `INSERT INTO public.commercial_store_templates
+           (id, slug, service_slug, name, category, description, cover_image, preview_url, features, featured, active, price_cents, activation_fee_cents, sort_order, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           slug = EXCLUDED.slug, service_slug = EXCLUDED.service_slug, name = EXCLUDED.name, category = EXCLUDED.category,
+           description = EXCLUDED.description, cover_image = EXCLUDED.cover_image,
+           preview_url = EXCLUDED.preview_url, features = EXCLUDED.features,
+           featured = EXCLUDED.featured, active = EXCLUDED.active, price_cents = EXCLUDED.price_cents,
+           activation_fee_cents = EXCLUDED.activation_fee_cents, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+         RETURNING *`,
+        [id, slug, serviceSlug, name, category, description, coverImage, previewUrl, JSON.stringify(features), featured, active, priceCents, activationFeeCents, sortOrder],
+      );
+      return json(res, 200, { template: result.rows[0] });
+    }
 
     if (url.pathname === '/api/commerce/store-drafts' && req.method === 'POST') {
       const body = await readJson(req);
