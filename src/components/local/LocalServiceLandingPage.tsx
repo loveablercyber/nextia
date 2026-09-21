@@ -37,6 +37,7 @@ import { templates } from '../../data/templates';
 import { TemplateIllustration } from '../templates/TemplateIllustration';
 import { getWhatsAppLink, trackEvent } from '../../utils/whatsapp';
 import { getLocalNicheServiceData } from '../../data/localNicheServices';
+import { isServiceAvailableInCity } from '../../data/cities';
 
 interface LocalServiceLandingPageProps {
   citySlug: string;
@@ -44,7 +45,7 @@ interface LocalServiceLandingPageProps {
 }
 
 export default function LocalServiceLandingPage({ citySlug, serviceSlug }: LocalServiceLandingPageProps) {
-  const serviceData = getLocalServiceData(citySlug, serviceSlug);
+  const serviceData = isServiceAvailableInCity(citySlug, serviceSlug) ? getLocalServiceData(citySlug, serviceSlug) : null;
   const formId = useId();
 
   // Accordion state
@@ -66,6 +67,7 @@ export default function LocalServiceLandingPage({ citySlug, serviceSlug }: Local
   if (!serviceData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4 pt-28 pb-16">
+        <Helmet><title>Serviço local não encontrado | Nextia</title><meta name="robots" content="noindex, nofollow" /></Helmet>
         <div className="text-center max-w-md">
           <h1 className="text-3xl font-black text-[#10152B]">Serviço Local Não Encontrado</h1>
           <p className="mt-3 text-slate-600">

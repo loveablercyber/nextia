@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Globe, Search, RefreshCw, Edit3 } from 'lucide-react';
 import { requestJson } from '../../lib/appData';
+import AdminPagination from '../../components/admin/AdminPagination';
 
 interface AdminDomain {
   id: string;
@@ -24,22 +25,25 @@ export default function AdminDomainsPage() {
   const [editingDomain, setEditingDomain] = useState<AdminDomain | null>(null);
   const [editStatus, setEditStatus] = useState<string>('verified');
   const [editFqdn, setEditFqdn] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await requestJson<{ domains: AdminDomain[] }>('/api/admin/app/domains');
+      const res = await requestJson<{ domains: AdminDomain[]; total: number }>(`/api/admin/app/domains?page=${page}&limit=50`);
       setDomains(res.domains || []);
+      setTotal(Number(res.total) || 0);
     } catch (err) {
       console.error('Falha ao carregar domínios:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleSaveDomain = async () => {
     if (!editingDomain) return;
@@ -159,6 +163,8 @@ export default function AdminDomainsPage() {
           </div>
         )}
       </div>
+
+      <AdminPagination page={page} total={total} onPageChange={setPage} />
 
       {/* Edit Modal */}
       {editingDomain && (

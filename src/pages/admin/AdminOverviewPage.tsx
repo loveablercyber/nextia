@@ -18,10 +18,20 @@ interface PendingCommerceOrder {
   customer_email?: string;
 }
 
+interface OperationsHealth {
+  status: 'healthy' | 'attention';
+  database: { status: string; latency_ms: number };
+  queue: { pending: number; dead_letter: number };
+  webhooks: { failed: number; failed_24h: number };
+  process: { uptime_seconds: number; rss_bytes: number; heap_used_bytes: number };
+  checked_at: string;
+}
+
 export default function AdminOverviewPage() {
   const { projects, loading } = useAdmin();
   const [pendingOrders, setPendingOrders] = useState<PendingCommerceOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [operationsHealth, setOperationsHealth] = useState<OperationsHealth | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/commerce/orders')
@@ -36,6 +46,13 @@ export default function AdminOverviewPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingOrders(false));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/admin/operations/health', { credentials: 'include', cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((data: OperationsHealth) => setOperationsHealth(data))
+      .catch(() => setOperationsHealth(null));
   }, []);
 
   if (loading) {
@@ -84,6 +101,26 @@ export default function AdminOverviewPage() {
           </div>
         ))}
       </div>
+
+      <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm" aria-labelledby="operations-health-title">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 id="operations-health-title" className="text-sm font-bold uppercase tracking-wider text-gray-900">Saúde operacional</h3>
+            <p className="mt-1 text-xs text-gray-500">Sinais acionáveis do processo, banco, fila e webhooks; sem dados sensíveis.</p>
+          </div>
+          {operationsHealth && <span className={`rounded-full px-3 py-1 text-xs font-bold ${operationsHealth.status === 'healthy' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{operationsHealth.status === 'healthy' ? 'Saudável' : 'Requer atenção'}</span>}
+        </div>
+        {!operationsHealth ? <p className="text-xs text-gray-500">Saúde operacional indisponível. Verifique banco, sessão e deploy.</p> : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: 'Banco', value: `${operationsHealth.database.status} · ${operationsHealth.database.latency_ms} ms`, alert: operationsHealth.database.status !== 'connected' },
+              { label: 'Fila pendente', value: operationsHealth.queue.pending, alert: false },
+              { label: 'Dead-letter', value: operationsHealth.queue.dead_letter, alert: operationsHealth.queue.dead_letter > 0 },
+              { label: 'Webhooks falhos (24h)', value: operationsHealth.webhooks.failed_24h, alert: operationsHealth.webhooks.failed_24h > 0 },
+            ].map((item) => <div key={item.label} className={`rounded-2xl border p-4 ${item.alert ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-gray-50'}`}><span className="block text-xs text-gray-500">{item.label}</span><strong className="mt-1 block text-lg text-gray-900">{item.value}</strong></div>)}
+          </div>
+        )}
+      </section>
 
       {/* Section: Pending Commerce Orders */}
       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">

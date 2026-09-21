@@ -5,6 +5,7 @@ import {
   CheckCircle2, ArrowUpRight, ShoppingBag
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
+import { useServiceEngagements } from '../../context/ServiceEngagementContext';
 import { statusConfig } from '../../types/project';
 import Button from '../../components/ui/Button';
 
@@ -44,7 +45,8 @@ const statusLabels: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function OverviewPage() {
-  const { project, loading } = useProject();
+  const { project, loading, pendingActions } = useProject();
+  const { engagements } = useServiceEngagements();
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [contracts, setContracts] = useState<ClientContract[]>([]);
   const [loadingCommerce, setLoadingCommerce] = useState(true);
@@ -88,6 +90,11 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-bold text-gray-950">Seus projetos e serviços</h2><p className="mt-1 text-xs text-gray-400">{engagements.length} serviço(s) contratado(s) · {pendingActions.length} ação(ões) pendente(s) no projeto aberto</p></div><Link to="/painel/servicos" className="text-xs font-bold text-[#5B4FE9]">Ver todos →</Link></div>
+        {engagements.length === 0 ? <p className="rounded-2xl bg-gray-50 p-5 text-center text-xs text-gray-500">Você ainda não possui projetos ativos.</p> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{engagements.map((engagement) => <Link key={engagement.id} to={`/painel/servicos/${engagement.id}`} className="rounded-2xl border border-gray-100 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/30"><div className="flex items-start justify-between gap-2"><strong className="text-xs text-gray-900">{engagement.project_name || engagement.service_name_snapshot}</strong><span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">{engagement.project_status || engagement.status}</span></div><p className="mt-2 text-[11px] text-gray-500">{engagement.plan_name_snapshot || 'Plano conforme contratação'}</p>{typeof engagement.progress_percent === 'number' && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#5B4FE9]" style={{ width: `${engagement.progress_percent}%` }} /></div>}</Link>)}</div>}
+      </section>
+
       {/* Awaiting Action Banner */}
       {hasAwaitingAction && project && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex items-start gap-4 animate-pulse">

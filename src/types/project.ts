@@ -29,6 +29,79 @@ export interface ProjectFile {
   uploadedAt: string;
   uploadedBy: string;
   url: string;
+  mimeType?: string;
+  visibility?: ProjectVisibility;
+}
+
+export type ProjectVisibility = 'internal' | 'client' | 'both';
+
+export interface ProjectTask {
+  id: string;
+  project_id: string;
+  milestone_id?: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
+  task_kind: 'internal' | 'client_action';
+  visibility: ProjectVisibility;
+  due_at?: string;
+  priority: 'low' | 'normal' | 'high';
+  version: number;
+}
+
+export interface DeliverableApproval {
+  id: string;
+  deliverable_id: string;
+  deliverable_version_id: string;
+  actor_user_id: string;
+  result: 'approved' | 'changes_requested';
+  comment?: string;
+  created_at: string;
+}
+
+export interface ProjectDeliverable {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  status: 'draft' | 'submitted' | 'approved' | 'changes_requested' | 'superseded';
+  visibility: ProjectVisibility;
+  current_version: number;
+  version_id?: string;
+  file_id?: string;
+  external_url?: string;
+  version_notes?: string;
+  submitted_at?: string;
+  approvals: DeliverableApproval[];
+}
+
+export interface ProjectComment {
+  id: string;
+  project_id: string;
+  deliverable_id?: string;
+  task_id?: string;
+  author_user_id: string;
+  author_name: string;
+  body: string;
+  visibility: ProjectVisibility;
+  created_at: string;
+}
+
+export interface ProjectEvent {
+  id: string;
+  event_type: string;
+  summary: string;
+  actor_name?: string;
+  entity_type?: string;
+  entity_id?: string;
+  created_at: string;
+}
+
+export interface ProjectPendingAction {
+  type: 'briefing' | 'task' | 'deliverable';
+  id: string;
+  title: string;
+  dueAt?: string;
 }
 
 export interface ChangeRequest {
@@ -81,6 +154,7 @@ export interface ProjectBriefing {
 
 export interface Project {
   id: string;
+  version: number;
   userId: string;
   name: string;
   template?: string;
@@ -103,6 +177,15 @@ export interface Project {
   requestsRemaining: number;
   requestsTotal: number;
   briefing?: ProjectBriefing;
+  serviceSlug?: string;
+  serviceName?: string;
+  customerName?: string;
+  customerEmail?: string;
+  responsibleName?: string;
+  responsibleUserId?: string;
+  nextStage?: string;
+  pendingCount?: number;
+  updatedAt?: string;
 }
 
 // MOCK_PROJECTS has been removed

@@ -36,8 +36,7 @@ async function verifyDeployment() {
   console.log('====================================================\n');
 
   if (!connectionString) {
-    console.log('[Deploy Check] AVISO: DATABASE_URL não configurada. Ignorando teste de banco.');
-    process.exit(0);
+    throw new Error('[Deploy Check] DATABASE_URL não configurada; verificação de deploy não pode ser ignorada.');
   }
 
   const client = new pg.Client({
@@ -45,6 +44,8 @@ async function verifyDeployment() {
     ssl: connectionString.includes('sslmode=require') || connectionString.includes('render.com') || connectionString.includes('neon.tech')
       ? { rejectUnauthorized: false }
       : undefined,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 10000,
   });
 
   try {
@@ -79,6 +80,20 @@ async function verifyDeployment() {
       'briefing_submissions',
       'outbox_events',
       'data_migration_issues',
+      'automations',
+      'automation_runs',
+      'automation_action_runs',
+      'approval_requests',
+      'ai_runs',
+      'project_tasks',
+      'project_deliverables',
+      'project_events',
+      'subscription_events',
+      'retention_signals',
+      'expansion_suggestions',
+      'customer_feedback',
+      'content_entries',
+      'content_status_history',
     ];
 
     let missingTables = 0;

@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowRight, HelpCircle } from 'lucide-react';
 import { getSegmentBySlug } from '../data/segments';
 import SegmentLandingPage from '../components/segment/SegmentLandingPage';
+import Seo from '../components/seo/Seo';
 
 export default function SegmentPage() {
   const { segmentSlug } = useParams<{ segmentSlug: string }>();
@@ -10,6 +11,7 @@ export default function SegmentPage() {
   if (!segment || segment.status !== 'published') {
     return (
       <main className="min-h-[75vh] bg-[#07162B] text-white flex items-center justify-center px-4 py-24">
+        <Seo title="Segmento não encontrado" description="A página de segmento solicitada não foi encontrada." path={`/solucoes/${segmentSlug || ''}`} noindex />
         <div className="text-center max-w-md space-y-4">
           <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-blue-400">
             <HelpCircle className="w-7 h-7" />

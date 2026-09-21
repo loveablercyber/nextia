@@ -62,6 +62,7 @@ export default function CityLandingPage({ citySlug }: CityLandingPageProps) {
   if (!city) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4 pt-28 pb-16">
+        <Helmet><title>Cidade não encontrada | Nextia</title><meta name="robots" content="noindex, nofollow" /></Helmet>
         <div className="text-center max-w-md">
           <h1 className="text-3xl font-black text-[#10152B]">Cidade não encontrada</h1>
           <p className="mt-3 text-slate-600">
@@ -112,38 +113,6 @@ export default function CityLandingPage({ citySlug }: CityLandingPageProps) {
     telephone: '+5514996405496',
     sameAs: ['https://instagram.com/nextia.dev'],
     taxID: '57.285.901/0001-94',
-  };
-
-  const schemaLocalBusiness = {
-    '@context': 'https://schema.org',
-    '@type': 'ProfessionalService',
-    name: `Nextia - Tecnologia e Criação de Sites em ${city.name}`,
-    description: city.metaDescription,
-    url: canonicalUrl,
-    telephone: '+5514996405496',
-    priceRange: '$$',
-    areaServed: {
-      '@type': 'AdministrativeArea',
-      name: city.areaServed,
-    },
-    parentOrganization: {
-      '@type': 'Organization',
-      name: 'Nextia',
-      taxID: '57.285.901/0001-94',
-    },
-    hasOfferCatalog: {
-      '@type': 'OfferCatalog',
-      name: `Soluções Nextia em ${city.name}`,
-      itemListElement: city.solutions.map((s, idx) => ({
-        '@type': 'Offer',
-        itemOffered: {
-          '@type': 'Service',
-          name: `${s.title} em ${city.name}`,
-          description: s.description,
-        },
-        position: idx + 1,
-      })),
-    },
   };
 
   const schemaFaq = {
@@ -243,7 +212,6 @@ export default function CityLandingPage({ citySlug }: CityLandingPageProps) {
         <meta name="twitter:title" content={city.metaTitle} />
         <meta name="twitter:description" content={city.metaDescription} />
         <script type="application/ld+json">{JSON.stringify(schemaOrganization)}</script>
-        <script type="application/ld+json">{JSON.stringify(schemaLocalBusiness)}</script>
         <script type="application/ld+json">{JSON.stringify(schemaFaq)}</script>
         <script type="application/ld+json">{JSON.stringify(schemaBreadcrumbs)}</script>
       </Helmet>

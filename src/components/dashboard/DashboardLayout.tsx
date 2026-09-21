@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
   Upload, Settings, LogOut, Zap, Menu, ChevronRight,
-  Bell, ExternalLink, HelpCircle, User, ClipboardList, Users
+  Bell, ExternalLink, HelpCircle, User, ClipboardList, Users, HeartHandshake
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +19,7 @@ const globalNavItems = [
   { to: '/painel/servicos', icon: FolderOpen, label: 'Serviços contratados' },
   { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },
+  { to: '/painel/assinaturas', icon: HeartHandshake, label: 'Assinaturas e pós-venda' },
   { to: '/painel/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
   { to: '/parceiros', icon: Users, label: 'Programa de Parceiros' },
   { to: '/perfil', icon: User, label: 'Meu Perfil' },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  Globe, Sliders, Plus, Trash2, ClipboardList, X, FileCheck, Building2, Palette, Layers, Phone
+  Globe, Plus, Trash2, ClipboardList, X, FileCheck, Building2, Palette, Layers, Phone, ArrowRight
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import { statusConfig, type Project } from '../../types/project';
@@ -8,15 +9,14 @@ import { templates } from '../../data/templates';
 import Button from '../../components/ui/Button';
 
 export default function AdminProjectsPage() {
-  const { projects, profiles, loading, updateProjectProgress, updateProjectStatus, createProject, refreshData } = useAdmin();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [sliderVal, setSliderVal] = useState(0);
+  const { projects, profiles, loading, updateProjectStatus, createProject, refreshData } = useAdmin();
   const [viewBriefingProject, setViewBriefingProject] = useState<Project | null>(null);
 
   // Modal and Form states
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [filters, setFilters] = useState({ status: '', service: '', customer: '', responsible: '', period: '', pending: false });
   const [form, setForm] = useState(() => ({
     userId: '',
     name: '',
@@ -38,16 +38,15 @@ export default function AdminProjectsPage() {
 
   // Filter client profiles
   const clientProfiles = profiles.filter(p => p.role === 'client');
-
-  const handleEditProgress = (id: string, currentVal: number) => {
-    setEditingId(id);
-    setSliderVal(currentVal);
-  };
-
-  const handleSaveProgress = async (id: string) => {
-    await updateProjectProgress(id, sliderVal);
-    setEditingId(null);
-  };
+  const filteredProjects = projects.filter((project) =>
+    (!filters.status || project.status === filters.status)
+    && (!filters.service || project.serviceSlug === filters.service)
+    && (!filters.customer || `${project.customerName || ''} ${project.customerEmail || ''}`.toLowerCase().includes(filters.customer.toLowerCase()))
+    && (!filters.responsible || project.responsibleUserId === filters.responsible)
+    && (!filters.period || (project.updatedAt && new Date(project.updatedAt).getTime() >= Date.now() - Number(filters.period) * 86_400_000))
+    && (!filters.pending || (project.pendingCount || 0) > 0));
+  const serviceOptions = [...new Set(projects.map((project) => project.serviceSlug).filter(Boolean))] as string[];
+  const responsibleOptions = [...new Map(projects.filter((project) => project.responsibleUserId).map((project) => [project.responsibleUserId, project.responsibleName || project.responsibleUserId])).entries()];
 
   const handleDeleteProject = async (projectId: string, name: string) => {
     if (!confirm(`Deseja realmente remover o projeto "${name}"? Todos os marcos, faturas, arquivos e chamados associados a ele serão excluídos permanentemente.`)) {
@@ -161,11 +160,19 @@ export default function AdminProjectsPage() {
       <div className="bg-white rounded-3xl p-6 border border-gray-100">
         <h3 className="font-bold text-gray-950 text-sm mb-4">Todos os projetos</h3>
 
-        <div className="space-y-6">
-          {projects.map((p) => {
-            const currentStatus = statusConfig[p.status];
-            const isEditing = editingId === p.id;
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Filtros de projetos">
+          <input aria-label="Filtrar por cliente" value={filters.customer} onChange={(event) => setFilters({ ...filters, customer: event.target.value })} placeholder="Cliente ou e-mail" className="rounded-xl border border-gray-200 px-3 py-2 text-xs" />
+          <select aria-label="Filtrar por status" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} className="rounded-xl border border-gray-200 px-3 py-2 text-xs"><option value="">Todos os status</option>{Object.entries(statusConfig).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}</select>
+          <select aria-label="Filtrar por serviço" value={filters.service} onChange={(event) => setFilters({ ...filters, service: event.target.value })} className="rounded-xl border border-gray-200 px-3 py-2 text-xs"><option value="">Todos os serviços</option>{serviceOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+          <select aria-label="Filtrar por responsável" value={filters.responsible} onChange={(event) => setFilters({ ...filters, responsible: event.target.value })} className="rounded-xl border border-gray-200 px-3 py-2 text-xs"><option value="">Todos os responsáveis</option>{responsibleOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
+          <select aria-label="Filtrar por período" value={filters.period} onChange={(event) => setFilters({ ...filters, period: event.target.value })} className="rounded-xl border border-gray-200 px-3 py-2 text-xs"><option value="">Qualquer período</option><option value="7">Atualizados em 7 dias</option><option value="30">Atualizados em 30 dias</option><option value="90">Atualizados em 90 dias</option></select>
+          <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs"><input type="checkbox" checked={filters.pending} onChange={(event) => setFilters({ ...filters, pending: event.target.checked })} /> Com pendência do cliente</label>
+        </div>
 
+        <div className="space-y-6">
+          {filteredProjects.length === 0 && <p className="rounded-2xl bg-gray-50 p-8 text-center text-xs text-gray-500">Nenhum projeto corresponde aos filtros.</p>}
+          {filteredProjects.map((p) => {
+            const currentStatus = statusConfig[p.status];
             return (
               <div
                 key={p.id}
@@ -184,6 +191,11 @@ export default function AdminProjectsPage() {
                   </div>
 
                   <div className="text-[10px] text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Cliente: <strong>{p.customerName || p.customerEmail || 'Não informado'}</strong></span>
+                    <span>Serviço: <strong>{p.serviceName || p.serviceSlug || p.segment}</strong></span>
+                    <span>Responsável: <strong>{p.responsibleName || 'Não atribuído'}</strong></span>
+                    <span>Próxima etapa: <strong>{p.nextStage || 'Sem etapa pendente'}</strong></span>
+                    <span>Pendências: <strong>{p.pendingCount || 0}</strong></span>
                     <span>Plano: <strong>Nextia {p.plan}</strong></span>
                     {p.domain && (
                       <span className="flex items-center gap-1">
@@ -198,45 +210,18 @@ export default function AdminProjectsPage() {
                 <div className="flex-1 max-w-md">
                   <div className="flex justify-between text-xs font-semibold mb-1">
                     <span className="text-gray-500">Progresso do projeto</span>
-                    <span className="text-pink-600 font-bold">{isEditing ? sliderVal : p.progressPercent}%</span>
+                    <span className="text-pink-600 font-bold">{p.progressPercent}%</span>
                   </div>
-
-                  {isEditing ? (
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={sliderVal}
-                        onChange={e => setSliderVal(Number(e.target.value))}
-                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
-                      />
-                      <Button variant="gradient" size="sm" onClick={() => handleSaveProgress(p.id)}>
-                        Salvar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-pink-500 to-[#7c3aed] rounded-full transition-all duration-300"
-                          style={{ width: `${p.progressPercent}%` }}
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleEditProgress(p.id, p.progressPercent)}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                        title="Ajustar progresso"
-                      >
-                        <Sliders className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden" title="Calculado pelas etapas concluídas">
+                    <div className="h-full bg-gradient-to-r from-pink-500 to-[#7c3aed] rounded-full transition-all duration-300" style={{ width: `${p.progressPercent}%` }} />
+                  </div>
                 </div>
 
                 {/* Status dropdown selector */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link to={`/admin/projetos/${p.id}`} className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
+                    Gerenciar <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
                   {p.briefing?.submitted ? (
                     <Button
                       variant="outline"

@@ -4,7 +4,7 @@ interface SeoProps { title: string; description: string; path?: string; noindex?
 
 export default function Seo({ title, description, path = '/', noindex = false, image, type = 'website' }: SeoProps) {
   const baseUrl = (import.meta.env.VITE_PUBLIC_URL || 'https://nextia.dev.br').replace(/\/$/, '');
-  const canonical = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const canonical = path.startsWith('https://') ? path : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
   const fullTitle = title.includes('Nextia') ? title : `${title} | Nextia`;
   return <Helmet>
     <title>{fullTitle}</title>
@@ -17,5 +17,8 @@ export default function Seo({ title, description, path = '/', noindex = false, i
     <meta property="og:type" content={type} />
     {image && <meta property="og:image" content={image.startsWith('http') ? image : `${baseUrl}${image}`} />}
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    {image && <meta name="twitter:image" content={image.startsWith('http') ? image : `${baseUrl}${image}`} />}
   </Helmet>;
 }

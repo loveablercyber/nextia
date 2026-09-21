@@ -5,6 +5,7 @@ Disallow: /painel
 Disallow: /parceiro
 Disallow: /tecnico
 Disallow: /checkout
+Disallow: /demo
 Disallow: /perfil
 Disallow: /login
 Disallow: /cadastro

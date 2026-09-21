@@ -34,4 +34,15 @@ describe('atribuicao de leads do CRM', () => {
     expect(attribution.last_touch_source).toBe('linkedin');
     expect(attribution.utm_source).toBe('linkedin');
   });
+
+  it('preserva a origem e associa o conteúdo editorial ao lead', () => {
+    captureAttribution();
+    window.history.pushState({}, '', '/orcamento?content=guia-automacao');
+    captureAttribution();
+    const attribution = getAttribution();
+    expect(attribution.utm_source).toBe('google');
+    expect(attribution.utm_medium).toBe('cpc');
+    expect(attribution.utm_content).toBe('guia-automacao');
+    expect(attribution.first_touch_source).toBe('google');
+  });
 });

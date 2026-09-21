@@ -9,14 +9,30 @@ import { promisify } from 'node:util';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { Client } from 'pg';
 import { v2 as cloudinary } from 'cloudinary';
+import { createSlidingWindowLimiter, fetchWithTimeout, requestIp, resolveRequestId } from './operational-guards.js';
 import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
 import { handleCrmApi, isCrmApiPath } from './crm-api.js';
 import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from './automation-api.js';
 import { AutomationWorker } from './automation-engine.js';
+import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
+import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
+import {
+  ensureCustomerSuccessSchema,
+  handleCustomerSuccessApi,
+  isCustomerSuccessApiPath,
+  syncProviderSubscription,
+  syncRecurringPayment,
+} from './customer-success.js';
 
 const port = Number(process.env.PORT || 3000);
 const distDir = join(process.cwd(), 'dist');
-const sessionSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nextia-local-dev-secret';
+let seoManifestCache;
+const configuredSessionSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+if (process.env.NODE_ENV === 'production' && !configuredSessionSecret) {
+  throw new Error('JWT_SECRET ou SESSION_SECRET é obrigatório em produção.');
+}
+const sessionSecret = configuredSessionSecret || 'nextia-local-dev-secret';
+const authRateLimit = createSlidingWindowLimiter();
 let supportSchemaPromise;
 let commercialCatalogSchemaPromise;
 const execFileAsync = promisify(execFile);
@@ -72,7 +88,8 @@ function parseCookies(req) {
 async function readJson(req) {
   const chunks = [];
   let totalBytes = 0;
-  const maxBytes = 32 * 1024 * 1024;
+  const pathname = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).pathname;
+  const maxBytes = pathname === '/api/app/project/file' ? 28 * 1024 * 1024 : 1024 * 1024;
   for await (const chunk of req) {
     totalBytes += chunk.length;
     if (totalBytes > maxBytes) throw httpError(413, 'Corpo da requisição excede o limite permitido.', 'BODY_TOO_LARGE');
@@ -89,6 +106,9 @@ function dbClient() {
   return new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 10_000,
+    statement_timeout: 10_000,
   });
 }
 
@@ -242,7 +262,7 @@ async function minioRequest(method, objectKey = '', body) {
     .digest('hex');
   const authorization = `AWS4-HMAC-SHA256 Credential=${config.accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method,
     headers: {
       Authorization: authorization,
@@ -251,7 +271,7 @@ async function minioRequest(method, objectKey = '', body) {
       ...(body ? { 'Content-Type': 'application/gzip', 'Content-Length': String(payload.length) } : {}),
     },
     body: body ? payload : undefined,
-  });
+  }, 120_000);
 
   if (!response.ok) {
     const details = (await response.text()).slice(0, 1000);
@@ -437,7 +457,7 @@ async function cloudinaryDownloadAsset(account, backup) {
         type: 'authenticated',
         expires_at: Math.floor(Date.now() / 1000) + 900,
       });
-      const response = await fetch(downloadUrl, { headers: { Accept: 'application/octet-stream' } });
+      const response = await fetchWithTimeout(downloadUrl, { headers: { Accept: 'application/octet-stream' } }, 120_000);
       if (response.ok) {
         return Buffer.from(await response.arrayBuffer());
       }
@@ -453,7 +473,7 @@ async function cloudinaryDownloadAsset(account, backup) {
       sign_url: true,
       version: backup.storage_version || undefined,
     });
-    const response = await fetch(signedUrl, { headers: { Accept: 'application/octet-stream' } });
+    const response = await fetchWithTimeout(signedUrl, { headers: { Accept: 'application/octet-stream' } }, 120_000);
     if (!response.ok) {
       throw new Error(`Cloudinary respondeu HTTP ${response.status} ao recuperar o backup (public_id: ${resolvedPublicId}).`);
     }
@@ -1543,7 +1563,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
             notification_url: `${baseUrl}/api/commerce/webhook`,
           };
 
-          const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          const providerResponse = await fetchWithTimeout('https://api.mercadopago.com/checkout/preferences', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -1611,7 +1631,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
          VALUES ($1,$2,$3,$4,$5,$6)`,
         [contractId, sessionProfile.id, planId, plan.name, plan.monthly, plan.activation],
       );
-      const providerResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      const providerResponse = await fetchWithTimeout('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-contract-${contractId}` },
         body: JSON.stringify({
           items: [{ id: planId, title: `Ativação - ${plan.name}`, quantity: 1, unit_price: plan.activation / 100, currency_id: 'BRL' }],
@@ -1651,48 +1671,19 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
     }
 
     if (url.pathname === '/api/admin/commerce/orders' && req.method === 'PATCH') {
-      const body = await readJson(req);
-      const status = String(body.status || '');
-      if (!['pending', 'payment_pending', 'paid', 'active', 'failed', 'cancelled'].includes(status)) {
-        return json(res, 400, { error: 'Status inválido.' });
-      }
-      const result = await client.query(
-        `UPDATE public.commercial_orders SET status = $1, updated_at = NOW(),
-           paid_at = CASE WHEN $1 IN ('paid','active') THEN COALESCE(paid_at, NOW()) ELSE paid_at END
-         WHERE id = $2 RETURNING *`,
-        [status, body.orderId],
-      );
-      if (!result.rows[0]) return json(res, 404, { error: 'Pedido não encontrado.' });
-      return json(res, 200, { order: result.rows[0] });
+      return json(res, 410, { error: 'Status financeiro é sincronizado exclusivamente pelo gateway.', code: 'GATEWAY_IS_FINANCIAL_SOURCE' });
     }
 
     if (url.pathname === '/api/admin/commerce/contracts' && req.method === 'PATCH') {
-      const body = await readJson(req);
-      const status = String(body.status || '');
-      if (!['activation_pending', 'subscription_pending', 'active', 'failed', 'cancelled'].includes(status)) {
-        return json(res, 400, { error: 'Status de contrato inválido.' });
-      }
-      const result = await client.query(
-        `UPDATE public.commercial_plan_contracts SET status = $1, updated_at = NOW(),
-           activated_at = CASE WHEN $1 = 'active' THEN COALESCE(activated_at, NOW()) ELSE activated_at END
-         WHERE id = $2 RETURNING *`, [status, body.contractId],
-      );
-      if (!result.rows[0]) return json(res, 404, { error: 'Contrato não encontrado.' });
-      return json(res, 200, { contract: result.rows[0] });
+      return json(res, 410, { error: 'Status financeiro é sincronizado exclusivamente pelo gateway.', code: 'GATEWAY_IS_FINANCIAL_SOURCE' });
     }
 
     if (url.pathname.startsWith('/api/admin/commerce/orders/') && req.method === 'DELETE') {
-      const orderId = url.pathname.replace('/api/admin/commerce/orders/', '').trim();
-      const result = await client.query('DELETE FROM public.commercial_orders WHERE id = $1 RETURNING id', [orderId]);
-      if (!result.rows[0]) return json(res, 404, { error: 'Pedido não encontrado.' });
-      return json(res, 200, { success: true, deletedId: orderId });
+      return json(res, 410, { error: 'Pedidos financeiros são preservados para auditoria.', code: 'FINANCIAL_HISTORY_IMMUTABLE' });
     }
 
     if (url.pathname.startsWith('/api/admin/commerce/contracts/') && req.method === 'DELETE') {
-      const contractId = url.pathname.replace('/api/admin/commerce/contracts/', '').trim();
-      const result = await client.query('DELETE FROM public.commercial_plan_contracts WHERE id = $1 RETURNING id', [contractId]);
-      if (!result.rows[0]) return json(res, 404, { error: 'Contrato não encontrado.' });
-      return json(res, 200, { success: true, deletedId: contractId });
+      return json(res, 410, { error: 'Assinaturas são preservadas para auditoria.', code: 'SUBSCRIPTION_HISTORY_IMMUTABLE' });
     }
 
     if (url.pathname === '/api/commerce/webhook' && req.method === 'POST') {
@@ -1711,7 +1702,10 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
         `INSERT INTO public.provider_webhook_events
           (provider, event_id, event_type, resource_id, payload_hash, payload, status, attempts)
          VALUES ('mercado_pago',$1,$2,$3,$4,$5,'processing',1)
-         ON CONFLICT (provider, event_id) DO NOTHING
+         ON CONFLICT (provider, event_id) DO UPDATE SET
+           resource_id=EXCLUDED.resource_id,payload_hash=EXCLUDED.payload_hash,payload=EXCLUDED.payload,
+           status='processing',attempts=provider_webhook_events.attempts+1,error_message=NULL
+         WHERE provider_webhook_events.status='failed'
          RETURNING id`,
         [providerEventId, eventType, resourceId, payloadHash, JSON.stringify(body)],
       );
@@ -1720,7 +1714,7 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       const lookupUrl = eventType === 'payment'
         ? `https://api.mercadopago.com/v1/payments/${encodeURIComponent(resourceId)}`
         : `https://api.mercadopago.com/preapproval/${encodeURIComponent(resourceId)}`;
-      const providerResponse = await fetch(lookupUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const providerResponse = await fetchWithTimeout(lookupUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (!providerResponse.ok) {
         await client.query(
           `UPDATE public.provider_webhook_events SET status = 'failed', error_message = $2 WHERE id = $1`,
@@ -1732,45 +1726,104 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
       const externalReference = String(providerData.external_reference || '');
       if (externalReference.startsWith('contract:') && eventType === 'payment') {
         const [, contractId, phase] = externalReference.split(':');
-        if (phase !== 'activation' || providerData.status !== 'approved') return json(res, 200, { status: 'pending' });
+        if (phase === 'subscription') {
+          const contractLookup = await client.query('SELECT subscription_id FROM public.commercial_plan_contracts WHERE id=$1', [contractId]);
+          if (!contractLookup.rows[0]) {
+            await client.query(`UPDATE public.provider_webhook_events SET status='ignored',processed_at=NOW(),error_message='Assinatura não encontrada' WHERE id=$1`, [webhookEventId]);
+            return json(res, 200, { status: 'ignored' });
+          }
+          let nextBillingAt = null;
+          if (contractLookup.rows[0].subscription_id) {
+            const subscriptionLookup = await fetchWithTimeout(`https://api.mercadopago.com/preapproval/${encodeURIComponent(contractLookup.rows[0].subscription_id)}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+            if (subscriptionLookup.ok) nextBillingAt = (await subscriptionLookup.json()).next_payment_date || null;
+          }
+          await client.query('BEGIN');
+          try {
+            const outcome = await syncRecurringPayment(client, { contractId, resourceId, providerEventId, providerData, nextBillingAt });
+            await client.query(`UPDATE public.provider_webhook_events SET status='processed',processed_at=NOW(),error_message=NULL WHERE id=$1`, [webhookEventId]);
+            await client.query('COMMIT');
+            return json(res, 200, { status: outcome.duplicate ? 'already_processed' : outcome.renewed ? 'renewed' : 'payment_failed' });
+          } catch (error) {
+            await client.query('ROLLBACK');
+            await client.query(`UPDATE public.provider_webhook_events SET status='failed',error_message=$2 WHERE id=$1`, [webhookEventId, String(error.message || error).slice(0, 1000)]).catch(() => undefined);
+            throw error;
+          }
+        }
+        if (phase !== 'activation') {
+          await client.query(`UPDATE public.provider_webhook_events SET status='ignored',processed_at=NOW() WHERE id=$1`, [webhookEventId]);
+          return json(res, 200, { status: 'ignored' });
+        }
+        if (providerData.status !== 'approved') {
+          await client.query(`UPDATE public.provider_webhook_events SET status='processed',processed_at=NOW() WHERE id=$1`, [webhookEventId]);
+          return json(res, 200, { status: 'pending' });
+        }
         const contractResult = await client.query(
           `SELECT c.*, p.email AS customer_email FROM public.commercial_plan_contracts c
            JOIN public.profiles p ON p.id = c.user_id WHERE c.id = $1`, [contractId],
         );
         const contract = contractResult.rows[0];
-        if (!contract) return json(res, 404, { error: 'Contrato não encontrado.' });
+        if (!contract) {
+          await client.query(`UPDATE public.provider_webhook_events SET status='ignored',processed_at=NOW(),error_message='Contrato não encontrado' WHERE id=$1`, [webhookEventId]);
+          return json(res, 200, { status: 'ignored' });
+        }
         if (providerData.currency_id !== 'BRL' || Math.round(Number(providerData.transaction_amount) * 100) !== contract.activation_amount_cents) {
+          await client.query(`UPDATE public.provider_webhook_events SET status='failed',error_message='Valor de ativação divergente' WHERE id=$1`, [webhookEventId]);
           throw new Error('Valor de ativação divergente.');
         }
-        if (contract.status !== 'activation_pending') return json(res, 200, { status: 'already_processed' });
+        if (contract.status !== 'activation_pending') {
+          await client.query(`UPDATE public.provider_webhook_events SET status='processed',processed_at=NOW() WHERE id=$1`, [webhookEventId]);
+          return json(res, 200, { status: 'already_processed' });
+        }
         const protocol = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
         const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
         const baseUrl = process.env.APP_URL?.replace(/\/$/, '') || `${protocol}://${host}`;
-        const subscriptionResponse = await fetch('https://api.mercadopago.com/preapproval', {
+        const subscriptionResponse = await fetchWithTimeout('https://api.mercadopago.com/preapproval', {
           method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'X-Idempotency-Key': `nextia-subscription-${contractId}` },
           body: JSON.stringify({ reason: contract.plan_name, external_reference: `contract:${contractId}:subscription`, payer_email: contract.customer_email, back_url: `${baseUrl}/checkout?status=subscription&contract=${contractId}`, notification_url: `${baseUrl}/api/commerce/webhook`, auto_recurring: { frequency: 1, frequency_type: 'months', transaction_amount: contract.monthly_amount_cents / 100, currency_id: 'BRL' } }),
         });
         const subscription = await subscriptionResponse.json();
-        if (!subscriptionResponse.ok || !subscription.init_point) throw new Error('Falha ao criar assinatura após ativação.');
-        await client.query(
-          `UPDATE public.commercial_plan_contracts SET status = 'subscription_pending', activation_payment_id = $2,
-             subscription_id = $3, subscription_checkout_url = $4, updated_at = NOW() WHERE id = $1`,
-          [contractId, resourceId, String(subscription.id), subscription.init_point],
-        );
-        return json(res, 200, { status: 'activation_confirmed' });
+        if (!subscriptionResponse.ok || !subscription.init_point) {
+          await client.query(`UPDATE public.provider_webhook_events SET status='failed',error_message='Falha ao criar assinatura após ativação' WHERE id=$1`, [webhookEventId]);
+          throw new Error('Falha ao criar assinatura após ativação.');
+        }
+        await client.query('BEGIN');
+        try {
+          await client.query(
+            `UPDATE public.commercial_plan_contracts SET status = 'subscription_pending', activation_payment_id = $2,
+               subscription_id = $3, subscription_checkout_url = $4, version=version+1,updated_at = NOW() WHERE id = $1`,
+            [contractId, resourceId, String(subscription.id), subscription.init_point],
+          );
+          await client.query(
+            `INSERT INTO public.subscription_events(subscription_id,event_type,from_status,to_status,provider_event_id,provider_resource_id,metadata)
+             VALUES($1,'subscription.activation_paid',$2,'subscription_pending',$3,$4,$5)
+             ON CONFLICT(subscription_id,provider_event_id,event_type) WHERE provider_event_id IS NOT NULL DO NOTHING`,
+            [contractId, contract.status, providerEventId, resourceId, JSON.stringify({ amountCents: contract.activation_amount_cents, currency: 'BRL' })],
+          );
+          await client.query(
+            `INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
+             VALUES('subscription',$1,'subscription.activation_paid',$2,$3) ON CONFLICT(idempotency_key) DO NOTHING`,
+            [contractId, JSON.stringify({ subscriptionId: contractId, customerId: contract.user_id }), `subscription.activation_paid:${providerEventId}`],
+          );
+          await client.query(`UPDATE public.provider_webhook_events SET status='processed',processed_at=NOW(),error_message=NULL WHERE id=$1`, [webhookEventId]);
+          await client.query('COMMIT');
+          return json(res, 200, { status: 'activation_confirmed' });
+        } catch (error) {
+          await client.query('ROLLBACK');
+          await client.query(`UPDATE public.provider_webhook_events SET status='failed',error_message=$2 WHERE id=$1`, [webhookEventId, String(error.message || error).slice(0, 1000)]).catch(() => undefined);
+          throw error;
+        }
       }
       if (externalReference.startsWith('contract:') && eventType === 'subscription_preapproval') {
         const [, contractId, phase] = externalReference.split(':');
-        if (phase !== 'subscription') return json(res, 200, { status: 'ignored' });
+        if (phase !== 'subscription') {
+          await client.query(`UPDATE public.provider_webhook_events SET status='ignored',processed_at=NOW() WHERE id=$1`, [webhookEventId]);
+          return json(res, 200, { status: 'ignored' });
+        }
         const active = providerData.status === 'authorized';
         await client.query('BEGIN');
         try {
-          const contractResult = await client.query(
-            `UPDATE public.commercial_plan_contracts SET status = $2, subscription_id = $3,
-               activated_at = CASE WHEN $2 = 'active' THEN COALESCE(activated_at, NOW()) ELSE activated_at END, updated_at = NOW()
-             WHERE id = $1 RETURNING *`, [contractId, active ? 'active' : 'subscription_pending', resourceId],
-          );
-          const contract = contractResult.rows[0];
+          const syncResult = await syncProviderSubscription(client, { contractId, resourceId, providerEventId, providerData });
+          const contract = syncResult.contract;
           if (active && contract) {
             const quotaMap = { start: 1, pro: 2, business: 4 };
             const quota = quotaMap[contract.plan_id] || 1;
@@ -1807,9 +1860,11 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
               );
             }
           }
+          await client.query(`UPDATE public.provider_webhook_events SET status='processed',processed_at=NOW(),error_message=NULL WHERE id=$1`, [webhookEventId]);
           await client.query('COMMIT');
         } catch (error) {
           await client.query('ROLLBACK');
+          await client.query(`UPDATE public.provider_webhook_events SET status='failed',error_message=$2 WHERE id=$1`, [webhookEventId, String(error.message || error).slice(0, 1000)]).catch(() => undefined);
           throw error;
         }
         return json(res, 200, { status: active ? 'active' : 'pending' });
@@ -2089,7 +2144,7 @@ async function sendSupportTicketEmail({ email, message, name, subject, trackingL
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) return;
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetchWithTimeout('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
@@ -2120,12 +2175,9 @@ async function sendSupportTicketEmail({ email, message, name, subject, trackingL
 
 async function sendPasswordResetEmail({ email, name, resetLink }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  if (!resendApiKey) {
-    console.log(`[AUTH] Link de redefinição de senha para ${email}: ${resetLink}`);
-    return;
-  }
+  if (!resendApiKey) return;
 
-  const response = await fetch('https://api.resend.com/emails', {
+  const response = await fetchWithTimeout('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
@@ -4200,19 +4252,11 @@ async function handlePartnerApi(req, res, url) {
 }
 
 async function handleAuth(req, res, pathname) {
-  if (pathname === '/api/health' && req.method === 'GET') {
-    return json(res, 200, {
-      status: 'ok',
-      uptime: Math.round(process.uptime()),
-      timestamp: new Date().toISOString(),
-      version: '2.0.0-pos-auditoria',
-      environment: process.env.NODE_ENV || 'production',
-      services: {
-        database: 'connected',
-        canonicalEngagements: 'active',
-        dualWrite: 'enabled',
-      },
-    });
+  if (req.method === 'POST' && ['/api/auth/login', '/api/auth/register', '/api/auth/forgot-password', '/api/auth/reset-password'].includes(pathname)) {
+    const limits = { '/api/auth/login': 10, '/api/auth/register': 5, '/api/auth/forgot-password': 5, '/api/auth/reset-password': 10 };
+    if (!authRateLimit.allow(`${pathname}:${requestIp(req)}`, limits[pathname])) {
+      return json(res, 429, { error: 'Muitas tentativas. Aguarde um minuto antes de tentar novamente.' });
+    }
   }
 
   if (pathname === '/api/auth/me' && req.method === 'GET') {
@@ -4579,30 +4623,145 @@ async function handleAuth(req, res, pathname) {
 async function serveStatic(req, res) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   let requestedPath = decodeURIComponent(url.pathname);
+  const manifest = loadSeoManifest();
+  if (url.pathname === '/sitemap.xml') {
+    let client;
+    let contentEntries = [];
+    try {
+      client = dbClient();
+      await client.connect();
+      contentEntries = await getPublishedContentSeoEntries(client);
+    } catch { /* mantém sitemap estático válido se o banco estiver temporariamente indisponível */ }
+    finally { try { await client?.end(); } catch { /* conexão não chegou a abrir */ } }
+    const xml = buildSitemapXml([...manifest.entries, ...contentEntries], appBaseUrl(req));
+    res.writeHead(200, { ...securityHeaders(), 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=900' });
+    return res.end(xml);
+  }
+  const redirect = resolveSeoRedirect(requestedPath, manifest.redirects);
+  if (redirect) {
+    res.writeHead(redirect.status, { ...securityHeaders(), Location: redirect.location, 'Cache-Control': 'public, max-age=3600' });
+    return res.end();
+  }
   if (requestedPath === '/') requestedPath = '/index.html';
   const distRoot = resolve(distDir);
   let filePath = resolve(distRoot, `.${requestedPath}`);
   if (filePath !== distRoot && !filePath.startsWith(`${distRoot}${sep}`)) {
     return json(res, 403, { error: 'Caminho inválido.' });
   }
-  if (!existsSync(filePath)) filePath = join(distDir, 'index.html');
+  const requestedFileExists = existsSync(filePath);
+  const isNavigation = !extname(requestedPath);
+  let seoEntry = resolveSeoEntry(url.pathname, manifest.entries);
+  let knownRoute = isKnownPublicSeoPath(url.pathname, manifest);
+  const contentMatch = url.pathname.match(/^\/conteudos\/([a-z0-9-]+)$/);
+  if (contentMatch && !seoEntry) {
+    let client;
+    try {
+      client = dbClient();
+      await client.connect();
+      seoEntry = await getPublishedContentSeoEntry(client, contentMatch[1]);
+      knownRoute = Boolean(seoEntry);
+    } catch { knownRoute = false; }
+    finally { try { await client?.end(); } catch { /* conexão não chegou a abrir */ } }
+  }
+  if (!requestedFileExists && !isNavigation) return json(res, 404, { error: 'Arquivo não encontrado.' });
+  if (!requestedFileExists) filePath = join(distDir, 'index.html');
   const ext = extname(filePath);
-  const isPrivateRoute = ['/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'].some((prefix) => url.pathname.startsWith(prefix));
+  const isPrivateRoute = isPrivateSeoPath(url.pathname) || seoEntry?.indexable === false;
   const cacheControl = filePath.endsWith('sw.js') || filePath.endsWith('index.html') ? 'no-cache' : /\.[a-f0-9_-]{8,}\.(?:js|css)$/i.test(filePath) ? 'public, max-age=31536000, immutable' : 'public, max-age=3600';
-  res.writeHead(200, {
+  const status = !requestedFileExists && !knownRoute ? 404 : 200;
+  const headers = {
     ...securityHeaders(),
     'Content-Type': contentTypes[ext] || 'application/octet-stream',
     'Cache-Control': cacheControl,
-    ...(isPrivateRoute ? { 'X-Robots-Tag': 'noindex, nofollow' } : {}),
-  });
-  createReadStream(filePath).pipe(res);
+    ...((isPrivateRoute || status === 404) ? { 'X-Robots-Tag': 'noindex, nofollow' } : {}),
+  };
+  if (filePath.endsWith('index.html')) {
+    const fallbackEntry = status === 404 ? { path: url.pathname, title: 'Página não encontrada | Nextia', description: 'A página solicitada não foi encontrada.', indexable: false } : seoEntry;
+    const html = injectSeoIntoHtml(readFileSync(filePath, 'utf8'), fallbackEntry, appBaseUrl(req));
+    res.writeHead(status, headers);
+    return res.end(html);
+  }
+  res.writeHead(status, headers);
+  return createReadStream(filePath).pipe(res);
+}
+
+function loadSeoManifest() {
+  if (seoManifestCache) return seoManifestCache;
+  const candidates = [join(distDir, 'seo-manifest.json'), join(process.cwd(), 'public', 'seo-manifest.json')];
+  for (const path of candidates) {
+    try {
+      seoManifestCache = JSON.parse(readFileSync(path, 'utf8'));
+      return seoManifestCache;
+    } catch { /* tenta a próxima fonte gerada */ }
+  }
+  return { entries: [], redirects: [] };
+}
+
+async function handleOperationsHealth(req, res) {
+  const client = dbClient();
+  const startedAt = Date.now();
+  await client.connect();
+  try {
+    const session = await getSessionProfile(req, client);
+    if (!session) return json(res, 401, { error: 'Não autenticado.' });
+    if (session.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+    const [database, queue, webhooks] = await Promise.all([
+      client.query('SELECT 1 AS ok'),
+      client.query(`SELECT COUNT(*) FILTER(WHERE status IN ('pending','retry','processing'))::int AS pending, COUNT(*) FILTER(WHERE status='dead_letter')::int AS dead_letter FROM public.outbox_events`),
+      client.query(`SELECT COUNT(*) FILTER(WHERE status='failed')::int AS failed, COUNT(*) FILTER(WHERE status='failed' AND created_at>=NOW()-INTERVAL '24 hours')::int AS failed_24h FROM public.provider_webhook_events`),
+    ]);
+    const memory = process.memoryUsage();
+    const snapshot = {
+      status: Number(queue.rows[0].dead_letter) > 0 || Number(webhooks.rows[0].failed_24h) > 0 ? 'attention' : 'healthy',
+      database: { status: database.rows[0]?.ok === 1 ? 'connected' : 'unknown', latency_ms: Date.now() - startedAt },
+      queue: queue.rows[0],
+      webhooks: webhooks.rows[0],
+      process: { uptime_seconds: Math.round(process.uptime()), rss_bytes: memory.rss, heap_used_bytes: memory.heapUsed },
+      checked_at: new Date().toISOString(),
+    };
+    return json(res, 200, snapshot);
+  } finally {
+    await client.end();
+  }
 }
 
 createServer(async (req, res) => {
+  const startedAt = Date.now();
+  const requestId = resolveRequestId(req.headers['x-request-id']);
+  res.setHeader('X-Request-ID', requestId);
+  res.once('finish', () => {
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+      service: 'nextia-http',
+      event: 'http.request.completed',
+      request_id: requestId,
+      method: req.method,
+      path: String(req.url || '/').split('?')[0],
+      duration_ms: Date.now() - startedAt,
+      status: res.statusCode,
+    }));
+  });
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    if (url.pathname === '/health' || url.pathname === '/healthz' || url.pathname === '/api/health') {
-      return json(res, 200, { status: 'ok', timestamp: new Date().toISOString() });
+    if (url.pathname === '/health') {
+      return json(res, 200, { status: 'ok', service: 'nextia-http', timestamp: new Date().toISOString() });
+    }
+    if (url.pathname === '/healthz' || url.pathname === '/api/health') {
+      if (!process.env.DATABASE_URL) return json(res, 503, { status: 'not_ready', database: 'not_configured' });
+      const healthClient = dbClient();
+      try {
+        await healthClient.connect();
+        await healthClient.query('SELECT 1');
+        return json(res, 200, { status: 'ready', database: 'connected', timestamp: new Date().toISOString() });
+      } catch {
+        return json(res, 503, { status: 'not_ready', database: 'unavailable' });
+      } finally {
+        try { await healthClient.end(); } catch { /* conexão não abriu */ }
+      }
+    }
+    if (url.pathname === '/api/admin/operations/health' && req.method === 'GET') {
+      return await handleOperationsHealth(req, res);
     }
     if (url.pathname.startsWith('/api/auth/')) {
       return await handleAuth(req, res, url.pathname);
@@ -4615,6 +4774,19 @@ createServer(async (req, res) => {
     }
     if (isAutomationApiPath(url.pathname)) {
       return await handleAutomationApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
+    if (isCustomerSuccessApiPath(url.pathname)) {
+      return await handleCustomerSuccessApi(req, res, url, {
+        dbClient,
+        ensureCommercialSchema: ensureCommercialCatalogSchema,
+        ensureAutomation: ensureAutomationSchema,
+        getSessionProfile,
+        json,
+        readJson,
+      });
+    }
+    if (isContentApiPath(url.pathname)) {
+      return await handleContentApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
     if (url.pathname.startsWith('/api/catalog/') || url.pathname.startsWith('/api/admin/catalog') || url.pathname.startsWith('/api/admin/commerce') || url.pathname.startsWith('/api/commerce/')) {
       return await handleCatalogApi(req, res, url);
@@ -4665,7 +4837,12 @@ createServer(async (req, res) => {
     return await serveStatic(req, res);
   } catch (err) {
     const incidentId = randomUUID();
-    console.error(`[SERVER UNHANDLED EXCEPTION ${incidentId}]`, {
+    console.error(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      service: 'nextia-http',
+      event: 'http.request.failed',
+      request_id: requestId,
       incidentId,
       url: req.url,
       method: req.method,
@@ -4675,7 +4852,7 @@ createServer(async (req, res) => {
       detail: err.detail,
       message: err.message,
       stack: err.stack,
-    });
+    }));
     return json(res, 500, { error: 'Internal server error', incidentId });
   }
 }).listen(port, () => {
@@ -4688,6 +4865,8 @@ createServer(async (req, res) => {
         await ensureAppSchema(client);
         await ensureCommercialCatalogSchema(client);
         await ensureAutomationSchema(client);
+        await ensureCustomerSuccessSchema(client);
+        await ensureContentSchema(client);
         await client.end();
         console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
         if (process.env.AUTOMATION_WORKER_ENABLED !== 'false') {

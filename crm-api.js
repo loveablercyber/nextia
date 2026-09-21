@@ -268,10 +268,14 @@ async function crmRouter(req, res, url, context) {
   if (pathname === '/api/admin/crm/opportunities' && req.method === 'GET') {
     const values = [];
     const where = [];
+    const page = positiveInt(url.searchParams.get('page'), 1, 100000);
+    const limit = positiveInt(url.searchParams.get('limit'), 50, 100);
     const status = url.searchParams.get('status');
     if (status) { values.push(status); where.push(`o.status=$${values.length}`); }
     const pipelineId = url.searchParams.get('pipelineId');
     if (pipelineId) { values.push(uuid(pipelineId, 'Pipeline')); where.push(`o.pipeline_id=$${values.length}`); }
+    const filterSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const countResult = await client.query(`SELECT COUNT(*)::int AS total FROM public.crm_opportunities o ${filterSql}`, values);
     const result = await client.query(
       `SELECT o.*, o.estimated_value_cents / 100.0 AS estimated_value,
               COALESCE(l.name, customer.name) AS lead_name, l.email AS lead_email, l.company_name AS lead_company,
@@ -283,10 +287,11 @@ async function crmRouter(req, res, url, context) {
        JOIN public.crm_pipeline_stages s ON s.id=o.stage_id
        JOIN public.crm_pipelines p ON p.id=o.pipeline_id
        LEFT JOIN public.profiles owner ON owner.id=o.assigned_user_id
-       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-       ORDER BY s.position, o.updated_at DESC`, values,
+       ${filterSql}
+       ORDER BY s.position, o.updated_at DESC
+       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`, [...values, limit, (page - 1) * limit],
     );
-    return json(res, 200, { opportunities: result.rows });
+    return json(res, 200, { opportunities: result.rows, total: countResult.rows[0].total, page, limit });
   }
 
   if (pathname === '/api/admin/crm/opportunities/create' && req.method === 'POST') {
@@ -433,8 +438,12 @@ async function crmRouter(req, res, url, context) {
   }
 
   if (pathname === '/api/admin/crm/proposals' && req.method === 'GET') {
+    const page = positiveInt(url.searchParams.get('page'), 1, 100000);
+    const limit = positiveInt(url.searchParams.get('limit'), 50, 100);
     await client.query(`UPDATE public.crm_proposals SET status='expired', updated_at=NOW() WHERE status IN ('sent','viewed') AND valid_until < CURRENT_DATE`);
-    const result = await client.query(
+    const [countResult, result] = await Promise.all([
+      client.query('SELECT COUNT(*)::int AS total FROM public.crm_proposals'),
+      client.query(
       `SELECT pr.*, o.title AS opportunity_title, o.public_code AS opportunity_code,
               COALESCE(l.name, customer.name) AS lead_name, l.email AS lead_email, l.profile_id AS lead_profile_id,
               q.id AS pricing_quote_id, q.expires_at AS pricing_quote_expires_at, q.consumed AS pricing_quote_consumed,
@@ -445,9 +454,10 @@ async function crmRouter(req, res, url, context) {
        LEFT JOIN public.commercial_orders co ON co.pricing_quote_id=q.id
        LEFT JOIN public.invoices i ON i.order_id=co.id
        LEFT JOIN LATERAL (SELECT status FROM public.payment_transactions pt0 WHERE pt0.invoice_id=i.id ORDER BY pt0.created_at DESC LIMIT 1) pt ON TRUE
-       ORDER BY pr.created_at DESC`,
-    );
-    return json(res, 200, { proposals: result.rows });
+       ORDER BY pr.created_at DESC LIMIT $1 OFFSET $2`, [limit, (page - 1) * limit],
+      ),
+    ]);
+    return json(res, 200, { proposals: result.rows, total: countResult.rows[0].total, page, limit });
   }
 
   if (pathname === '/api/admin/crm/proposals/create' && req.method === 'POST') {
@@ -569,7 +579,16 @@ async function crmRouter(req, res, url, context) {
 
   if (pathname === '/api/admin/crm/dashboard' && req.method === 'GET') {
     const days = positiveInt(url.searchParams.get('days'), 30, 3650);
-    const [leadStatuses, newLeads, stages, won, lost, activities, sources] = await Promise.all([
+    const dimensionQuery = (column) => client.query(
+      `SELECT COALESCE(NULLIF(${column},''),'nao_informado') AS key,
+              COUNT(*)::int AS leads,
+              COUNT(*) FILTER (WHERE status='won' OR converted_at IS NOT NULL)::int AS conversions
+       FROM public.crm_leads
+       WHERE archived_at IS NULL AND created_at>=NOW()-($1::int * INTERVAL '1 day')
+       GROUP BY 1 ORDER BY leads DESC LIMIT 10`,
+      [days],
+    );
+    const [leadStatuses, newLeads, stages, won, lost, activities, sources, cities, segments, services] = await Promise.all([
       client.query(`SELECT status, COUNT(*)::int AS count FROM public.crm_leads WHERE archived_at IS NULL GROUP BY status`),
       client.query(`SELECT COUNT(*)::int AS count FROM public.crm_leads WHERE created_at >= NOW()-($1::int * INTERVAL '1 day')`, [days]),
       client.query(`SELECT s.name,s.color,COUNT(o.id)::int AS count,COALESCE(SUM(o.estimated_value_cents),0)::bigint/100.0 AS value FROM public.crm_pipeline_stages s LEFT JOIN public.crm_opportunities o ON o.stage_id=s.id AND o.status='open' WHERE s.is_active=TRUE GROUP BY s.id ORDER BY s.position`),
@@ -577,6 +596,9 @@ async function crmRouter(req, res, url, context) {
       client.query(`SELECT COUNT(*)::int AS count FROM public.crm_opportunities WHERE status='lost' AND lost_at >= NOW()-($1::int * INTERVAL '1 day')`, [days]),
       client.query(`SELECT COUNT(*) FILTER (WHERE status='pending')::int AS pending, COUNT(*) FILTER (WHERE status='pending' AND scheduled_at<NOW())::int AS overdue, COUNT(*) FILTER (WHERE status='completed' AND completed_at>=NOW()-($1::int * INTERVAL '1 day'))::int AS completed FROM public.crm_activities`, [days]),
       client.query(`SELECT COALESCE(NULLIF(source,''),'direto') AS source,COUNT(*)::int AS count FROM public.crm_leads WHERE created_at>=NOW()-($1::int * INTERVAL '1 day') GROUP BY 1 ORDER BY count DESC LIMIT 10`, [days]),
+      dimensionQuery('city_slug'),
+      dimensionQuery('segment_slug'),
+      dimensionQuery('service_slug'),
     ]);
     const byStatus = Object.fromEntries(leadStatuses.rows.map((row) => [row.status, row.count]));
     const pipelineValue = stages.rows.reduce((sum, row) => sum + Number(row.value), 0);
@@ -585,6 +607,11 @@ async function crmRouter(req, res, url, context) {
       opportunities: { byStage: stages.rows, won: won.rows[0], lost: lost.rows[0].count, pipelineValue },
       activities: { pending: activities.rows[0].pending, overdue: activities.rows[0].overdue, completedInPeriod: activities.rows[0].completed },
       topSources: sources.rows, period: { days },
+      regionalBreakdown: {
+        cities: cities.rows,
+        segments: segments.rows,
+        services: services.rows,
+      },
     });
   }
 

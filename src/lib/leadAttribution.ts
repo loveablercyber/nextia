@@ -44,6 +44,7 @@ function readUtms(): Record<string, string | null> {
   const params = new URLSearchParams(window.location.search);
   const out: Record<string, string | null> = {};
   for (const k of UTM_KEYS) out[k] = params.get(k);
+  if (!out.utm_content) out.utm_content = params.get('content');
   return out;
 }
 
@@ -70,11 +71,11 @@ export function captureAttribution(): void {
     const externalRef = referrerHost(document.referrer);
     const previousLast = readSnapshot(sessionStorage, LAST_TOUCH_KEY);
     const snapshot: TouchSnapshot = {
-      utm_source: hasAnyUtm ? utms.utm_source : previousLast?.utm_source || null,
-      utm_medium: hasAnyUtm ? utms.utm_medium : previousLast?.utm_medium || null,
-      utm_campaign: hasAnyUtm ? utms.utm_campaign : previousLast?.utm_campaign || null,
-      utm_term: hasAnyUtm ? utms.utm_term : previousLast?.utm_term || null,
-      utm_content: hasAnyUtm ? utms.utm_content : previousLast?.utm_content || null,
+      utm_source: hasAnyUtm ? utms.utm_source ?? previousLast?.utm_source ?? null : previousLast?.utm_source || null,
+      utm_medium: hasAnyUtm ? utms.utm_medium ?? previousLast?.utm_medium ?? null : previousLast?.utm_medium || null,
+      utm_campaign: hasAnyUtm ? utms.utm_campaign ?? previousLast?.utm_campaign ?? null : previousLast?.utm_campaign || null,
+      utm_term: hasAnyUtm ? utms.utm_term ?? previousLast?.utm_term ?? null : previousLast?.utm_term || null,
+      utm_content: hasAnyUtm ? utms.utm_content ?? previousLast?.utm_content ?? null : previousLast?.utm_content || null,
       referrer: externalRef ? document.referrer : previousLast?.referrer || document.referrer || null,
       landing_page: window.location.pathname + window.location.search,
       ts: new Date().toISOString(),

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Search, RefreshCw } from 'lucide-react';
 import { requestJson } from '../../lib/appData';
+import AdminPagination from '../../components/admin/AdminPagination';
 
 interface MigrationIssue {
   id: string;
@@ -22,22 +23,25 @@ export default function AdminMigrationIssuesPage() {
   const [search, setSearch] = useState('');
   const [resolvingIssue, setResolvingIssue] = useState<MigrationIssue | null>(null);
   const [notes, setNotes] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await requestJson<{ issues: MigrationIssue[] }>('/api/admin/app/migration-issues');
+      const res = await requestJson<{ issues: MigrationIssue[]; total: number }>(`/api/admin/app/migration-issues?page=${page}&limit=50`);
       setIssues(res.issues || []);
+      setTotal(Number(res.total) || 0);
     } catch (err) {
       console.error('Falha ao carregar ocorrências:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleResolve = async (status: 'resolved' | 'ignored') => {
     if (!resolvingIssue) return;
@@ -158,6 +162,8 @@ export default function AdminMigrationIssuesPage() {
           </div>
         )}
       </div>
+
+      <AdminPagination page={page} total={total} onPageChange={setPage} />
 
       {/* Resolution Modal */}
       {resolvingIssue && (

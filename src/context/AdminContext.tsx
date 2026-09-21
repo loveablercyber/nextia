@@ -21,7 +21,6 @@ interface AdminContextValue {
   quotes: AdminQuote[];
   profiles: User[];
   loading: boolean;
-  updateProjectProgress: (projectId: string, progress: number) => Promise<void>;
   updateProjectStatus: (projectId: string, status: Project['status']) => Promise<void>;
   updateRequestStatus: (projectId: string, requestId: string, status: ChangeRequest['status']) => Promise<void>;
   createInvoice: (projectId: string, desc: string, amount: number, type: 'ativacao' | 'mensalidade') => Promise<void>;
@@ -62,11 +61,28 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [appData, usersData] = await Promise.all([
+      const [appData, usersData, projectSummary] = await Promise.all([
         requestJson<{ projects: DatabaseRecord[]; quotes: AdminQuote[] }>('/api/admin/app/data'),
         requestJson<{ users: User[] }>('/api/admin/users'),
+        requestJson<{ projects: DatabaseRecord[] }>('/api/admin/app/projects'),
       ]);
-      setProjects(appData.projects.map(mapProjectDbToUi));
+      const summaries = new Map(projectSummary.projects.map((item) => [String(item.id), item]));
+      setProjects(appData.projects.map((record) => {
+        const project = mapProjectDbToUi(record);
+        const summary = summaries.get(project.id) || {};
+        return {
+          ...project,
+          serviceSlug: summary.service_slug ? String(summary.service_slug) : undefined,
+          serviceName: summary.service_name_snapshot ? String(summary.service_name_snapshot) : undefined,
+          customerName: summary.customer_name ? String(summary.customer_name) : undefined,
+          customerEmail: summary.customer_email ? String(summary.customer_email) : undefined,
+          responsibleName: summary.responsible_name ? String(summary.responsible_name) : undefined,
+          responsibleUserId: summary.responsible_user_id ? String(summary.responsible_user_id) : undefined,
+          nextStage: summary.next_stage ? String(summary.next_stage) : undefined,
+          pendingCount: Number(summary.pending_count || 0),
+          updatedAt: summary.updated_at ? String(summary.updated_at) : undefined,
+        };
+      }));
       setQuotes(appData.quotes || []);
       setProfiles(usersData.users || []);
     } catch (error) {
@@ -84,24 +100,14 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [fetchAllData]);
 
-  const updateProjectProgress = async (projectId: string, progress: number) => {
-    const project = projects.find((item) => item.id === projectId);
-    await requestJson('/api/admin/app/project/progress', {
-      method: 'POST', body: JSON.stringify({ projectId, progress }),
-    });
-    setProjects((current) => current.map((item) => item.id === projectId ? { ...item, progressPercent: progress } : item));
-    if (project) await addNotification('Progresso atualizado', `O projeto "${project.name}" atingiu ${progress}%.`, 'project', project.userId);
-  };
-
   const updateProjectStatus = async (projectId: string, status: Project['status']) => {
     const project = projects.find((item) => item.id === projectId);
-    await requestJson('/api/admin/app/project/status', {
-      method: 'POST', body: JSON.stringify({ projectId, status }),
+    const data = await requestJson<{ project: DatabaseRecord }>('/api/admin/app/project/status-safe', {
+      method: 'POST', body: JSON.stringify({ projectId, status, version: project?.version }),
     });
     setProjects((current) => current.map((item) => item.id === projectId
-      ? { ...item, status, publishedAt: status === 'publicado' ? item.publishedAt || new Date().toISOString() : item.publishedAt }
+      ? { ...item, status, version: Number(data.project.version || item.version + 1), publishedAt: status === 'publicado' ? item.publishedAt || new Date().toISOString() : item.publishedAt }
       : item));
-    if (project) await addNotification('Status do projeto alterado', `O projeto "${project.name}" agora está como ${status}.`, 'project', project.userId);
   };
 
   const updateRequestStatus = async (projectId: string, requestId: string, status: ChangeRequest['status']) => {
@@ -164,7 +170,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AdminContext.Provider value={{ projects, quotes, profiles, loading, updateProjectProgress, updateProjectStatus, updateRequestStatus, createInvoice, updateQuoteStatus, deleteQuote, createProject, refreshData: fetchAllData }}>
+    <AdminContext.Provider value={{ projects, quotes, profiles, loading, updateProjectStatus, updateRequestStatus, createInvoice, updateQuoteStatus, deleteQuote, createProject, refreshData: fetchAllData }}>
       {children}
     </AdminContext.Provider>
   );

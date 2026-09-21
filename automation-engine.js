@@ -35,6 +35,7 @@ async function resolveCrmRelations(client, event) {
   const payload = payloadObject(event.payload);
   let leadId = payload.leadId || payload.lead_id || null;
   let opportunityId = payload.opportunityId || payload.opportunity_id || null;
+  let customerProfileId = payload.customerId || payload.customer_id || payload.customerProfileId || null;
   const aggregateId = isUuid(event.aggregate_id) ? event.aggregate_id : null;
   if (!leadId && event.aggregate_type === 'crm_lead') leadId = aggregateId;
   if (!opportunityId && event.aggregate_type === 'crm_opportunity') opportunityId = aggregateId;
@@ -48,10 +49,15 @@ async function resolveCrmRelations(client, event) {
     leadId ||= result.rows[0]?.lead_id || null;
   }
   if (!leadId && opportunityId) {
-    const result = await client.query('SELECT lead_id FROM public.crm_opportunities WHERE id=$1', [opportunityId]);
+    const result = await client.query('SELECT lead_id,customer_profile_id FROM public.crm_opportunities WHERE id=$1', [opportunityId]);
     leadId = result.rows[0]?.lead_id || null;
+    customerProfileId ||= result.rows[0]?.customer_profile_id || null;
   }
-  return { leadId: isUuid(leadId) ? leadId : null, opportunityId: isUuid(opportunityId) ? opportunityId : null };
+  return {
+    leadId: isUuid(leadId) ? leadId : null,
+    opportunityId: isUuid(opportunityId) ? opportunityId : null,
+    customerProfileId: isUuid(customerProfileId) ? customerProfileId : null,
+  };
 }
 
 async function getSetting(client, key, fallback = null) {
@@ -346,21 +352,21 @@ export class AutomationEngine {
   }
 
   async createCrmActivity(action, event, actionRunId) {
-    const { leadId, opportunityId } = await resolveCrmRelations(this.client, event);
-    if (!leadId && !opportunityId) return { skipped: 'crm_entity_not_found' };
+    const { leadId, opportunityId, customerProfileId } = await resolveCrmRelations(this.client, event);
+    if (!leadId && !opportunityId && !customerProfileId) return { skipped: 'crm_entity_not_found' };
     const dueMinutes = Math.max(0, Math.min(525600, Number(action.config.dueInMinutes || 0)));
     const type = ['note','task','follow_up','call','email','whatsapp','meeting','proposal','other'].includes(action.config.activityType)
       ? action.config.activityType : 'task';
     const result = await this.client.query(
       `INSERT INTO public.crm_activities
-        (lead_id,opportunity_id,type,title,description,status,scheduled_at,assigned_user_id,created_by,automation_action_run_id)
-       SELECT $1,$2,$3,$4,$5,'pending',NOW()+($6*INTERVAL '1 minute'),COALESCE(o.assigned_user_id,l.assigned_user_id),NULL,$7
+        (lead_id,opportunity_id,customer_profile_id,type,title,description,status,scheduled_at,assigned_user_id,created_by,automation_action_run_id)
+       SELECT $1,$2,$3,$4,$5,$6,'pending',NOW()+($7*INTERVAL '1 minute'),COALESCE(o.assigned_user_id,l.assigned_user_id),NULL,$8
        FROM (SELECT 1) x
        LEFT JOIN public.crm_leads l ON l.id=$1
        LEFT JOIN public.crm_opportunities o ON o.id=$2
        ON CONFLICT (automation_action_run_id) WHERE automation_action_run_id IS NOT NULL DO UPDATE SET updated_at=NOW()
        RETURNING id,scheduled_at`,
-      [leadId, opportunityId, type, String(action.config.title || 'Atividade automática').slice(0, 300),
+      [leadId, opportunityId, customerProfileId, type, String(action.config.title || 'Atividade automática').slice(0, 300),
         String(action.config.description || '').slice(0, 2000) || null, dueMinutes, actionRunId],
     );
     return { activityId: result.rows[0]?.id, scheduledAt: result.rows[0]?.scheduled_at };

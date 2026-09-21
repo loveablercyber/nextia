@@ -1,8 +1,17 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { createSlidingWindowLimiter, fetchWithTimeout, requestIp } from './operational-guards.js';
 import { ensureCrmSchema } from './crm-api.js';
+import {
+  ensureProjectOperationsSchema,
+  fileChecksum,
+  handleProjectOperationsApi,
+  isAllowedProjectFile,
+  recordProjectEvent,
+  safeFileName,
+} from './project-operations.js';
 
 let appSchemaPromise;
-const publicLeadRateLimit = new Map();
+const publicLeadRateLimit = createSlidingWindowLimiter({ maxEntries: 2_000 });
 
 export async function ensureAppSchema(client) {
   if (!appSchemaPromise) {
@@ -371,6 +380,8 @@ export async function ensureAppSchema(client) {
     });
   }
   await appSchemaPromise;
+  await ensureCrmSchema(client);
+  await ensureProjectOperationsSchema(client);
 }
 
 async function loadProjects(client, userId = null) {
@@ -385,8 +396,11 @@ async function loadProjects(client, userId = null) {
   if (projects.length === 0) return [];
   const ids = projects.map((project) => project.id);
   const [milestones, files, requests, payments] = await Promise.all([
-    client.query('SELECT * FROM public.milestones WHERE project_id = ANY($1::uuid[]) ORDER BY position, estimated_at', [ids]),
-    client.query('SELECT * FROM public.files WHERE project_id = ANY($1::uuid[]) ORDER BY uploaded_at DESC', [ids]),
+    client.query(`SELECT * FROM public.milestones WHERE project_id = ANY($1::uuid[])
+      ${userId ? "AND visibility IN ('client','both')" : ''} ORDER BY position, estimated_at`, [ids]),
+    client.query(`SELECT id,project_id,engagement_id,name,size,type,uploaded_at,uploaded_by,original_name,mime_type,size_bytes,scan_status,visibility
+      FROM public.files WHERE project_id = ANY($1::uuid[]) AND deleted_at IS NULL
+      ${userId ? "AND visibility IN ('client','both')" : ''} ORDER BY uploaded_at DESC`, [ids]),
     client.query('SELECT * FROM public.change_requests WHERE project_id = ANY($1::uuid[]) ORDER BY created_at DESC', [ids]),
     client.query('SELECT * FROM public.payments WHERE project_id = ANY($1::uuid[]) ORDER BY created_at DESC', [ids]),
   ]);
@@ -421,18 +435,15 @@ export function isAppApiPath(pathname) {
 }
 
 function allowPublicLeadRequest(req) {
-  const now = Date.now();
-  const key = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
-  const recent = (publicLeadRateLimit.get(key) || []).filter((timestamp) => now - timestamp < 60_000);
-  if (recent.length >= 10) return false;
-  recent.push(now);
-  publicLeadRateLimit.set(key, recent);
-  if (publicLeadRateLimit.size > 2_000) {
-    for (const [candidate, timestamps] of publicLeadRateLimit) {
-      if (!timestamps.some((timestamp) => now - timestamp < 60_000)) publicLeadRateLimit.delete(candidate);
-    }
-  }
-  return true;
+  return publicLeadRateLimit.allow(requestIp(req), 10);
+}
+
+function pagination(url, fallbackLimit = 50) {
+  const pageValue = Number(url.searchParams.get('page'));
+  const limitValue = Number(url.searchParams.get('limit'));
+  const page = Number.isInteger(pageValue) && pageValue > 0 ? Math.min(pageValue, 100_000) : 1;
+  const limit = Number.isInteger(limitValue) && limitValue > 0 ? Math.min(limitValue, 100) : fallbackLimit;
+  return { page, limit, offset: (page - 1) * limit };
 }
 
 // Cada conversao vira um registro proprio. Coincidencias sao sinalizadas para revisao
@@ -597,7 +608,7 @@ export async function handleAppApi(req, res, url, dependencies) {
 
       const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
       if (!accessToken) return json(res, 503, { error: 'Mercado Pago não configurado.' });
-      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(resourceId)}`, {
+      const paymentResponse = await fetchWithTimeout(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(resourceId)}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!paymentResponse.ok) {
@@ -693,6 +704,9 @@ export async function handleAppApi(req, res, url, dependencies) {
     const session = await getSessionProfile(req, client);
     if (!session) return json(res, 401, { error: 'Usuário não autenticado.' });
 
+    const projectOperationsResult = await handleProjectOperationsApi(req, res, url, { client, session, json, readJson });
+    if (projectOperationsResult !== false) return projectOperationsResult;
+
     if (url.pathname === '/api/app/profile/activity' && req.method === 'GET') {
       const [engagementCount, requestCount, ticketCount, recentRequests] = await Promise.all([
         client.query('SELECT COUNT(*)::int AS count FROM public.service_engagements WHERE user_id=$1', [session.id]),
@@ -732,8 +746,7 @@ export async function handleAppApi(req, res, url, dependencies) {
 
     if (url.pathname === '/api/app/project/file' && req.method === 'POST') {
       const body = await readJson(req);
-      const name = String(body.name || '').trim();
-      const type = String(body.type || 'other');
+      const name = safeFileName(body.name);
       const dataUrl = String(body.dataUrl || '');
       const dataMatch = dataUrl.match(/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
       if (!name || !dataMatch) return json(res, 400, { error: 'Arquivo inválido ou ausente.' });
@@ -744,11 +757,15 @@ export async function handleAppApi(req, res, url, dependencies) {
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ]);
       const mimeType = dataMatch[1].toLowerCase();
+      const type = mimeType.startsWith('image/') ? 'image' : 'document';
       if (!allowedMimeTypes.has(mimeType)) return json(res, 415, { error: 'Formato de arquivo não permitido.' });
       const fileBuffer = Buffer.from(dataMatch[2], 'base64');
       const sizeBytes = fileBuffer.length;
       if (sizeBytes === 0 || sizeBytes > 20 * 1024 * 1024) {
         return json(res, 400, { error: 'Arquivo excede o limite máximo permitido de 20MB.' });
+      }
+      if (!isAllowedProjectFile(mimeType, fileBuffer)) {
+        return json(res, 415, { error: 'O conteúdo do arquivo não corresponde a um formato permitido.' });
       }
       if (!(process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET))) {
         return json(res, 503, { error: 'Armazenamento de arquivos não configurado.' });
@@ -777,47 +794,37 @@ export async function handleAppApi(req, res, url, dependencies) {
         return json(res, 502, { error: 'Não foi possível armazenar o arquivo. Nenhum registro foi criado.' });
       }
       if (!uploadRes?.secure_url || !uploadRes?.public_id) return json(res, 502, { error: 'Armazenamento não confirmou o arquivo.' });
-      const checksum = createHash('sha256').update(fileBuffer).digest('hex');
+      const checksum = fileChecksum(fileBuffer);
 
-      const result = await client.query(
-        `INSERT INTO public.files
-          (project_id,engagement_id,name,size,type,uploaded_by,url,storage_provider,storage_key,secure_url,
-           original_name,mime_type,size_bytes,checksum_sha256,scan_status,uploaded_by_user_id)
-         SELECT p.id,p.engagement_id,$2,$3,$4,$5,$6,'cloudinary',$7,$6,$2,$8,$9,$10,'pending',$11
-         FROM public.projects p WHERE p.id = $1 AND p.user_id = $11
-         RETURNING *`,
-        [body.projectId, name.slice(0, 255), `${(sizeBytes / 1024 / 1024).toFixed(2)} MB`, type, session.name || session.email, uploadRes.secure_url, uploadRes.public_id, mimeType, sizeBytes, checksum, session.id],
-      );
-      if (!result.rows[0]) {
-        const cloudinary = (await import('cloudinary')).v2;
-        await cloudinary.uploader.destroy(uploadRes.public_id, { resource_type: uploadRes.resource_type, type: 'authenticated' }).catch(() => undefined);
-        return json(res, 404, { error: 'Projeto não encontrado.' });
-      }
-      return json(res, 201, { file: result.rows[0] });
-    }
-
-    if (url.pathname === '/api/app/project/change-request' && req.method === 'POST') {
-      const body = await readJson(req);
       await client.query('BEGIN');
       try {
-        const quota = await client.query(
-          `UPDATE public.projects SET requests_remaining = requests_remaining - 1, updated_at = NOW()
-           WHERE id = $1 AND user_id = $2 AND requests_remaining > 0 RETURNING id`,
-          [body.projectId, session.id],
-        );
-        if (!quota.rows[0]) {
-          await client.query('ROLLBACK');
-          return json(res, 409, { error: 'Não há solicitações disponíveis para este projeto.' });
-        }
         const result = await client.query(
-          `INSERT INTO public.change_requests(project_id, title, description, priority, category)
-           VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-          [body.projectId, String(body.title || '').trim(), String(body.description || '').trim(), body.priority || 'normal', body.category || 'geral'],
+          `INSERT INTO public.files
+          (project_id,engagement_id,name,size,type,uploaded_by,url,storage_provider,storage_key,secure_url,
+           original_name,mime_type,size_bytes,checksum_sha256,scan_status,uploaded_by_user_id,visibility,released_at,storage_resource_type)
+         SELECT p.id,p.engagement_id,$2,$3,$4,$5,$6,'cloudinary',$7,$6,$2,$8,$9,$10,'validated',$11,'both',NOW(),$12
+         FROM public.projects p WHERE p.id = $1 AND p.user_id = $11
+         RETURNING *`,
+          [body.projectId, name, `${(sizeBytes / 1024 / 1024).toFixed(2)} MB`, type, session.name || session.email, uploadRes.secure_url, uploadRes.public_id, mimeType, sizeBytes, checksum, session.id, uploadRes.resource_type || 'raw'],
+        );
+        if (!result.rows[0]) {
+          await client.query('ROLLBACK');
+          const cloudinary = (await import('cloudinary')).v2;
+          await cloudinary.uploader.destroy(uploadRes.public_id, { resource_type: uploadRes.resource_type, type: 'authenticated' }).catch(() => undefined);
+          return json(res, 404, { error: 'Projeto não encontrado.' });
+        }
+        await recordProjectEvent(client, { projectId: result.rows[0].project_id, actorId: session.id, type: 'file.uploaded', entityType: 'file', entityId: result.rows[0].id, summary: `Arquivo enviado: ${name}` });
+        await client.query(
+          `INSERT INTO public.notifications(user_id,title,message,type)
+           SELECT id,'Novo arquivo no projeto',$1,'project' FROM public.profiles WHERE role='admin'`,
+          [`${session.name || session.email} enviou “${name}”.`],
         );
         await client.query('COMMIT');
-        return json(res, 201, { request: result.rows[0] });
+        return json(res, 201, { file: result.rows[0] });
       } catch (error) {
         await client.query('ROLLBACK');
+        const cloudinary = (await import('cloudinary')).v2;
+        await cloudinary.uploader.destroy(uploadRes.public_id, { resource_type: uploadRes.resource_type, type: 'authenticated' }).catch(() => undefined);
         throw error;
       }
     }
@@ -843,7 +850,7 @@ export async function handleAppApi(req, res, url, dependencies) {
       const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
       if (!host) return json(res, 500, { error: 'Host da aplicação não identificado.' });
       const baseUrl = `${protocol}://${host}`;
-      const preferenceResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      const preferenceResponse = await fetchWithTimeout('https://api.mercadopago.com/checkout/preferences', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -902,6 +909,7 @@ export async function handleAppApi(req, res, url, dependencies) {
              completed_at = CASE WHEN position <= 2 THEN NOW() ELSE completed_at END WHERE project_id = $1`,
           [pId],
         );
+        await recordProjectEvent(client, { projectId: pId, actorId: session.id, type: 'project.briefing_submitted', summary: 'Briefing enviado pelo cliente.' });
         await client.query('COMMIT');
         const projects = await loadProjects(client, session.id);
         const project = projects.find((item) => item.id === pId) || null;
@@ -1104,7 +1112,8 @@ export async function handleAppApi(req, res, url, dependencies) {
       if (!requireAdmin(session, json, res)) return;
 
       if (url.pathname === '/api/admin/app/engagements' && req.method === 'GET') {
-        const result = await client.query(`
+        const { page, limit, offset } = pagination(url);
+        const [countResult, result] = await Promise.all([client.query('SELECT COUNT(*)::int AS total FROM public.service_engagements'), client.query(`
           SELECT e.*, d.fqdn, d.mode AS domain_mode, d.status AS domain_status, d.registration_fee_cents,
                  p.name AS customer_name, p.email AS customer_email,
                  proj.name AS project_name, proj.status AS project_status
@@ -1112,20 +1121,21 @@ export async function handleAppApi(req, res, url, dependencies) {
           JOIN public.profiles p ON p.id = e.user_id
           LEFT JOIN public.service_domains d ON d.engagement_id = e.id
           LEFT JOIN public.projects proj ON proj.engagement_id = e.id
-          ORDER BY e.created_at DESC
-        `);
-        return json(res, 200, { engagements: result.rows });
+          ORDER BY e.created_at DESC LIMIT $1 OFFSET $2
+        `, [limit, offset])]);
+        return json(res, 200, { engagements: result.rows, total: countResult.rows[0].total, page, limit });
       }
 
       if (url.pathname === '/api/admin/app/domains' && req.method === 'GET') {
-        const result = await client.query(`
+        const { page, limit, offset } = pagination(url);
+        const [countResult, result] = await Promise.all([client.query('SELECT COUNT(*)::int AS total FROM public.service_domains'), client.query(`
           SELECT d.*, e.public_code, e.service_name_snapshot, p.name AS customer_name, p.email AS customer_email
           FROM public.service_domains d
           JOIN public.service_engagements e ON e.id = d.engagement_id
           JOIN public.profiles p ON p.id = e.user_id
-          ORDER BY d.created_at DESC
-        `);
-        return json(res, 200, { domains: result.rows });
+          ORDER BY d.created_at DESC LIMIT $1 OFFSET $2
+        `, [limit, offset])]);
+        return json(res, 200, { domains: result.rows, total: countResult.rows[0].total, page, limit });
       }
 
       if (url.pathname === '/api/admin/app/domains' && req.method === 'PATCH') {
@@ -1144,13 +1154,14 @@ export async function handleAppApi(req, res, url, dependencies) {
       }
 
       if (url.pathname === '/api/admin/app/migration-issues' && req.method === 'GET') {
-        const result = await client.query(`
+        const { page, limit, offset } = pagination(url);
+        const [countResult, result] = await Promise.all([client.query('SELECT COUNT(*)::int AS total FROM public.data_migration_issues'), client.query(`
           SELECT i.*, p.name AS reviewer_name
           FROM public.data_migration_issues i
           LEFT JOIN public.profiles p ON p.id = i.resolved_by
-          ORDER BY i.created_at DESC
-        `);
-        return json(res, 200, { issues: result.rows });
+          ORDER BY i.created_at DESC LIMIT $1 OFFSET $2
+        `, [limit, offset])]);
+        return json(res, 200, { issues: result.rows, total: countResult.rows[0].total, page, limit });
       }
 
       if (url.pathname === '/api/admin/app/migration-issues' && req.method === 'PATCH') {
@@ -1175,9 +1186,9 @@ export async function handleAppApi(req, res, url, dependencies) {
 
       const body = await readJson(req);
       if (url.pathname === '/api/admin/app/project/progress' && req.method === 'POST') {
-        await client.query('UPDATE public.projects SET progress_percent = $1, updated_at = NOW() WHERE id = $2', [Math.max(0, Math.min(100, Number(body.progress))), body.projectId]);
+        return json(res, 410, { error: 'O progresso é calculado pelas etapas concluídas e não pode ser editado manualmente.' });
       } else if (url.pathname === '/api/admin/app/project/status' && req.method === 'POST') {
-        await client.query(`UPDATE public.projects SET status = $1, published_at = CASE WHEN $1 = 'publicado' THEN COALESCE(published_at, NOW()) ELSE published_at END, updated_at = NOW() WHERE id = $2`, [body.status, body.projectId]);
+        return json(res, 410, { error: 'Use a atualização de status com controle de versão.' });
       } else if (url.pathname === '/api/admin/app/request/status' && req.method === 'POST') {
         await client.query(`UPDATE public.change_requests SET status = $1, resolved_at = CASE WHEN $1 = 'concluido' THEN NOW() ELSE NULL END WHERE id = $2`, [body.status, body.requestId]);
       } else if (url.pathname === '/api/admin/app/invoice' && req.method === 'POST') {
@@ -1193,7 +1204,7 @@ export async function handleAppApi(req, res, url, dependencies) {
       } else if (url.pathname === '/api/admin/app/project' && req.method === 'POST') {
         await client.query('BEGIN');
         try {
-          const publicCode = `ENG-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+          const publicCode = `ENG-${randomBytes(4).toString('hex').toUpperCase()}`;
           const serviceSlug = String(body.template || '').includes('loja') || String(body.segment || '').toLowerCase().includes('e-commerce') ? 'lojas-virtuais' : 'sites';
           const serviceCategory = 'digital';
           const workflowKey = serviceSlug === 'lojas-virtuais' ? 'digital_ecommerce' : 'digital_site';
@@ -1218,12 +1229,23 @@ export async function handleAppApi(req, res, url, dependencies) {
           const engagementId = eng.rows[0].id;
 
           const project = await client.query(
-            `INSERT INTO public.projects(user_id,engagement_id,name,template,segment,plan,monthly_fee,activation_fee,estimated_delivery)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-            [body.userId, engagementId, body.name, body.template || '', body.segment || 'Geral', body.plan || 'Pro', Number(body.monthlyFee || 0), Number(body.activationFee || 0), body.estimatedDelivery],
+            `INSERT INTO public.projects
+               (user_id,engagement_id,name,template,segment,plan,monthly_fee,activation_fee,estimated_delivery,
+                source_order_id,source_contract_id,crm_proposal_id,responsible_user_id,service_slug,workflow_key)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+            [body.userId, engagementId, body.name, body.template || '', body.segment || 'Geral', body.plan || 'Pro',
+              Number(body.monthlyFee || 0), Number(body.activationFee || 0), body.estimatedDelivery,
+              body.sourceOrderId || null, body.sourceContractId || null, body.proposalId || null,
+              body.responsibleUserId || session.id, serviceSlug, workflowKey],
           );
           const projectId = project.rows[0].id;
-          const milestones = [
+          const milestones = serviceSlug === 'lojas-virtuais' ? [
+            ['Briefing e catálogo', 'Informações da loja e catálogo inicial recebidos.', 2],
+            ['Identidade e navegação', 'Layout e arquitetura da loja validados.', 5],
+            ['Configuração da loja', 'Produtos, pagamentos e frete configurados.', 10],
+            ['Homologação do cliente', 'Fluxo de compra disponibilizado para revisão.', 12],
+            ['Publicação', 'Loja publicada no domínio contratado.', 14],
+          ] : [
             ['Briefing recebido', 'Formulário de briefing preenchido e arquivos enviados.', 2],
             ['Design aprovado', 'Wireframes e identidade visual aprovados.', 5],
             ['Desenvolvimento', 'Construção do site.', 10],
@@ -1245,6 +1267,7 @@ export async function handleAppApi(req, res, url, dependencies) {
               [projectId, `Taxa de ativação — Plano ${body.plan}`, Number(body.activationFee)],
             );
           }
+          await recordProjectEvent(client, { projectId, actorId: session.id, type: 'project.created', summary: 'Projeto criado pela equipe.', metadata: { engagementId, workflowKey } });
           await client.query('COMMIT');
           const projects = await loadProjects(client);
           return json(res, 201, { project: projects.find((item) => item.id === projectId) });

@@ -10,6 +10,7 @@ export default function ChangeRequestsPage() {
   const { project, addChangeRequest } = useProject();
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     title: '',
@@ -19,18 +20,24 @@ export default function ChangeRequestsPage() {
   });
 
   const changeRequestsList = project?.changeRequests || [];
-  const requestsRemaining = project?.requestsRemaining ?? 5;
-  const requestsTotal = project?.requestsTotal ?? 5;
+  const requestsRemaining = project?.requestsRemaining ?? 0;
+  const requestsTotal = project?.requestsTotal ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.description) return;
 
     setLoading(true);
-    await addChangeRequest(form.title, form.description, form.category, form.priority);
-    setForm({ title: '', description: '', category: 'Conteúdo', priority: 'normal' });
-    setLoading(false);
-    setModalOpen(false);
+    setError(null);
+    try {
+      await addChangeRequest(form.title, form.description, form.category, form.priority);
+      setForm({ title: '', description: '', category: 'Conteúdo', priority: 'normal' });
+      setModalOpen(false);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Não foi possível enviar a solicitação.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getPriorityBadgeColor = (priority: string) => {
@@ -53,7 +60,7 @@ export default function ChangeRequestsPage() {
             </p>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-xs text-gray-400">Novo ciclo inicia no próximo mês</span>
+            <span className="text-xs text-gray-400">Saldo disponível conforme o projeto contratado</span>
             <Button
               variant="gradient"
               size="sm"
@@ -75,7 +82,7 @@ export default function ChangeRequestsPage() {
             <span className="text-gray-300 font-bold text-sm ml-0.5">/ {requestsTotal}</span>
           </div>
           <span className="text-[10px] text-gray-400 leading-relaxed">
-            {requestsRemaining === 0 ? '⚠️ Cota esgotada para este mês' : 'Renovação mensal automática'}
+            {requestsRemaining === 0 ? '⚠️ Nenhuma alteração disponível' : 'Consulte o escopo do projeto para regras do saldo'}
           </span>
         </div>
       </div>
@@ -149,6 +156,7 @@ export default function ChangeRequestsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs font-medium text-red-700">{error}</p>}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                   Título da solicitação

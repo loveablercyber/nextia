@@ -36,26 +36,29 @@ export default function AdminOpportunitiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const fetchData = useCallback(async () => {
     await Promise.resolve();
     try {
       setLoading(true);
       const [oppRes, stagesRes] = await Promise.all([
-        fetch('/api/admin/crm/opportunities'),
+        fetch(`/api/admin/crm/opportunities?page=${page}&limit=50`),
         fetch('/api/admin/crm/stages')
       ]);
       if (!oppRes.ok || !stagesRes.ok) throw new Error('Erro ao carregar dados');
       const oppData = await oppRes.json();
       const stagesData = await stagesRes.json();
       setOpportunities(oppData.opportunities);
+      setTotal(Number(oppData.total) || 0);
       setStages(stagesData.stages);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Falha ao carregar oportunidades.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     // A consulta sincroniza o kanban com o backend do CRM.
@@ -87,7 +90,7 @@ export default function AdminOpportunitiesPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Oportunidades</h2>
-          <p className="text-gray-400 mt-1">{opportunities.length} oportunidades no pipeline</p>
+          <p className="text-gray-400 mt-1">{total} oportunidades no pipeline</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-gray-800 rounded-lg p-1">
@@ -209,6 +212,16 @@ export default function AdminOpportunitiesPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {total > 50 && (
+        <nav aria-label="Paginação de oportunidades" className="flex items-center justify-between rounded-xl border border-gray-800 bg-[#1a2332] px-4 py-3 text-sm text-gray-300">
+          <span>Página {page} de {Math.ceil(total / 50)}</span>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Anterior</button>
+            <button disabled={page * 50 >= total} onClick={() => setPage((value) => value + 1)} className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Próxima</button>
+          </div>
+        </nav>
       )}
 
       {showCreateModal && <CreateOpportunityModal onClose={() => setShowCreateModal(false)} onCreated={fetchData} stages={stages} />}

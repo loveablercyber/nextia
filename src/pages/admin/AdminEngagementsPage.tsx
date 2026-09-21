@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search, RefreshCw, Globe } from 'lucide-react';
 import { requestJson } from '../../lib/appData';
+import AdminPagination from '../../components/admin/AdminPagination';
 
 interface AdminEngagement {
   id: string;
@@ -22,22 +23,25 @@ export default function AdminEngagementsPage() {
   const [engagements, setEngagements] = useState<AdminEngagement[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await requestJson<{ engagements: AdminEngagement[] }>('/api/admin/app/engagements');
+      const res = await requestJson<{ engagements: AdminEngagement[]; total: number }>(`/api/admin/app/engagements?page=${page}&limit=50`);
       setEngagements(res.engagements || []);
+      setTotal(Number(res.total) || 0);
     } catch (err) {
       console.error('Falha ao carregar engajamentos:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const filtered = engagements.filter((e) =>
     e.public_code.toLowerCase().includes(search.toLowerCase()) ||
@@ -143,6 +147,7 @@ export default function AdminEngagementsPage() {
           </div>
         )}
       </div>
+      <AdminPagination page={page} total={total} onPageChange={setPage} />
     </div>
   );
 }

@@ -23,6 +23,7 @@ export async function requestJson<T>(url: string, init?: RequestInit): Promise<T
 export function mapProjectDbToUi(dbProj: DatabaseRecord): Project {
   return {
     id: String(dbProj.id || ''),
+    version: Number(dbProj.version || 1),
     userId: String(dbProj.user_id || ''),
     name: String(dbProj.name || ''),
     template: dbProj.template ? String(dbProj.template) : undefined,
@@ -56,7 +57,9 @@ export function mapProjectDbToUi(dbProj: DatabaseRecord): Project {
       type: item.type as Project['files'][number]['type'],
       uploadedAt: String(item.uploaded_at || ''),
       uploadedBy: String(item.uploaded_by || ''),
-      url: String(item.url || ''),
+      url: '',
+      mimeType: item.mime_type ? String(item.mime_type) : undefined,
+      visibility: item.visibility as Project['files'][number]['visibility'],
     })),
     changeRequests: records(dbProj.change_requests).map((item) => ({
       id: String(item.id || ''),

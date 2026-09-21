@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings, Workflow, Bot, ShieldCheck
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings, Workflow, Bot, ShieldCheck, HeartHandshake, BookOpen
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +38,8 @@ const navGroups: NavGroup[] = [
       { to: '/admin/catalogo', icon: FileText, label: 'Catálogo Comercial' },
       { to: '/admin/modelos', icon: FileText, label: 'Modelos de Sites' },
       { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
+      { to: '/admin/customer-success', icon: HeartHandshake, label: 'Recorrência e pós-venda' },
+      { to: '/admin/conteudos', icon: BookOpen, label: 'Conteúdo e SEO' },
     ],
   },
   {

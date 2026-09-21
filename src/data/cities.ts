@@ -27,6 +27,9 @@ export interface CitySegmentItem {
 
 export interface CityData {
   slug: string;
+  operationalStatus: 'active' | 'inactive';
+  contentStatus: 'validated' | 'draft';
+  enabledServiceSlugs: string[];
   name: string;
   state: string;
   stateFullName: string;
@@ -107,6 +110,9 @@ export interface CityData {
 export const CITIES_DATA: Record<string, CityData> = {
   bauru: {
     slug: 'bauru',
+    operationalStatus: 'active',
+    contentStatus: 'validated',
+    enabledServiceSlugs: ['criacao-de-sites', 'loja-virtual', 'whatsapp-ia', 'suporte-ti', 'automacao', 'desenvolvimento-de-sistemas'],
     name: 'Bauru',
     state: 'SP',
     stateFullName: 'São Paulo',
@@ -460,6 +466,9 @@ export const CITIES_DATA: Record<string, CityData> = {
 
   marilia: {
     slug: 'marilia',
+    operationalStatus: 'active',
+    contentStatus: 'validated',
+    enabledServiceSlugs: ['criacao-de-sites', 'loja-virtual', 'whatsapp-ia', 'suporte-ti', 'automacao', 'desenvolvimento-de-sistemas'],
     name: 'Marília',
     state: 'SP',
     stateFullName: 'São Paulo',
@@ -814,9 +823,16 @@ export const CITIES_DATA: Record<string, CityData> = {
 
 export function getCityData(slug: string): CityData | null {
   const normalized = String(slug || '').toLowerCase().trim();
-  return CITIES_DATA[normalized] || null;
+  const city = CITIES_DATA[normalized];
+  return city?.operationalStatus === 'active' && city.contentStatus === 'validated' ? city : null;
 }
 
 export function getAllCities(): CityData[] {
-  return Object.values(CITIES_DATA);
+  return Object.values(CITIES_DATA).filter((city) => city.operationalStatus === 'active' && city.contentStatus === 'validated');
+}
+
+export function isServiceAvailableInCity(citySlug: string, serviceSlug: string): boolean {
+  const city = getCityData(citySlug);
+  const normalizedService = String(serviceSlug || '').toLowerCase().trim();
+  return Boolean(city && city.enabledServiceSlugs.includes(normalizedService));
 }

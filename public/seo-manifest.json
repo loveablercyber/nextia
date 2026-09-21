@@ -1,0 +1,978 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-21T15:37:12.577Z",
+  "entries": [
+    {
+      "path": "/",
+      "title": "Sites profissionais e tecnologia para empresas | Nextia",
+      "description": "Criação de sites profissionais, automação, suporte de TI, redes, Wi-Fi, câmeras e backup para empresas em Bauru e todo o Brasil.",
+      "changefreq": "weekly",
+      "priority": "1.0",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/sites",
+      "title": "Criação de Sites Profissionais | Nextia",
+      "description": "Sites profissionais, responsivos e preparados para apresentar sua empresa e captar oportunidades.",
+      "changefreq": "monthly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/landing-pages",
+      "title": "Landing Pages Profissionais | Nextia",
+      "description": "Landing pages responsivas e orientadas a conversão para campanhas e serviços reais.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/lojas-virtuais",
+      "title": "Lojas Virtuais | Nextia",
+      "description": "Lojas virtuais profissionais com catálogo, checkout e integrações adequadas ao seu negócio.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/sistemas",
+      "title": "Sistemas Sob Medida | Nextia",
+      "description": "Sistemas sob medida para organizar processos e integrar a operação da sua empresa.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/automacao-ia",
+      "title": "Automação e Inteligência Artificial | Nextia",
+      "description": "Automação responsável de processos e atendimento com inteligência artificial.",
+      "changefreq": "monthly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/chatbot",
+      "title": "Chatbots para Empresas | Nextia",
+      "description": "Chatbots para triagem e atendimento integrados aos processos da empresa.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/automacao-whatsapp",
+      "title": "Automação de WhatsApp | Nextia",
+      "description": "Automação de atendimento no WhatsApp com fluxos controlados e encaminhamento humano.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/techcare",
+      "title": "Nextia TechCare | Suporte de TI",
+      "description": "Suporte técnico contínuo para computadores, sistemas e operação da empresa.",
+      "changefreq": "monthly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/suporte-ti",
+      "title": "Suporte de TI para Empresas | Nextia",
+      "description": "Suporte de TI para manter equipamentos, usuários e sistemas operando com segurança.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/suporte-remoto",
+      "title": "Suporte Remoto de TI | Nextia",
+      "description": "Atendimento remoto para diagnóstico e suporte técnico de TI.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/manutencao-computadores",
+      "title": "Manutenção de Computadores | Nextia",
+      "description": "Manutenção e suporte técnico para computadores de empresas e profissionais.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/manutencao-notebooks",
+      "title": "Manutenção de Notebooks | Nextia",
+      "description": "Diagnóstico, manutenção e suporte técnico para notebooks.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/redes-wifi",
+      "title": "Redes e Wi-Fi para Empresas | Nextia",
+      "description": "Projeto, instalação e melhoria de redes e Wi-Fi corporativo.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/cabeamento",
+      "title": "Cabeamento Estruturado | Nextia",
+      "description": "Cabeamento estruturado e organização de infraestrutura de rede para empresas.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/cameras-seguranca",
+      "title": "Câmeras de Segurança | Nextia",
+      "description": "Instalação e suporte para sistemas de câmeras e monitoramento.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/backup",
+      "title": "Backup e Proteção de Dados | Nextia",
+      "description": "Soluções de backup e proteção para arquivos importantes da empresa.",
+      "changefreq": "monthly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes",
+      "title": "Soluções de Tecnologia por Segmento | Nextia",
+      "description": "Conheça soluções digitais e de tecnologia organizadas pelas necessidades de cada segmento.",
+      "changefreq": "weekly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/modelos",
+      "title": "Modelos de Sites Profissionais | Nextia",
+      "description": "Veja modelos de sites profissionais e escolha uma base para personalizar seu projeto.",
+      "changefreq": "weekly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/portfolio",
+      "title": "Portfólio de Projetos | Nextia",
+      "description": "Projetos publicados pela Nextia somente com autorização e informações verificadas.",
+      "changefreq": "monthly",
+      "priority": "0.6",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/planos",
+      "title": "Planos e Preços | Nextia",
+      "description": "Compare os planos digitais da Nextia e escolha a estrutura adequada ao seu negócio.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/como-funciona",
+      "title": "Como funciona a Nextia",
+      "description": "Conheça o processo de diagnóstico, desenvolvimento, entrega e acompanhamento da Nextia.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/projeto-personalizado",
+      "title": "Projeto Personalizado | Nextia",
+      "description": "Solicite uma avaliação para um projeto digital ou sistema alinhado às necessidades da sua empresa.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/contato",
+      "title": "Contato | Nextia",
+      "description": "Entre em contato com a Nextia para falar sobre tecnologia, suporte ou um novo projeto.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/orcamento",
+      "title": "Solicitar Orçamento | Nextia",
+      "description": "Informe as necessidades do projeto para receber uma avaliação comercial da Nextia.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/conteudos",
+      "title": "Conteúdos sobre tecnologia para empresas | Nextia",
+      "description": "Guias e conteúdos revisados pela equipe Nextia sobre presença digital, automação responsável e operação de TI.",
+      "changefreq": "weekly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/parceiros",
+      "title": "Programa de Parceiros | Nextia",
+      "description": "Conheça o programa de parceiros da Nextia e as regras para indicações comerciais.",
+      "changefreq": "monthly",
+      "priority": "0.5",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/termos",
+      "title": "Termos de Uso | Nextia",
+      "description": "Termos de uso dos serviços e canais digitais da Nextia.",
+      "changefreq": "yearly",
+      "priority": "0.2",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/privacidade",
+      "title": "Política de Privacidade | Nextia",
+      "description": "Política de privacidade e tratamento de dados pessoais da Nextia.",
+      "changefreq": "yearly",
+      "priority": "0.2",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/cookies",
+      "title": "Política de Cookies | Nextia",
+      "description": "Informações sobre o uso de cookies nos canais digitais da Nextia.",
+      "changefreq": "yearly",
+      "priority": "0.2",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru",
+      "title": "Criação de Sites e Tecnologia em Bauru | Nextia",
+      "description": "Criação de sites profissionais, sistemas sob medida, automação, WhatsApp com IA e suporte de TI para empresas de Bauru e região. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia",
+      "title": "Criação de Sites e Soluções de TI em Marília | Nextia",
+      "description": "Criação de sites modernos, sistemas, automação no WhatsApp com IA e suporte de TI para empresas de Marília/SP. Conheça as soluções da Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/criacao-de-sites",
+      "title": "Criação de Sites em Bauru | Sites Profissionais | Nextia",
+      "description": "Criação de sites profissionais em Bauru com design responsivo, SEO, velocidade e WhatsApp integrado. Solicite seu orçamento com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/loja-virtual",
+      "title": "Criação de Loja Virtual em Bauru | E-commerce com PIX | Nextia",
+      "description": "Criação de lojas virtuais em Bauru com catálogo de produtos, pagamentos via PIX e cartão, cálculo de frete e integração WhatsApp. Conheça a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/whatsapp-ia",
+      "title": "WhatsApp com IA em Bauru | Atendimento Automático 24/7 | Nextia",
+      "description": "Automação de WhatsApp com Inteligência Artificial para empresas em Bauru. Atendimento inteligente 24/7, triagem e qualificação de clientes. Conheça a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/suporte-ti",
+      "title": "Suporte de TI em Bauru | Suporte Técnico Empresarial | Nextia TechCare",
+      "description": "Suporte de TI corporativo em Bauru. Manutenção de computadores, suporte remoto rápido, redes Wi-Fi e backup seguro para empresas. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/automacao",
+      "title": "Automação Empresarial em Bauru | Automação de Processos | Nextia",
+      "description": "Automação de processos empresariais em Bauru. Conecte ferramentas, elimine retrabalho manual e aumente a produtividade com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/desenvolvimento-de-sistemas",
+      "title": "Desenvolvimento de Sistemas em Bauru | Software Sob Medida | Nextia",
+      "description": "Desenvolvimento de sistemas web e softwares sob medida para empresas em Bauru. Painéis de gestão, área do cliente e dashboards. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/criacao-de-sites",
+      "title": "Criação de Sites em Marília | Sites Profissionais | Nextia",
+      "description": "Criação de sites modernos e responsivos em Marília com SEO, WhatsApp integrado e alta velocidade. Solicite seu orçamento com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/loja-virtual",
+      "title": "Criação de Loja Virtual em Marília | E-commerce com PIX | Nextia",
+      "description": "Criação de lojas virtuais em Marília com catálogo de produtos, cálculo de frete, pagamento por PIX e integração WhatsApp. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/whatsapp-ia",
+      "title": "WhatsApp com IA em Marília | Atendimento Automático 24/7 | Nextia",
+      "description": "Automação de atendimento no WhatsApp com Inteligência Artificial em Marília. Respostas inteligentes 24/7 e triagem de clientes. Conheça a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/suporte-ti",
+      "title": "Suporte de TI em Marília | Suporte Técnico Empresarial | Nextia",
+      "description": "Suporte de TI corporativo em Marília. Suporte remoto ágil, manutenção preventiva de computadores, redes e backup para empresas. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/automacao",
+      "title": "Automação Empresarial em Marília | Automação de Processos | Nextia",
+      "description": "Automação de processos e fluxos empresariais em Marília. Elimine tarefas manuais, conecte ferramentas e ganhe produtividade com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/marilia/desenvolvimento-de-sistemas",
+      "title": "Desenvolvimento de Sistemas em Marília | Software Sob Medida | Nextia",
+      "description": "Desenvolvimento de sistemas web e softwares personalizados para empresas em Marília. Painéis administrativos, portais de clientes e dashboards. Fale com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/contabilidade/criacao-de-sites",
+      "title": "Criação de Sites para Contabilidade em Bauru | Nextia",
+      "description": "Desenvolvimento de sites profissionais para escritórios contábeis em Bauru. Apresente seus serviços, capte leads e transmita credibilidade digital.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/contabilidade/whatsapp-ia",
+      "title": "WhatsApp com IA para Contabilidade em Bauru | Nextia",
+      "description": "Automatize a triagem e atendimento do seu escritório contábil em Bauru com Inteligência Artificial no WhatsApp. Organização e agilidade sem perder a humanização.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/contabilidade/automacao",
+      "title": "Automação Empresarial para Contabilidade em Bauru | Nextia",
+      "description": "Elimine processos manuais no seu escritório de contabilidade em Bauru. Conecte ferramentas, automatize fluxos de entrada e aumente a produtividade da equipe.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/pizzarias/criacao-de-sites",
+      "title": "Criação de Sites para Pizzarias em Bauru | Nextia",
+      "description": "Tenha o site da sua pizzaria em Bauru com cardápio digital, informações de entrega, horários e integração direta com WhatsApp para pedidos sem taxas.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/pizzarias/whatsapp-ia",
+      "title": "WhatsApp com IA para Pizzarias em Bauru | Nextia",
+      "description": "Atenda clientes da sua pizzaria em Bauru rapidamente em horários de pico. IA para responder horários, enviar cardápio e agilizar pedidos no WhatsApp.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/clinicas/criacao-de-sites",
+      "title": "Criação de Sites para Clínicas em Bauru | Nextia",
+      "description": "Desenvolvimento de sites profissionais para clínicas médicas e estéticas em Bauru. Mostre especialidades, corpo clínico e facilite agendamentos via WhatsApp.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bauru/imobiliarias/criacao-de-sites",
+      "title": "Criação de Sites para Imobiliárias em Bauru | Nextia",
+      "description": "Crie um site profissional para sua imobiliária em Bauru com catálogo de imóveis, busca avançada, painel para corretores e forte captação de leads.",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/contabilidade",
+      "title": "Tecnologia para Contabilidade: Sites, WhatsApp com IA e Automação | Nextia",
+      "description": "Sites profissionais, automação de processos, WhatsApp com IA e área do cliente para escritórios contábeis. Centralize sua tecnologia com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/pizzarias",
+      "title": "Tecnologia para Pizzarias: Cardápio Digital e Pedidos no WhatsApp | Nextia",
+      "description": "Cardápio digital interativo, automação de pedidos pelo WhatsApp e site para pizzarias e delivery. Reduza taxas e atenda mais rápido com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/advocacia",
+      "title": "Tecnologia para Advocacia: Sites e Presença Digital para Advogados | Nextia",
+      "description": "Sites sofisticados para escritórios de advocacia, apresentação de áreas de atuação e triagem de clientes em conformidade com as normas da OAB.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/clinicas",
+      "title": "Tecnologia para Clínicas e Consultórios: Sites e Agendamento | Nextia",
+      "description": "Sites profissionais para clínicas médicas, agendamento online, triagem e confirmação de consultas no WhatsApp. Tecnologia em saúde com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/dentistas",
+      "title": "Tecnologia para Dentistas: Sites e Presença Digital Odontológica | Nextia",
+      "description": "Sites profissionais para dentistas e clínicas odontológicas, agendamento de avaliações e confirmação de consultas no WhatsApp.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/imobiliarias",
+      "title": "Tecnologia para Imobiliárias: Sites e Catálogo de Imóveis | Nextia",
+      "description": "Sites profissionais para imobiliárias e corretores, catálogo de imóveis com filtros de busca e integração com WhatsApp. Conheça a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/pet-shops",
+      "title": "Tecnologia para Pet Shops: Agendamento de Banho e Tosa e Vendas | Nextia",
+      "description": "Sites para pet shops e clínicas veterinárias, agendamento de banho e tosa e catálogo de produtos com atendimento no WhatsApp. Conheça a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/restaurantes",
+      "title": "Tecnologia para Restaurantes: Cardápio Digital e Reservas | Nextia",
+      "description": "Sites para restaurantes e bares, cardápio digital responsivo, reservas online e atendimento pelo WhatsApp. Soluções para gastronomia com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/academias",
+      "title": "Tecnologia para Academias: Sites, Grade de Aulas e Matrículas | Nextia",
+      "description": "Sites para academias, studios de pilates e centros de treino, grade de horários, apresentação de planos e captação de alunos no WhatsApp.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/lojas",
+      "title": "Tecnologia para Lojas e E-commerce: Lojas Virtuais e Catálogo | Nextia",
+      "description": "Criação de lojas virtuais, catálogo de produtos, cálculo de frete e checkout transparente com Pix e cartão. Venda online com a Nextia.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/solucoes/prestadores-de-servicos",
+      "title": "Tecnologia para Prestadores de Serviços: Sites e Orçamentos | Nextia",
+      "description": "Criação de sites profissionais para prestadores de serviços, consultores e técnicos, com portfólio de trabalhos e solicitação de orçamento.",
+      "changefreq": "weekly",
+      "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/restaurante-premium",
+      "title": "Modelo de Site para Restaurante | Restaurante Premium | Nextia",
+      "description": "Template completo para restaurantes com cardápio digital, reservas online e galeria de fotos. Ideal para atrair mais clientes e aumentar as reservas pelo site.",
+      "image": "/images/templates/restaurante-premium.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/restaurante-premium",
+      "title": "Demonstração do modelo Restaurante Premium | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/restaurante-premium.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/salao-elegance",
+      "title": "Modelo de Site para Salão & Barbearia | Salão Elegance | Nextia",
+      "description": "Template moderno para salões de beleza e barbearias com agendamento online, portfólio de serviços e integração com redes sociais. Conquiste mais clientes com uma presença digital incrível.",
+      "image": "/images/templates/salao-elegance.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/salao-elegance",
+      "title": "Demonstração do modelo Salão Elegance | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/salao-elegance.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/servicos-profissionais",
+      "title": "Modelo de Site para Prestador de Serviços | Serviços Profissionais | Nextia",
+      "description": "Template elegante para prestadores de serviços, consultores e profissionais liberais. Apresente seus serviços, conquiste autoridade e gere mais leads qualificados.",
+      "image": "/images/templates/servicos-profissionais.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/servicos-profissionais",
+      "title": "Demonstração do modelo Serviços Profissionais | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/servicos-profissionais.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/loja-catalogo",
+      "title": "Modelo de Site para Loja e Catálogo | Loja & Catálogo | Nextia",
+      "description": "Template para lojas e negócios que querem exibir seus produtos com elegância. Catálogo digital com filtros, fotos e integração com WhatsApp para vendas.",
+      "image": "/images/templates/loja-catalogo.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/loja-catalogo",
+      "title": "Demonstração do modelo Loja & Catálogo | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/loja-catalogo.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/clinica-estetica",
+      "title": "Modelo de Site para Clínica e Estética | Clínica & Estética | Nextia",
+      "description": "Template sofisticado para clínicas, consultórios e centros de estética. Transmita confiança e profissionalismo, com agendamento e apresentação de tratamentos.",
+      "image": "/images/templates/clinica-estetica.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/clinica-estetica",
+      "title": "Demonstração do modelo Clínica & Estética | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/clinica-estetica.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/contabilidade",
+      "title": "Modelo de Site para Contabilidade | Escritório Contábil | Nextia",
+      "description": "Template sério e profissional para contadores e escritórios contábeis. Mostre sua expertise, gere confiança e atraia novos clientes empresariais.",
+      "image": "/images/templates/contabilidade.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/contabilidade",
+      "title": "Demonstração do modelo Escritório Contábil | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/contabilidade.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/imobiliaria",
+      "title": "Modelo de Site para Imobiliária | Imobiliária | Nextia",
+      "description": "Template completo para imobiliárias com listagem de imóveis, filtros de busca e formulários de contato. Profissionalize sua captação e vendas.",
+      "image": "/images/templates/imobiliaria.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/imobiliaria",
+      "title": "Demonstração do modelo Imobiliária | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/imobiliaria.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/oficina-mecanica",
+      "title": "Modelo de Site para Oficina Mecânica | Oficina Mecânica | Nextia",
+      "description": "Template direto ao ponto para oficinas mecânicas e auto centers. Apresente seus serviços, facilite o contato pelo WhatsApp e conquiste mais clientes.",
+      "image": "/images/templates/oficina-mecanica.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/oficina-mecanica",
+      "title": "Demonstração do modelo Oficina Mecânica | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/oficina-mecanica.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/imobiliaria-premium",
+      "title": "Modelo de Site para Imobiliária | Imobiliária Premium | Nextia",
+      "description": "Plataforma completa e sofisticada para imobiliárias de alto padrão, construtoras e corretoras. Busca avançada por geolocalização, simulador de financiamento, tour virtual 360°, agendamento de visitas e captação de leads de altíssimo valor.",
+      "image": "/images/templates/imobiliaria-premium.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/imobiliaria-premium",
+      "title": "Demonstração do modelo Imobiliária Premium | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/imobiliaria-premium.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/loja-moda-premium",
+      "title": "Modelo de Site para Loja Virtual | Loja Moda & Acessórios | Nextia",
+      "description": "E-commerce de moda completo com lookbook interativo, provador virtual, cálculo automático de frete e checkout transparente via Mercado Pago.",
+      "image": "/images/templates/loja-moda-premium.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/loja-moda-premium",
+      "title": "Demonstração do modelo Loja Moda & Acessórios | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/loja-moda-premium.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/loja-gourmet",
+      "title": "Modelo de Site para Loja Virtual | Loja Gourmet & Alimentos | Nextia",
+      "description": "Catálogo virtual para produtos alimentícios, doces finos, bebidas e cestas gourmet com pedidos pelo WhatsApp e pagamento por Pix automático.",
+      "image": "/images/templates/loja-gourmet.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/loja-gourmet",
+      "title": "Demonstração do modelo Loja Gourmet & Alimentos | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/loja-gourmet.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/modelos/loja-tech-store",
+      "title": "Modelo de Site para Loja Virtual | Loja Tech & Eletrônicos | Nextia",
+      "description": "Loja virtual robusta para eletrônicos, informática e variedades com ficha técnica avançada, busca com auto-complete e múltiplos gateways de pagamento.",
+      "image": "/images/templates/loja-tech-store.webp",
+      "changefreq": "monthly",
+      "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/demo/loja-tech-store",
+      "title": "Demonstração do modelo Loja Tech & Eletrônicos | Nextia",
+      "description": "Demonstração interativa de um modelo de site da Nextia.",
+      "image": "/images/templates/loja-tech-store.webp",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/cases",
+      "title": "Cases | Nextia",
+      "description": "Cases verificados da Nextia serão publicados somente com autorização.",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/solicitar-servico",
+      "title": "Solicitar serviço | Nextia",
+      "description": "Formulário para solicitar atendimento da Nextia.",
+      "indexable": false,
+      "type": "website"
+    },
+    {
+      "path": "/parceiros/cadastro",
+      "title": "Cadastro de parceiro | Nextia",
+      "description": "Cadastro no programa de parceiros da Nextia.",
+      "indexable": false,
+      "type": "website"
+    }
+  ],
+  "redirects": [
+    {
+      "from": "/sites-prontos",
+      "to": "/modelos",
+      "status": 301
+    },
+    {
+      "from": "/templates",
+      "to": "/modelos",
+      "status": 301
+    },
+    {
+      "from": "/templates/restaurante-premium",
+      "to": "/modelos/restaurante-premium",
+      "status": 301
+    },
+    {
+      "from": "/templates/salao-elegance",
+      "to": "/modelos/salao-elegance",
+      "status": 301
+    },
+    {
+      "from": "/templates/servicos-profissionais",
+      "to": "/modelos/servicos-profissionais",
+      "status": 301
+    },
+    {
+      "from": "/templates/loja-catalogo",
+      "to": "/modelos/loja-catalogo",
+      "status": 301
+    },
+    {
+      "from": "/templates/clinica-estetica",
+      "to": "/modelos/clinica-estetica",
+      "status": 301
+    },
+    {
+      "from": "/templates/contabilidade",
+      "to": "/modelos/contabilidade",
+      "status": 301
+    },
+    {
+      "from": "/templates/imobiliaria",
+      "to": "/modelos/imobiliaria",
+      "status": 301
+    },
+    {
+      "from": "/templates/oficina-mecanica",
+      "to": "/modelos/oficina-mecanica",
+      "status": 301
+    },
+    {
+      "from": "/templates/imobiliaria-premium",
+      "to": "/modelos/imobiliaria-premium",
+      "status": 301
+    },
+    {
+      "from": "/templates/loja-moda-premium",
+      "to": "/modelos/loja-moda-premium",
+      "status": 301
+    },
+    {
+      "from": "/templates/loja-gourmet",
+      "to": "/modelos/loja-gourmet",
+      "status": 301
+    },
+    {
+      "from": "/templates/loja-tech-store",
+      "to": "/modelos/loja-tech-store",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru",
+      "to": "/bauru",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia",
+      "to": "/marilia",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/criacao-de-sites",
+      "to": "/bauru/criacao-de-sites",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/loja-virtual",
+      "to": "/bauru/loja-virtual",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/whatsapp-ia",
+      "to": "/bauru/whatsapp-ia",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/suporte-ti",
+      "to": "/bauru/suporte-ti",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/automacao",
+      "to": "/bauru/automacao",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/desenvolvimento-de-sistemas",
+      "to": "/bauru/desenvolvimento-de-sistemas",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/criacao-de-sites",
+      "to": "/marilia/criacao-de-sites",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/loja-virtual",
+      "to": "/marilia/loja-virtual",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/whatsapp-ia",
+      "to": "/marilia/whatsapp-ia",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/suporte-ti",
+      "to": "/marilia/suporte-ti",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/automacao",
+      "to": "/marilia/automacao",
+      "status": 301
+    },
+    {
+      "from": "/cidade/marilia/desenvolvimento-de-sistemas",
+      "to": "/marilia/desenvolvimento-de-sistemas",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/contabilidade/criacao-de-sites",
+      "to": "/bauru/contabilidade/criacao-de-sites",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/contabilidade/whatsapp-ia",
+      "to": "/bauru/contabilidade/whatsapp-ia",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/contabilidade/automacao",
+      "to": "/bauru/contabilidade/automacao",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/pizzarias/criacao-de-sites",
+      "to": "/bauru/pizzarias/criacao-de-sites",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/pizzarias/whatsapp-ia",
+      "to": "/bauru/pizzarias/whatsapp-ia",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/clinicas/criacao-de-sites",
+      "to": "/bauru/clinicas/criacao-de-sites",
+      "status": 301
+    },
+    {
+      "from": "/cidade/bauru/imobiliarias/criacao-de-sites",
+      "to": "/bauru/imobiliarias/criacao-de-sites",
+      "status": 301
+    }
+  ]
+}

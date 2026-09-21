@@ -1,6 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Project, ProjectBriefing, ProjectFile } from '../types/project';
+import type {
+  Project, ProjectBriefing, ProjectComment, ProjectDeliverable, ProjectEvent,
+  ProjectFile, ProjectPendingAction, ProjectTask,
+} from '../types/project';
 import { mapProjectDbToUi, requestJson, type DatabaseRecord } from '../lib/appData';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
@@ -9,10 +12,21 @@ import { useOptionalServiceEngagements } from './ServiceEngagementContext';
 interface ProjectContextValue {
   project: Project | null;
   loading: boolean;
+  error: string | null;
+  tasks: ProjectTask[];
+  deliverables: ProjectDeliverable[];
+  comments: ProjectComment[];
+  events: ProjectEvent[];
+  pendingActions: ProjectPendingAction[];
+  refreshProject: () => Promise<void>;
   uploadFile: (file: { name: string; size: string; type: ProjectFile['type']; dataUrl?: string; sizeBytes?: number }) => Promise<void>;
   addChangeRequest: (title: string, description: string, category: string, priority: 'baixa' | 'normal' | 'alta') => Promise<void>;
   startPayment: (paymentId: string) => Promise<string>;
   saveBriefing: (briefingData: Omit<ProjectBriefing, 'submitted' | 'submittedAt'>) => Promise<void>;
+  accessFile: (fileId: string) => Promise<string>;
+  completeClientTask: (taskId: string) => Promise<void>;
+  reviewDeliverable: (deliverableId: string, result: 'approved' | 'changes_requested', comment?: string) => Promise<void>;
+  addComment: (body: string, context?: { deliverableId?: string; taskId?: string }) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -24,19 +38,42 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const activeProjectId = serviceContext?.selectedEngagement?.project_id || null;
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [deliverables, setDeliverables] = useState<ProjectDeliverable[]>([]);
+  const [comments, setComments] = useState<ProjectComment[]>([]);
+  const [events, setEvents] = useState<ProjectEvent[]>([]);
+  const [pendingActions, setPendingActions] = useState<ProjectPendingAction[]>([]);
 
   const refreshProject = useCallback(async () => {
     if (!user || !activeProjectId) {
       setProject(null);
+      setTasks([]); setDeliverables([]); setComments([]); setEvents([]); setPendingActions([]);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setError(null);
     try {
-      const data = await requestJson<{ project: DatabaseRecord | null }>(`/api/app/project?projectId=${encodeURIComponent(activeProjectId)}`);
-      setProject(data.project ? mapProjectDbToUi(data.project) : null);
+      const data = await requestJson<{
+        project: DatabaseRecord | null; tasks: ProjectTask[]; deliverables: ProjectDeliverable[];
+        comments: ProjectComment[]; events: ProjectEvent[]; pendingActions: ProjectPendingAction[];
+        milestones: DatabaseRecord[]; files: DatabaseRecord[]; requests: DatabaseRecord[];
+      }>(`/api/app/project/workspace?projectId=${encodeURIComponent(activeProjectId)}`);
+      setProject(data.project ? mapProjectDbToUi({
+        ...data.project,
+        milestones: data.milestones,
+        files: data.files,
+        change_requests: data.requests,
+      }) : null);
+      setTasks(data.tasks || []);
+      setDeliverables(data.deliverables || []);
+      setComments(data.comments || []);
+      setEvents(data.events || []);
+      setPendingActions(data.pendingActions || []);
     } catch (error) {
       console.error('Error loading project:', error);
+      setError(error instanceof Error ? error.message : 'Não foi possível carregar o projeto.');
       setProject(null);
     } finally {
       setLoading(false);
@@ -55,10 +92,31 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ projectId: project.id, ...file }),
     });
     await refreshProject();
-    await Promise.all([
-      addNotification('Arquivo enviado', `O arquivo "${file.name}" foi registrado no briefing.`, 'project', user.id),
-      addNotification('Novo arquivo enviado', `${user.name} enviou o arquivo "${file.name}".`, 'project', 'admins'),
-    ]);
+  };
+
+  const accessFile = async (fileId: string) => {
+    const data = await requestJson<{ url: string }>(`/api/app/project/file/access?fileId=${encodeURIComponent(fileId)}`);
+    return data.url;
+  };
+
+  const completeClientTask = async (taskId: string) => {
+    await requestJson('/api/app/project/task/complete', { method: 'POST', body: JSON.stringify({ taskId }) });
+    await refreshProject();
+  };
+
+  const reviewDeliverable = async (deliverableId: string, result: 'approved' | 'changes_requested', comment?: string) => {
+    await requestJson('/api/app/project/deliverable/review', {
+      method: 'POST', body: JSON.stringify({ deliverableId, result, comment }),
+    });
+    await refreshProject();
+  };
+
+  const addComment = async (body: string, context: { deliverableId?: string; taskId?: string } = {}) => {
+    if (!project) return;
+    await requestJson('/api/app/project/comment', {
+      method: 'POST', body: JSON.stringify({ projectId: project.id, body, ...context }),
+    });
+    await refreshProject();
   };
 
   const addChangeRequest = async (title: string, description: string, category: string, priority: 'baixa' | 'normal' | 'alta') => {
@@ -68,10 +126,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ projectId: project.id, title, description, category, priority }),
     });
     await refreshProject();
-    await Promise.all([
-      addNotification('Solicitação enviada', `Sua solicitação "${title}" está em análise.`, 'request', user.id),
-      addNotification('Nova solicitação', `${user.name} abriu a solicitação "${title}".`, 'request', 'admins'),
-    ]);
   };
 
   const startPayment = async (paymentId: string) => {
@@ -97,7 +151,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ProjectContext.Provider value={{ project, loading, uploadFile, addChangeRequest, startPayment, saveBriefing }}>
+    <ProjectContext.Provider value={{
+      project, loading, error, tasks, deliverables, comments, events, pendingActions, refreshProject,
+      uploadFile, addChangeRequest, startPayment, saveBriefing, accessFile, completeClientTask,
+      reviewDeliverable, addComment,
+    }}>
       {children}
     </ProjectContext.Provider>
   );

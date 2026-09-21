@@ -3,6 +3,8 @@ import { ArrowRight, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getLocalNicheServiceData } from '../data/localNicheServices';
 import LocalNicheServiceLandingPage from '../components/local/LocalNicheServiceLandingPage';
+import Seo from '../components/seo/Seo';
+import { isServiceAvailableInCity } from '../data/cities';
 
 export default function LocalNicheServicePage() {
   const params = useParams<{ citySlug?: string; segmentSlug?: string; serviceSlug?: string }>();
@@ -26,11 +28,12 @@ export default function LocalNicheServicePage() {
     serviceSlug = parts[2] || '';
   }
 
-  const data = getLocalNicheServiceData(citySlug, segmentSlug, serviceSlug);
+  const data = isServiceAvailableInCity(citySlug, serviceSlug) ? getLocalNicheServiceData(citySlug, segmentSlug, serviceSlug) : null;
 
   if (!data || data.status !== 'published') {
     return (
       <main className="min-h-[75vh] bg-[#07162B] text-white flex items-center justify-center px-4 py-24">
+        <Seo title="Página não encontrada" description="A combinação de cidade, segmento e serviço não está publicada." path={location.pathname} noindex />
         <div className="text-center max-w-md space-y-4">
           <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-blue-400">
             <HelpCircle className="w-7 h-7" />

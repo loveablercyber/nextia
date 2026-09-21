@@ -18,7 +18,18 @@ interface DashboardData {
     completedInPeriod: number;
   };
   topSources: Array<{ source: string; count: number }>;
+  regionalBreakdown: {
+    cities: DimensionMetric[];
+    segments: DimensionMetric[];
+    services: DimensionMetric[];
+  };
   period: { days: number; since: string };
+}
+
+interface DimensionMetric {
+  key: string;
+  leads: number;
+  conversions: number;
 }
 
 export default function AdminCrmDashboardPage() {
@@ -159,7 +170,38 @@ export default function AdminCrmDashboardPage() {
           </div>
         </div>
       )}
+
+      {data?.regionalBreakdown && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <DimensionBreakdown title="Leads por cidade" items={data.regionalBreakdown.cities} />
+          <DimensionBreakdown title="Leads por segmento" items={data.regionalBreakdown.segments} />
+          <DimensionBreakdown title="Leads por serviço" items={data.regionalBreakdown.services} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function DimensionBreakdown({ title, items }: { title: string; items: DimensionMetric[] }) {
+  return (
+    <section className="bg-[#1a2332] rounded-2xl p-5 border border-gray-800">
+      <h3 className="text-base font-semibold text-white mb-4">{title}</h3>
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-500">Sem dados no período.</p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => {
+            const rate = item.leads > 0 ? (item.conversions / item.leads) * 100 : 0;
+            return (
+              <div key={item.key} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-gray-300 truncate" title={item.key}>{item.key.replaceAll('-', ' ')}</span>
+                <span className="text-gray-400 whitespace-nowrap">{item.leads} leads · {rate.toFixed(1)}%</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

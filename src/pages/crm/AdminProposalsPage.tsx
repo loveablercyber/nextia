@@ -41,6 +41,8 @@ export default function AdminProposalsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const loadData = useCallback(async () => {
     await Promise.resolve();
@@ -48,20 +50,21 @@ export default function AdminProposalsPage() {
     setError('');
     try {
       const [proposalResponse, opportunityResponse] = await Promise.all([
-        fetch('/api/admin/crm/proposals', { credentials: 'include', cache: 'no-store' }),
-        fetch('/api/admin/crm/opportunities?status=open', { credentials: 'include', cache: 'no-store' }),
+        fetch(`/api/admin/crm/proposals?page=${page}&limit=50`, { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/admin/crm/opportunities?status=open&limit=100', { credentials: 'include', cache: 'no-store' }),
       ]);
       if (!proposalResponse.ok) throw await readApiError(proposalResponse, 'Falha ao carregar propostas.');
       if (!opportunityResponse.ok) throw await readApiError(opportunityResponse, 'Falha ao carregar oportunidades.');
       const [proposalData, opportunityData] = await Promise.all([proposalResponse.json(), opportunityResponse.json()]);
       setProposals(Array.isArray(proposalData.proposals) ? proposalData.proposals : []);
+      setTotal(Number(proposalData.total) || 0);
       setOpportunities(Array.isArray(opportunityData.opportunities) ? opportunityData.opportunities : []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Falha ao carregar propostas.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     // A consulta sincroniza propostas e oportunidades ao abrir a tela.
@@ -105,7 +108,7 @@ export default function AdminProposalsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Propostas comerciais</h2>
-          <p className="mt-1 text-gray-400">{proposals.length} propostas · {counts.accepted || 0} aceitas</p>
+          <p className="mt-1 text-gray-400">{total} propostas · {counts.accepted || 0} aceitas nesta página</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">
           <Plus className="h-4 w-4" /> Nova proposta
@@ -146,6 +149,16 @@ export default function AdminProposalsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {total > 50 && (
+        <nav aria-label="Paginação de propostas" className="flex items-center justify-between rounded-xl border border-gray-800 bg-[#1a2332] px-4 py-3 text-sm text-gray-300">
+          <span>Página {page} de {Math.ceil(total / 50)}</span>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Anterior</button>
+            <button disabled={page * 50 >= total} onClick={() => setPage((value) => value + 1)} className="rounded bg-gray-800 px-3 py-2 disabled:opacity-40">Próxima</button>
+          </div>
+        </nav>
       )}
 
       {showCreate && <CreateProposalModal opportunities={opportunities} onClose={() => setShowCreate(false)} onCreated={loadData} />}

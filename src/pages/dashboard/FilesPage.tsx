@@ -5,11 +5,12 @@ import {
 import { useProject } from '../../context/ProjectContext';
 
 export default function FilesPage() {
-  const { project, uploadFile } = useProject();
+  const { project, uploadFile, accessFile } = useProject();
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [simulatedFileName, setSimulatedFileName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const filesList = project?.files || [];
 
@@ -40,8 +41,9 @@ export default function FilesPage() {
   };
 
   const startUploadSimulation = async (file: File) => {
+    setError(null);
     if (file.size > 20 * 1024 * 1024) {
-      alert('O arquivo selecionado excede o limite de 20MB.');
+      setError('O arquivo selecionado excede o limite de 20 MB.');
       return;
     }
 
@@ -60,18 +62,23 @@ export default function FilesPage() {
     reader.onload = async () => {
       setUploadProgress(70);
       const dataUrl = reader.result as string;
-      await uploadFile({
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        type: fileType,
-        dataUrl,
-        sizeBytes: file.size,
-      });
-      setUploadProgress(100);
-      setUploading(false);
+      try {
+        await uploadFile({
+          name: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+          type: fileType,
+          dataUrl,
+          sizeBytes: file.size,
+        });
+        setUploadProgress(100);
+      } catch (uploadError) {
+        setError(uploadError instanceof Error ? uploadError.message : 'Falha ao enviar o arquivo.');
+      } finally {
+        setUploading(false);
+      }
     };
     reader.onerror = () => {
-      alert('Falha ao ler o arquivo selecionado.');
+      setError('Falha ao ler o arquivo selecionado.');
       setUploading(false);
     };
     reader.readAsDataURL(file);
@@ -116,7 +123,7 @@ export default function FilesPage() {
             className="hidden"
             onChange={handleFileChange}
             disabled={uploading}
-            multiple
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           />
           
           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md mb-4 text-[#5B4FE9]">
@@ -127,9 +134,11 @@ export default function FilesPage() {
             Arraste seus arquivos aqui ou clique para buscar
           </div>
           <div className="text-gray-400 text-xs">
-            Formatos aceitos: PNG, JPG, PDF, SVG, ZIP, DOCX (Max: 50MB)
+            Formatos aceitos: PNG, JPG, WEBP, GIF, PDF, TXT, CSV, DOCX e XLSX (máx. 20 MB)
           </div>
         </label>
+
+        {error && <p role="alert" className="mt-3 text-xs font-medium text-red-600">{error}</p>}
 
         {/* Upload progress */}
         {uploading && (
@@ -178,13 +187,23 @@ export default function FilesPage() {
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <a
-                    href={file.url}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setError(null);
+                        const url = await accessFile(file.id);
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      } catch (accessError) {
+                        setError(accessError instanceof Error ? accessError.message : 'Não foi possível acessar o arquivo.');
+                      }
+                    }}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
                     title="Baixar arquivo"
+                    aria-label={`Baixar ${file.name}`}
                   >
                     <Download className="w-4 h-4" />
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
