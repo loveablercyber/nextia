@@ -69,6 +69,23 @@ describe('Etapa 10 ownership and RBAC', () => {
     for (const call of client.query.mock.calls) expect(call[1][0]).toBe(clientSession.id);
   });
 
+  it('executes overview queries sequentially on a single PostgreSQL client', async () => {
+    let queryInProgress = false;
+    const client = { query: vi.fn(async () => {
+      if (queryInProgress) throw new Error('concurrent query on the same client');
+      queryInProgress = true;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      queryInProgress = false;
+      return { rows: [] };
+    }) };
+    const output = recorder();
+
+    await handleCustomerSuccessRoute({ method: 'GET' }, {}, new URL('https://test/api/customer-success/overview'), { client, session: clientSession, json: output.json, readJson: vi.fn() });
+
+    expect(output.calls[0].status).toBe(200);
+    expect(client.query).toHaveBeenCalledTimes(5);
+  });
+
   it('does not let a client request cancellation for another customer subscription', async () => {
     const client = { query: vi.fn(async (sql) => String(sql) === 'BEGIN' || String(sql) === 'ROLLBACK' ? { rows: [] } : { rows: [] }) };
     const output = recorder();

@@ -182,43 +182,37 @@ export async function syncRecurringPayment(client, { contractId, resourceId, pro
 
 async function clientOverview(client, customerId, page, limit) {
   const offset = (page - 1) * limit;
-  const [contracts, events, services, feedback, counts] = await Promise.all([
-    client.query(`SELECT id,plan_id,plan_name,service_slug,status,billing_cycle,monthly_amount_cents,currency,current_period_start,current_period_end,next_billing_at,cancellation_requested_at,cancel_at,cancelled_at,created_at FROM public.commercial_plan_contracts WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [customerId, limit, offset]),
-    client.query(`SELECT e.* FROM public.subscription_events e JOIN public.commercial_plan_contracts c ON c.id=e.subscription_id WHERE c.user_id=$1 ORDER BY e.occurred_at DESC,e.id DESC LIMIT $2`, [customerId, limit]),
-    client.query(`SELECT id,service_slug,service_name_snapshot,status,activated_at,completed_at,created_at FROM public.service_engagements WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]),
-    client.query(`SELECT id,rating,comment,context,created_at FROM public.customer_feedback WHERE customer_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]),
-    client.query(`SELECT
+  const contracts = await client.query(`SELECT id,plan_id,plan_name,service_slug,status,billing_cycle,monthly_amount_cents,currency,current_period_start,current_period_end,next_billing_at,cancellation_requested_at,cancel_at,cancelled_at,created_at FROM public.commercial_plan_contracts WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [customerId, limit, offset]);
+  const events = await client.query(`SELECT e.* FROM public.subscription_events e JOIN public.commercial_plan_contracts c ON c.id=e.subscription_id WHERE c.user_id=$1 ORDER BY e.occurred_at DESC,e.id DESC LIMIT $2`, [customerId, limit]);
+  const services = await client.query(`SELECT id,service_slug,service_name_snapshot,status,activated_at,completed_at,created_at FROM public.service_engagements WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]);
+  const feedback = await client.query(`SELECT id,rating,comment,context,created_at FROM public.customer_feedback WHERE customer_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]);
+  const counts = await client.query(`SELECT
       (SELECT COUNT(*) FROM public.commercial_plan_contracts WHERE user_id=$1 AND status='active')::int active_subscriptions,
       (SELECT COUNT(*) FROM public.service_engagements WHERE user_id=$1 AND status NOT IN ('completed','cancelled','suspended'))::int active_services,
-      (SELECT COUNT(*) FROM public.service_engagements WHERE user_id=$1)::int historical_services`, [customerId]),
-  ]);
+      (SELECT COUNT(*) FROM public.service_engagements WHERE user_id=$1)::int historical_services`, [customerId]);
   const facts = counts.rows[0] || {};
   return { subscriptions: contracts.rows, subscriptionEvents: events.rows, services: services.rows, feedback: feedback.rows, customerState: deriveCustomerState({ activeSubscriptions: facts.active_subscriptions, activeServices: facts.active_services, historicalServices: facts.historical_services }), pagination: { page, limit } };
 }
 
 async function adminOverview(client, page, limit) {
   const offset = (page - 1) * limit;
-  const [summary, contracts, risks, suggestions] = await Promise.all([
-    client.query(`SELECT COUNT(*) FILTER(WHERE status='active')::int active,COUNT(*) FILTER(WHERE status='past_due')::int past_due,COUNT(*) FILTER(WHERE status='cancelled')::int cancelled,COALESCE(SUM(monthly_amount_cents) FILTER(WHERE status='active' AND billing_cycle='monthly' AND currency='BRL'),0)::bigint mrr_cents FROM public.commercial_plan_contracts`),
-    client.query(`SELECT c.*,p.name customer_name,p.email customer_email FROM public.commercial_plan_contracts c JOIN public.profiles p ON p.id=c.user_id ORDER BY c.updated_at DESC LIMIT $1 OFFSET $2`, [limit, offset]),
-    client.query(`SELECT r.*,p.name customer_name,p.email customer_email,c.plan_name FROM public.retention_signals r JOIN public.profiles p ON p.id=r.customer_id LEFT JOIN public.commercial_plan_contracts c ON c.id=r.subscription_id WHERE r.status IN ('open','acknowledged') ORDER BY CASE r.severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,r.detected_at DESC LIMIT $1`, [limit]),
-    client.query(`SELECT s.*,p.name customer_name,p.email customer_email,cs.name current_service_name,ss.name suggested_service_name FROM public.expansion_suggestions s JOIN public.profiles p ON p.id=s.customer_id LEFT JOIN public.commercial_services cs ON cs.slug=s.current_service_slug JOIN public.commercial_services ss ON ss.slug=s.suggested_service_slug ORDER BY s.created_at DESC LIMIT $1`, [limit]),
-  ]);
+  const summary = await client.query(`SELECT COUNT(*) FILTER(WHERE status='active')::int active,COUNT(*) FILTER(WHERE status='past_due')::int past_due,COUNT(*) FILTER(WHERE status='cancelled')::int cancelled,COALESCE(SUM(monthly_amount_cents) FILTER(WHERE status='active' AND billing_cycle='monthly' AND currency='BRL'),0)::bigint mrr_cents FROM public.commercial_plan_contracts`);
+  const contracts = await client.query(`SELECT c.*,p.name customer_name,p.email customer_email FROM public.commercial_plan_contracts c JOIN public.profiles p ON p.id=c.user_id ORDER BY c.updated_at DESC LIMIT $1 OFFSET $2`, [limit, offset]);
+  const risks = await client.query(`SELECT r.*,p.name customer_name,p.email customer_email,c.plan_name FROM public.retention_signals r JOIN public.profiles p ON p.id=r.customer_id LEFT JOIN public.commercial_plan_contracts c ON c.id=r.subscription_id WHERE r.status IN ('open','acknowledged') ORDER BY CASE r.severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,r.detected_at DESC LIMIT $1`, [limit]);
+  const suggestions = await client.query(`SELECT s.*,p.name customer_name,p.email customer_email,cs.name current_service_name,ss.name suggested_service_name FROM public.expansion_suggestions s JOIN public.profiles p ON p.id=s.customer_id LEFT JOIN public.commercial_services cs ON cs.slug=s.current_service_slug JOIN public.commercial_services ss ON ss.slug=s.suggested_service_slug ORDER BY s.created_at DESC LIMIT $1`, [limit]);
   return { summary: summary.rows[0], subscriptions: contracts.rows, risks: risks.rows, suggestions: suggestions.rows, pagination: { page, limit } };
 }
 
 async function customerTimeline(client, customerId, limit) {
   const profile = await client.query("SELECT id,name,email,company FROM public.profiles WHERE id=$1 AND role='client'", [customerId]);
   if (!profile.rows[0]) return null;
-  const [services, subscriptions, payments, projects, support, activities, suggestions] = await Promise.all([
-    client.query('SELECT id,service_slug,service_name_snapshot,status,created_at,activated_at,completed_at FROM public.service_engagements WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT * FROM public.commercial_plan_contracts WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT id,status,amount_cents,currency,created_at FROM public.payment_transactions WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT id,name,status,created_at,updated_at FROM public.projects WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT id,subject,status,created_at,updated_at FROM public.support_tickets WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT id,type,title,status,scheduled_at,completed_at,created_at FROM public.crm_activities WHERE customer_profile_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-    client.query('SELECT id,suggested_service_slug,suggestion_type,status,reason,opportunity_id,created_at FROM public.expansion_suggestions WHERE customer_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]),
-  ]);
+  const services = await client.query('SELECT id,service_slug,service_name_snapshot,status,created_at,activated_at,completed_at FROM public.service_engagements WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const subscriptions = await client.query('SELECT * FROM public.commercial_plan_contracts WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const payments = await client.query('SELECT id,status,amount_cents,currency,created_at FROM public.payment_transactions WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const projects = await client.query('SELECT id,name,status,created_at,updated_at FROM public.projects WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const support = await client.query('SELECT id,subject,status,created_at,updated_at FROM public.support_tickets WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const activities = await client.query('SELECT id,type,title,status,scheduled_at,completed_at,created_at FROM public.crm_activities WHERE customer_profile_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
+  const suggestions = await client.query('SELECT id,suggested_service_slug,suggestion_type,status,reason,opportunity_id,created_at FROM public.expansion_suggestions WHERE customer_id=$1 ORDER BY created_at DESC LIMIT $2', [customerId, limit]);
   return { customer: profile.rows[0], services: services.rows, subscriptions: subscriptions.rows, payments: payments.rows, projects: projects.rows, support: support.rows, activities: activities.rows, suggestions: suggestions.rows };
 }
 
