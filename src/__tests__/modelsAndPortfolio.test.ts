@@ -24,8 +24,11 @@ describe('Etapa 5 — modelos e portfólio', () => {
     expect(templates.every(template => template.testimonials.length === 0)).toBe(true);
   });
 
-  it('não publica portfólio sem autorização e imagem real', () => {
+  it('publica portfólio somente com autorização e material visual', () => {
     expect(getPublishedPortfolioProjects().every(project => project.authorized && project.images.length > 0)).toBe(true);
-    expect(portfolioProjects.find(project => project.slug === 'carolsol')).toBeUndefined();
+    const carolsol = portfolioProjects.find(project => project.slug === 'carolsol');
+    expect(carolsol).toMatchObject({ authorized: true, status: 'published', classification: 'client', featured: true });
+    expect(carolsol?.images.length).toBeGreaterThanOrEqual(4);
+    expect(carolsol?.technologies.length).toBeGreaterThan(0);
   });
 });

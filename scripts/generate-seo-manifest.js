@@ -46,6 +46,7 @@ const staticEntries = [
   ['/solucoes', 'Soluções de Tecnologia por Segmento | Nextia', 'Conheça soluções digitais e de tecnologia organizadas pelas necessidades de cada segmento.', 'weekly', '0.9'],
   ['/modelos', 'Modelos de Sites Profissionais | Nextia', 'Veja modelos de sites profissionais e escolha uma base para personalizar seu projeto.', 'weekly', '0.9'],
   ['/portfolio', 'Portfólio de Projetos | Nextia', 'Projetos publicados pela Nextia somente com autorização e informações verificadas.', 'monthly', '0.6'],
+  ['/portfolio/carolsol', 'CarolSol — Case de ecossistema digital | Nextia', 'Conheça o ecossistema digital CarolSol desenvolvido pela Nextia, com portal, e-commerce, plataforma de cursos, projeto social e gestão integrada.', 'monthly', '0.7'],
   ['/planos', 'Planos e Preços | Nextia', 'Compare os planos digitais da Nextia e escolha a estrutura adequada ao seu negócio.', 'weekly', '0.8'],
   ['/como-funciona', 'Como funciona a Nextia', 'Conheça o processo de diagnóstico, desenvolvimento, entrega e acompanhamento da Nextia.', 'monthly', '0.7'],
   ['/projeto-personalizado', 'Projeto Personalizado | Nextia', 'Solicite uma avaliação para um projeto digital ou sistema alinhado às necessidades da sua empresa.', 'monthly', '0.7'],

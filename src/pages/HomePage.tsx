@@ -4,6 +4,7 @@ import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import { useCommercialPlans } from '../hooks/useCommercialPlans';
 import { getWhatsAppLink } from '../utils/whatsapp';
 import { templates } from '../data/templates';
+import { getPublishedPortfolioProjects } from '../data/portfolio';
 import { TemplateIllustration } from '../components/templates/TemplateIllustration';
 import Seo from '../components/seo/Seo';
 
@@ -37,6 +38,7 @@ export default function HomePage() {
   const services = useServiceCatalog();
   const plans = useCommercialPlans().filter((plan) => plan.price > 0);
   const featuredTemplates = templates.filter((item) => item.featured).slice(0, 4);
+  const featuredClient = getPublishedPortfolioProjects().find((project) => project.featured);
   const techCare = services.find((item) => item.slug === 'techcare');
   return <main className="bg-white text-[#10152B]">
     <Seo title="Sites profissionais e tecnologia para empresas | Nextia" description="Criação de sites profissionais, automação, suporte de TI, redes, Wi-Fi, câmeras e backup para empresas em Bauru e todo o Brasil." />
@@ -59,6 +61,14 @@ export default function HomePage() {
     </section>
 
     <section className="bg-[#F8F9FD] py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader title="Tudo que sua empresa precisa, em um só lugar" text="Soluções integradas para sua empresa vender mais, operar melhor e crescer com segurança." /><div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{serviceSpecs.map((item) => <ServiceCard key={item.slug} item={item} />)}</div></div></section>
+
+    {featuredClient && <section className="relative overflow-hidden bg-[#11132B] py-20 text-white">
+      <div className="pointer-events-none absolute -left-32 top-10 h-72 w-72 rounded-full bg-[#2563FF]/20 blur-3xl" /><div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-[#9147FF]/25 blur-3xl" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[.9fr_1.1fr]">
+        <div><p className="text-sm font-black uppercase tracking-[.2em] text-[#B7A5FF]">Cliente em destaque</p><h2 className="mt-4 text-4xl font-black leading-tight tracking-[-.035em] sm:text-5xl">CarolSol: uma marca, múltiplas experiências digitais.</h2><p className="mt-5 max-w-xl text-[17px] leading-8 text-slate-300">Criamos um ecossistema que conecta presença institucional, loja online, educação e impacto social em uma plataforma integrada.</p><div className="mt-7 flex flex-wrap gap-2">{['Portal institucional','E-commerce','Invisible Academy','Projeto Elo'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-slate-200">{item}</span>)}</div><Link to={`/portfolio/${featuredClient.slug}`} className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-6 font-black text-[#4031C8] transition hover:-translate-y-0.5 hover:shadow-xl">Veja mais sobre o projeto <ArrowRight className="h-5 w-5" /></Link></div>
+        <div className="relative mx-auto w-full max-w-2xl pb-8 sm:pr-12"><div className="overflow-hidden rounded-[28px] border border-white/15 bg-white/10 p-2 shadow-2xl"><img src={featuredClient.images[0].src} alt={featuredClient.images[0].alt} loading="lazy" width="1200" height="900" className="aspect-[4/3] w-full rounded-[22px] object-cover" /></div><div className="absolute bottom-0 right-0 hidden w-48 overflow-hidden rounded-2xl border-4 border-[#11132B] bg-white shadow-2xl sm:block"><img src={featuredClient.images[3].src} alt={featuredClient.images[3].alt} loading="lazy" width="800" height="600" className="aspect-[4/3] w-full object-cover" /></div></div>
+      </div>
+    </section>}
 
     <section className="py-20"><div className="mx-auto max-w-7xl px-5 sm:px-8"><SectionHeader eyebrow="Como funciona" title="Simples, rápido e sem complicação" text="Cuidamos de cada etapa para você focar no que realmente importa: o seu negócio." /><div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-5">{steps.map((step, index) => <article key={step} className="relative rounded-2xl border border-[#E5E7F0] bg-white p-5 shadow-sm"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F0EBFF] text-base font-black text-[#753AFF]">0{index + 1}</span><h3 className="mt-5 text-[17px] font-black leading-6">{step}</h3>{index < steps.length - 1 && <ChevronRight className="absolute -right-4 top-1/2 z-10 hidden h-6 w-6 rounded-full bg-white text-[#753AFF] lg:block" />}</article>)}</div></div></section>
 
