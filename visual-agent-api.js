@@ -58,15 +58,15 @@ function structured(message, path = null, avatarState = 'success') { return { me
 
 async function enforceLimits(client, key, config, message, authenticated) {
   const counts = await client.query(`SELECT
-    COUNT(*) FILTER (WHERE role='user' AND created_at>=NOW()-INTERVAL '1 minute')::int minute,
-    COUNT(*) FILTER (WHERE role='user' AND created_at>=NOW()-INTERVAL '1 hour')::int hour,
-    COUNT(*) FILTER (WHERE role='user' AND created_at>=CURRENT_DATE)::int day,
-    COUNT(*) FILTER (WHERE role='user' AND content=$2 AND created_at>=NOW()-INTERVAL '10 minutes')::int repeated
+    COUNT(*) FILTER (WHERE role='user' AND created_at>=NOW()-INTERVAL '1 minute')::int minute_count,
+    COUNT(*) FILTER (WHERE role='user' AND created_at>=NOW()-INTERVAL '1 hour')::int hour_count,
+    COUNT(*) FILTER (WHERE role='user' AND created_at>=CURRENT_DATE)::int day_count,
+    COUNT(*) FILTER (WHERE role='user' AND content=$2 AND created_at>=NOW()-INTERVAL '10 minutes')::int repeated_count
     FROM public.visual_agent_messages WHERE session_key=$1`, [key, message]);
   const row = counts.rows[0];
   const daily = authenticated ? config.perDay : Math.min(config.perDay, config.guestPerDay);
-  if (row.repeated >= 2) throw Object.assign(new Error('Mensagem repetida muitas vezes. Aguarde antes de tentar novamente.'), { status: 429 });
-  if (row.minute >= config.perMinute || row.hour >= config.perHour || row.day >= daily) throw Object.assign(new Error('Limite temporário de mensagens atingido. Tente novamente mais tarde.'), { status: 429 });
+  if (row.repeated_count >= 2) throw Object.assign(new Error('Mensagem repetida muitas vezes. Aguarde antes de tentar novamente.'), { status: 429 });
+  if (row.minute_count >= config.perMinute || row.hour_count >= config.perHour || row.day_count >= daily) throw Object.assign(new Error('Limite temporário de mensagens atingido. Tente novamente mais tarde.'), { status: 429 });
 }
 async function enforceGlobalBudget(client, config) {
   const result = await client.query(`SELECT COUNT(*)::int calls,

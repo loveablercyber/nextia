@@ -30,3 +30,16 @@
 - Incluído `visual-agent-api.js` explicitamente no estágio final da imagem Docker.
 - Adicionado teste de regressão para abertura e encerramento da conexão.
 - Evidência local: 19 arquivos / 121 testes PASS; typecheck, lint e build PASS.
+
+## 2026-09-22 — Conformidade visual Live2D 22/33
+
+- Auditoria de origem: os binários `.moc` e as oito texturas locais foram comparados por SHA-256 com `xb2016/poster-girl-l2d-2233` no commit `6fca7999e2c865a55b795a96b911aa4018e0060b`; todos são idênticos à origem.
+- Origem, commit, licença e mapeamento exato dos assets ficaram registrados em `public/live2d/ATTRIBUTION.md`.
+- O preview genérico do admin foi substituído pelo mesmo renderer Live2D real usado no frontend, com seleção verificável entre os modelos 22 e 33 e estados explícitos de carregamento, renderização e falha.
+- O widget público passou a manter chat e personagem lado a lado no desktop; o SVG aparece somente após falha real do runtime/assets e é identificado como modo alternativo.
+- O renderer ganhou IDs únicos por instância, preflight dos manifests/assets locais, callback de prontidão, timeout e cursor configurável.
+- O widget público não é montado nas rotas `/admin`, evitando disputa do runtime Cubism 2 global com o preview administrativo.
+- Restauradas nos dois manifests as áreas de toque oficiais (`hit_areas_custom`); a ausência delas causava erro do runtime ao clicar no avatar.
+- Corrigidos aliases SQL reservados de rate limit (`minute`, `hour`, `day`, `repeated`) e incluído teste de regressão.
+- Evidência visual local: modelos 22 e 33 renderizados como personagens distintos no admin; modelo 22 animado no frontend; clique no canvas sem erros ou avisos novos no console.
+- Evidência automatizada final: 19 arquivos / 123 testes PASS; typecheck PASS; lint PASS; build de produção PASS (1970 módulos).

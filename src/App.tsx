@@ -680,6 +680,12 @@ function AppRoutes() {
   return hasLayout ? <Layout>{securedContent}</Layout> : securedContent;
 }
 
+function VisualAgentMount() {
+  const { pathname } = useLocation();
+  if (/^\/admin(?:\/|$)/.test(pathname)) return null;
+  return <Suspense fallback={null}><VisualAgentWidget /></Suspense>;
+}
+
 export default function App() {
   return (
     <AppErrorBoundary>
@@ -691,7 +697,7 @@ export default function App() {
               <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-500">Carregando...</div>}>
                 <AppRoutes />
               </Suspense>
-              <Suspense fallback={null}><VisualAgentWidget /></Suspense>
+              <VisualAgentMount />
             </ServiceEngagementProvider>
           </BrowserRouter>
         </NotificationProvider>

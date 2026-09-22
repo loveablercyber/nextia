@@ -52,4 +52,33 @@ describe('visual agent security and scope', () => {
     expect(client.connect).toHaveBeenCalledOnce();
     expect(client.end).toHaveBeenCalledOnce();
   });
+
+  it('uses PostgreSQL-safe aliases while enforcing chat limits', async () => {
+    const client = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      end: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn(async (sql) => {
+        if (sql.includes("WHERE key LIKE 'visual_agent.%'")) return { rows: [
+          { key: 'visual_agent.enabled', value: true },
+          { key: 'visual_agent.live2d_enabled', value: true },
+          { key: 'visual_agent.ai_enabled', value: true },
+          { key: 'visual_agent.voice_enabled', value: true },
+          { key: 'visual_agent.config', value: {} },
+        ] };
+        if (sql.includes('minute_count')) return { rows: [{ minute_count: 0, hour_count: 0, day_count: 0, repeated_count: 0 }] };
+        if (sql.includes('RETURNING id')) return { rows: [{ id: '00000000-0000-4000-8000-000000000001' }] };
+        return { rows: [] };
+      }),
+    };
+    const json = vi.fn((_res, status, body) => ({ status, body }));
+    const result = await handleVisualAgentApi(
+      { method: 'POST', headers: {}, socket: {} }, {}, new URL('https://nextia.dev.br/api/visual-agent/chat'),
+      { dbClient: () => client, getSessionProfile: vi.fn().mockResolvedValue(null), json, readJson: vi.fn().mockResolvedValue({ message: 'Onde vejo meus pedidos?' }) },
+    );
+    const limitSql = client.query.mock.calls.map(([sql]) => sql).find((sql) => sql.includes('minute_count'));
+    expect(result.status).toBe(200);
+    expect(result.body.source).toBe('faq');
+    expect(limitSql).not.toMatch(/::int\s+(minute|hour|day|repeated)\b/);
+    expect(client.end).toHaveBeenCalledOnce();
+  });
 });
