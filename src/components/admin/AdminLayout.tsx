@@ -69,6 +69,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/automacoes/execucoes', icon: BarChart3, label: 'Execuções e erros' },
       { to: '/admin/automacoes/aprovacoes', icon: ShieldCheck, label: 'Aprovações' },
       { to: '/admin/ia', icon: Bot, label: 'Inteligência Artificial' },
+      { to: '/admin/ia/assistente', icon: Bot, label: 'Assistente IA e Live2D' },
     ],
   },
   {

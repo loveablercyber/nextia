@@ -13,6 +13,7 @@ import { createSlidingWindowLimiter, fetchWithTimeout, requestIp, resolveRequest
 import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
 import { handleCrmApi, isCrmApiPath } from './crm-api.js';
 import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from './automation-api.js';
+import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
@@ -4774,6 +4775,9 @@ createServer(async (req, res) => {
     }
     if (isAutomationApiPath(url.pathname)) {
       return await handleAutomationApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
+    if (isVisualAgentApiPath(url.pathname)) {
+      return await handleVisualAgentApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
     if (isCustomerSuccessApiPath(url.pathname)) {
       return await handleCustomerSuccessApi(req, res, url, {

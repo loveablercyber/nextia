@@ -1,0 +1,17 @@
+{
+  "type": "Live2D Model Setting",
+  "name": "nextia-33-default-v1",
+  "label": "33",
+  "model": "33.v2.moc",
+  "textures": ["textures/base.png", "textures/outfit-01.png", "textures/outfit-02.png", "textures/outfit-03.png"],
+  "layout": { "center_x": -0.05, "center_y": 0.25, "height": 2.7 },
+  "motions": {
+    "idle": [
+      { "file": "motions/33.v2.idle-01.mtn", "fade_in": 2000, "fade_out": 2000 },
+      { "file": "motions/33.v2.idle-02.mtn", "fade_in": 2000, "fade_out": 2000 },
+      { "file": "motions/33.v2.idle-03.mtn", "fade_in": 2000, "fade_out": 2000 }
+    ],
+    "tap_body": [{ "file": "motions/33.v2.touch.mtn", "fade_in": 150, "fade_out": 100 }],
+    "thanking": [{ "file": "motions/33.v2.thanking.mtn", "fade_in": 2000, "fade_out": 2000 }]
+  }
+}

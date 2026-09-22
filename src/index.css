@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@utility input {
+  margin-top: 0.25rem;
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  background: white;
+  padding-inline: 0.75rem;
+  color: #0f172a;
+  outline: none;
+}
+
 @theme {
   --color-navy-deep: #07162B;
   --color-navy-base: #0A1C35;

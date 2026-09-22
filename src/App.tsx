@@ -104,6 +104,8 @@ const AdminAutomationsPage = lazy(() => import('./pages/automation/AdminAutomati
 const AdminAutomationRunsPage = lazy(() => import('./pages/automation/AdminAutomationRunsPage'));
 const AdminApprovalsPage = lazy(() => import('./pages/automation/AdminApprovalsPage'));
 const AdminAiPage = lazy(() => import('./pages/automation/AdminAiPage'));
+const AdminVisualAgentPage = lazy(() => import('./pages/automation/AdminVisualAgentPage'));
+const VisualAgentWidget = lazy(() => import('./features/avatar/VisualAgentWidget'));
 
 // Support & Tickets Pages
 const TicketDetailPage = lazy(() => import('./pages/TicketDetailPage'));
@@ -477,6 +479,7 @@ function AppRoutes() {
       <Route path="/admin/automacoes/execucoes" element={<AdminContainer title="Execuções de automação"><AdminAutomationRunsPage /></AdminContainer>}/>
       <Route path="/admin/automacoes/aprovacoes" element={<AdminContainer title="Aprovações"><AdminApprovalsPage /></AdminContainer>}/>
       <Route path="/admin/ia" element={<AdminContainer title="Inteligência Artificial"><AdminAiPage /></AdminContainer>}/>
+      <Route path="/admin/ia/assistente" element={<AdminContainer title="Assistente IA e Avatar Live2D"><AdminVisualAgentPage /></AdminContainer>}/>
       <Route
         path="/admin/tecnicos"
         element={<AdminContainer title="Gestão de Técnicos"><AdminTechniciansPage /></AdminContainer>}
@@ -688,6 +691,7 @@ export default function App() {
               <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-500">Carregando...</div>}>
                 <AppRoutes />
               </Suspense>
+              <Suspense fallback={null}><VisualAgentWidget /></Suspense>
             </ServiceEngagementProvider>
           </BrowserRouter>
         </NotificationProvider>
