@@ -23,3 +23,10 @@
 - UX/admin: feedback 👍/👎 relacionado à resposta e à sessão, arraste persistido no desktop, perfil de fallback estático e controles administrativos para desempenho/orçamento.
 - Analytics: overview administrativo inclui consumo diário e feedback agregado, sem expor conteúdo de conversa.
 - Pendências comprovadas: E2E browser/WebGL/DB/Groq, cache persistente além da FAQ local, tool calls de dados, confirmação crítica, amplitude real de lip-sync, controle real de FPS nos perfis alto/equilibrado/economia e validações PWA/mobile/teclado.
+
+## 2026-09-22 — Correção pós-deploy
+
+- Corrigido o ciclo de conexão PostgreSQL de `visual-agent-api.js`: conexão explícita e encerramento garantido em `finally`.
+- Incluído `visual-agent-api.js` explicitamente no estágio final da imagem Docker.
+- Adicionado teste de regressão para abertura e encerramento da conexão.
+- Evidência local: 19 arquivos / 121 testes PASS; typecheck, lint e build PASS.

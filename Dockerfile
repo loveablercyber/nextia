@@ -30,7 +30,7 @@ RUN apk add --no-cache postgresql-client
 
 # Copy compiled dist, all server runtime modules, database schemas, scripts, and public assets
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server.js /app/app-api.js /app/crm-api.js /app/automation-api.js /app/automation-engine.js /app/automation-core.js /app/ai-service.js /app/operational-guards.js /app/project-operations.js /app/seo-routing.js /app/content-management.js /app/customer-success.js ./
+COPY --from=builder /app/server.js /app/app-api.js /app/crm-api.js /app/automation-api.js /app/automation-engine.js /app/automation-core.js /app/ai-service.js /app/visual-agent-api.js /app/operational-guards.js /app/project-operations.js /app/seo-routing.js /app/content-management.js /app/customer-success.js ./
 COPY --from=builder /app/database ./database
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/public ./public

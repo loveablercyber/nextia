@@ -36,7 +36,7 @@ Legenda: `[ ]` pendente · `[~]` em andamento · `[x]` concluído · `[!]` bloqu
 ## Evidência atual
 
 - Typecheck: PASS.
-- Testes: 19 arquivos / 120 testes PASS.
+- Testes: 19 arquivos / 121 testes PASS.
 - Lint: PASS.
 - Build: PASS; widget, renderer e admin gerados em chunks lazy separados.
 - Assets: 22/33 e 27 arquivos Live2D copiados para o build; manifests validados por teste.

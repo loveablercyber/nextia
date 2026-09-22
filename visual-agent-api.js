@@ -83,7 +83,9 @@ export function validateAction(action) {
 }
 
 export async function handleVisualAgentApi(req, res, url, { dbClient, getSessionProfile, json, readJson }) {
-  const client = await dbClient();
+  const client = dbClient();
+  await client.connect();
+  try {
   const session = await getSessionProfile(req, client);
   const current = await settings(client);
   if (url.pathname === `${PUBLIC_PREFIX}/config` && req.method === 'GET') return json(res, 200, current);
@@ -168,6 +170,9 @@ export async function handleVisualAgentApi(req, res, url, { dbClient, getSession
     }
   }
   return json(res, 404, { error: 'Rota do assistente não encontrada.' });
+  } finally {
+    await client.end();
+  }
 }
 
 function navigatorOnline(body) { return body.online !== false; }

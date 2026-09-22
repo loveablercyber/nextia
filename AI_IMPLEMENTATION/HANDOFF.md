@@ -12,7 +12,7 @@ Implementado:
 - registry, controller e event bus testados;
 - renderer lazy e widget implementados;
 - backend/agente/admin implementados em estado parcial;
-- 120 testes, typecheck, lint e build aprovados.
+- 121 testes, typecheck, lint e build aprovados.
 - resumo de contexto, orçamento global, feedback, arraste desktop e fallback estático configurável implementados localmente.
 
 Ainda falta nesta etapa:
@@ -33,7 +33,7 @@ Arquivos relevantes:
 - `database/migrations/0012_visual_ai_agent.sql`
 
 Testes realizados:
-- 19 arquivos / 120 testes PASS;
+- 19 arquivos / 121 testes PASS;
 - typecheck PASS;
 - lint PASS;
 - build PASS;

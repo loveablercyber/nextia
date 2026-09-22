@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { classify, compactHistory, localAnswer, safeConfig, validateAction } from './visual-agent-api.js';
+import { describe, expect, it, vi } from 'vitest';
+import { classify, compactHistory, handleVisualAgentApi, localAnswer, safeConfig, validateAction } from './visual-agent-api.js';
 
 describe('visual agent security and scope', () => {
   it.each([
@@ -29,5 +29,27 @@ describe('visual agent security and scope', () => {
   it('compacts old context without exceeding the configured limit', () => {
     const summary = compactHistory([{ role: 'user', content: 'Onde ficam os pedidos?' }, { role: 'assistant', content: 'No painel.' }], 60);
     expect(summary.length).toBeLessThanOrEqual(60); expect(summary).toContain('Assistente');
+  });
+
+  it('connects and always closes its dedicated database client', async () => {
+    const client = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      end: vi.fn().mockResolvedValue(undefined),
+      query: vi.fn().mockResolvedValue({ rows: [
+        { key: 'visual_agent.enabled', value: true },
+        { key: 'visual_agent.live2d_enabled', value: true },
+        { key: 'visual_agent.ai_enabled', value: true },
+        { key: 'visual_agent.voice_enabled', value: true },
+        { key: 'visual_agent.config', value: {} },
+      ] }),
+    };
+    const json = vi.fn((_res, status, body) => ({ status, body }));
+    const result = await handleVisualAgentApi(
+      { method: 'GET', headers: {}, socket: {} }, {}, new URL('https://nextia.dev.br/api/visual-agent/config'),
+      { dbClient: () => client, getSessionProfile: vi.fn().mockResolvedValue(null), json, readJson: vi.fn() },
+    );
+    expect(result.status).toBe(200);
+    expect(client.connect).toHaveBeenCalledOnce();
+    expect(client.end).toHaveBeenCalledOnce();
   });
 });
