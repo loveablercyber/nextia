@@ -28,4 +28,21 @@ describe('AI structured output', () => {
 
     expect(() => validateStructuredValue(result, schema)).toThrow('result.speak deve ser booleano.');
   });
+
+  it.each(['sim', null, 1, { enabled: true }])('fails closed for an unknown visual-agent speak value %j', (providerValue) => {
+    const result = normalizeStructuredValue({ message: 'Olá', speak: providerValue }, schema, { booleanFallback: false });
+
+    expect(result).toEqual({ message: 'Olá', speak: false });
+    expect(() => validateStructuredValue(result, schema)).not.toThrow();
+  });
+
+  it('marks schema violations as retryable so the next configured model can answer', () => {
+    expect.assertions(2);
+    try {
+      validateStructuredValue({ message: 'Olá', speak: 'sim' }, schema);
+    } catch (error) {
+      expect(error).toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: true });
+      expect(error).toBeInstanceOf(Error);
+    }
+  });
 });

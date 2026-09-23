@@ -4,35 +4,36 @@ function validateStructuredValue(value, schema, path = 'result') {
   if (!schema || typeof schema !== 'object' || Object.keys(schema).length === 0) return;
   const type = schema.type;
   if (type === 'object') {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AutomationError(`${path} deve ser objeto.`, { code: 'AI_SCHEMA_INVALID' });
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AutomationError(`${path} deve ser objeto.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
     for (const key of schema.required || []) {
-      if (!(key in value)) throw new AutomationError(`${path}.${key} é obrigatório.`, { code: 'AI_SCHEMA_INVALID' });
+      if (!(key in value)) throw new AutomationError(`${path}.${key} é obrigatório.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
     }
     for (const [key, child] of Object.entries(schema.properties || {})) {
       if (value[key] !== undefined) validateStructuredValue(value[key], child, `${path}.${key}`);
     }
-  } else if (type === 'array' && !Array.isArray(value)) throw new AutomationError(`${path} deve ser lista.`, { code: 'AI_SCHEMA_INVALID' });
-  else if (type === 'string' && typeof value !== 'string') throw new AutomationError(`${path} deve ser texto.`, { code: 'AI_SCHEMA_INVALID' });
-  else if (type === 'number' && typeof value !== 'number') throw new AutomationError(`${path} deve ser número.`, { code: 'AI_SCHEMA_INVALID' });
-  else if (type === 'boolean' && typeof value !== 'boolean') throw new AutomationError(`${path} deve ser booleano.`, { code: 'AI_SCHEMA_INVALID' });
-  if (schema.enum && !schema.enum.includes(value)) throw new AutomationError(`${path} possui valor não permitido.`, { code: 'AI_SCHEMA_INVALID' });
+  } else if (type === 'array' && !Array.isArray(value)) throw new AutomationError(`${path} deve ser lista.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
+  else if (type === 'string' && typeof value !== 'string') throw new AutomationError(`${path} deve ser texto.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
+  else if (type === 'number' && typeof value !== 'number') throw new AutomationError(`${path} deve ser número.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
+  else if (type === 'boolean' && typeof value !== 'boolean') throw new AutomationError(`${path} deve ser booleano.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
+  if (schema.enum && !schema.enum.includes(value)) throw new AutomationError(`${path} possui valor não permitido.`, { code: 'AI_SCHEMA_INVALID', retryable: true });
 }
 
-function normalizeStructuredValue(value, schema) {
+function normalizeStructuredValue(value, schema, { booleanFallback } = {}) {
   if (!schema || typeof schema !== 'object') return value;
   if (schema.type === 'boolean' && typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
     if (normalized === 'true') return true;
     if (normalized === 'false') return false;
   }
+  if (schema.type === 'boolean' && typeof value !== 'boolean' && typeof booleanFallback === 'boolean') return booleanFallback;
   if (schema.type === 'object' && value && typeof value === 'object' && !Array.isArray(value)) {
     return Object.fromEntries(Object.entries(value).map(([key, child]) => [
       key,
-      normalizeStructuredValue(child, schema.properties?.[key]),
+      normalizeStructuredValue(child, schema.properties?.[key], { booleanFallback }),
     ]));
   }
   if (schema.type === 'array' && Array.isArray(value) && schema.items) {
-    return value.map((item) => normalizeStructuredValue(item, schema.items));
+    return value.map((item) => normalizeStructuredValue(item, schema.items, { booleanFallback }));
   }
   return value;
 }
@@ -59,7 +60,7 @@ function providerSecret(envName) {
 function parseJsonContent(content) {
   if (content && typeof content === 'object') return content;
   const text = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  try { return JSON.parse(text); } catch { throw new AutomationError('Provider retornou JSON inválido.', { code: 'AI_INVALID_JSON' }); }
+  try { return JSON.parse(text); } catch { throw new AutomationError('Provider retornou JSON inválido.', { code: 'AI_INVALID_JSON', retryable: true }); }
 }
 
 export class AIService {
@@ -130,7 +131,9 @@ export class AIService {
           throw new AutomationError(`Provider de IA respondeu ${response.status}.`, { code: `AI_HTTP_${response.status}`, retryable, status: 502 });
         }
         const body = await response.json();
-        const result = normalizeStructuredValue(parseJsonContent(body.choices?.[0]?.message?.content), prompt.output_schema);
+        const result = normalizeStructuredValue(parseJsonContent(body.choices?.[0]?.message?.content), prompt.output_schema, {
+          booleanFallback: purpose === 'visual_agent_chat' ? false : undefined,
+        });
         validateStructuredValue(result, prompt.output_schema);
         const inputTokens = Number(body.usage?.prompt_tokens || 0);
         const outputTokens = Number(body.usage?.completion_tokens || 0);
