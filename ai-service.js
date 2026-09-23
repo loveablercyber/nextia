@@ -18,6 +18,25 @@ function validateStructuredValue(value, schema, path = 'result') {
   if (schema.enum && !schema.enum.includes(value)) throw new AutomationError(`${path} possui valor não permitido.`, { code: 'AI_SCHEMA_INVALID' });
 }
 
+function normalizeStructuredValue(value, schema) {
+  if (!schema || typeof schema !== 'object') return value;
+  if (schema.type === 'boolean' && typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  if (schema.type === 'object' && value && typeof value === 'object' && !Array.isArray(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+      key,
+      normalizeStructuredValue(child, schema.properties?.[key]),
+    ]));
+  }
+  if (schema.type === 'array' && Array.isArray(value) && schema.items) {
+    return value.map((item) => normalizeStructuredValue(item, schema.items));
+  }
+  return value;
+}
+
 function safeProviderUrl(baseUrl) {
   let url;
   try { url = new URL(baseUrl); } catch { throw new AutomationError('URL do provider de IA inválida.', { code: 'AI_PROVIDER_CONFIG', status: 400 }); }
@@ -111,7 +130,7 @@ export class AIService {
           throw new AutomationError(`Provider de IA respondeu ${response.status}.`, { code: `AI_HTTP_${response.status}`, retryable, status: 502 });
         }
         const body = await response.json();
-        const result = parseJsonContent(body.choices?.[0]?.message?.content);
+        const result = normalizeStructuredValue(parseJsonContent(body.choices?.[0]?.message?.content), prompt.output_schema);
         validateStructuredValue(result, prompt.output_schema);
         const inputTokens = Number(body.usage?.prompt_tokens || 0);
         const outputTokens = Number(body.usage?.completion_tokens || 0);
@@ -138,4 +157,4 @@ export class AIService {
   }
 }
 
-export { safeProviderUrl, validateStructuredValue };
+export { normalizeStructuredValue, safeProviderUrl, validateStructuredValue };
