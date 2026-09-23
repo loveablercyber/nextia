@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classify, compactHistory, handleVisualAgentApi, localAnswer, safeConfig, validateAction } from './visual-agent-api.js';
+import { classify, commercialKnowledge, compactHistory, handleVisualAgentApi, localAnswer, relevantSitePages, safeConfig, safePageContext, validateAction } from './visual-agent-api.js';
 
 describe('visual agent security and scope', () => {
   it.each([
@@ -18,6 +18,42 @@ describe('visual agent security and scope', () => {
   it('returns authenticated and guest FAQ actions safely', () => {
     expect(localAnswer('onde estão meus pedidos?', true)?.path).toBe('/painel/pedidos');
     expect(localAnswer('onde estão meus pedidos?', false)?.path).toBe('/login');
+  });
+
+  it('sanitizes public page context', () => {
+    const page = safePageContext({
+      path: '/solucoes/contabilidade?campaign=test',
+      title: '  Tecnologia para Contabilidade  ',
+      heading: 'Tecnologia\npara Contabilidades',
+      description: 'Sites profissionais, automação de processos e WhatsApp com IA para escritórios contábeis.',
+    });
+    expect(page).toEqual({
+      path: '/solucoes/contabilidade',
+      title: 'Tecnologia para Contabilidade',
+      heading: 'Tecnologia para Contabilidades',
+      description: 'Sites profissionais, automação de processos e WhatsApp com IA para escritórios contábeis.',
+    });
+    expect(localAnswer('Vocês têm sites para contabilidade?', false)).toBeNull();
+  });
+
+  it('never accepts page content from private areas', () => {
+    expect(safePageContext({ path: '/painel/pedidos', title: 'Pedido secreto', heading: 'Cliente privado', description: 'Dados pessoais' })).toEqual({ path: '/painel/pedidos' });
+    expect(safePageContext({ path: 'https://evil.example', description: 'Conteúdo externo' })).toBeNull();
+    expect(safePageContext({ path: '//evil.example', description: 'Conteúdo externo' })).toBeNull();
+  });
+
+  it('retrieves accounting pages from the site index', () => {
+    const pages = relevantSitePages('Vocês têm sites para contabilidade?');
+    expect(pages.some((page) => page.path === '/solucoes/contabilidade')).toBe(true);
+  });
+
+  it('builds commercial context with authoritative prices from the database', async () => {
+    const client = { query: vi.fn()
+      .mockResolvedValueOnce({ rows: [{ slug: 'sites', name: 'Sites profissionais', category: 'digital', price_cents: 19700, price_label: 'ativação a partir de', recurring: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'start', name: 'Nextia Start', monthly_amount_cents: 5900, activation_amount_cents: 19700 }] }) };
+    const knowledge = await commercialKnowledge(client, 'Quanto custa um site barato?');
+    expect(knowledge.services[0]).toMatchObject({ slug: 'sites', price: 'R$ 197,00', priceLabel: 'ativação a partir de' });
+    expect(knowledge.plans[0]).toMatchObject({ name: 'Nextia Start', monthly: 'R$ 59,00', activation: 'R$ 197,00' });
   });
 
   it('clamps untrusted admin configuration', () => {

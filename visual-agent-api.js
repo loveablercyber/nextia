@@ -1,10 +1,13 @@
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { AIService } from './ai-service.js';
 
 const PUBLIC_PREFIX = '/api/visual-agent';
 const ADMIN_PREFIX = '/api/admin/visual-agent';
 const allowedStates = new Set(['idle','listening','thinking','speaking','success','happy','warning','error','attention']);
-const allowedPages = new Set(['/painel/pedidos','/painel/configuracoes','/painel/servicos','/painel/suporte','/modelos','/solucoes','/contato','/login']);
+const allowedPages = new Set(['/painel/pedidos','/painel/configuracoes','/painel/servicos','/painel/suporte','/modelos','/solucoes','/sites','/planos','/orcamento','/projeto-personalizado','/contato','/login']);
+const siteIndex = loadSiteIndex();
 
 export function isVisualAgentApiPath(pathname) { return pathname.startsWith(PUBLIC_PREFIX) || pathname.startsWith(ADMIN_PREFIX); }
 
@@ -33,6 +36,89 @@ export function compactHistory(rows, maxChars = 1800) {
   if (!Array.isArray(rows) || rows.length === 0) return '';
   return rows.map((row) => `${row.role === 'assistant' ? 'Assistente' : 'Usuário'}: ${String(row.content || '').replace(/\s+/g, ' ').slice(0, 280)}`).join('\n').slice(-maxChars);
 }
+function cleanPageText(value, maxLength) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+export function safePageContext(value) {
+  if (!value || typeof value !== 'object') return null;
+  const rawPath = cleanPageText(value.path, 240).split(/[?#]/, 1)[0];
+  if (!rawPath.startsWith('/') || rawPath.startsWith('//') || rawPath.includes('\\')) return null;
+  const path = rawPath.replace(/\/{2,}/g, '/');
+  const isPrivate = /^\/(admin|painel|parceiro|tecnico)(\/|$)/i.test(path);
+  if (isPrivate) return { path };
+  const context = { path };
+  const title = cleanPageText(value.title, 180);
+  const heading = cleanPageText(value.heading, 240);
+  const description = cleanPageText(value.description, 500);
+  if (title) context.title = title;
+  if (heading) context.heading = heading;
+  if (description) context.description = description;
+  return context;
+}
+function loadSiteIndex() {
+  try {
+    const manifest = JSON.parse(readFileSync(join(process.cwd(), 'public', 'seo-manifest.json'), 'utf8'));
+    return Array.isArray(manifest.entries)
+      ? manifest.entries.filter((entry) => entry?.indexable !== false && typeof entry.path === 'string' && typeof entry.title === 'string').map((entry) => ({
+          path: entry.path.slice(0, 240), title: cleanPageText(entry.title, 180), description: cleanPageText(entry.description, 500),
+        }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+function searchTerms(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').match(/[a-z0-9]{3,}/g) || [];
+}
+export function relevantSitePages(message, currentPage = null, limit = 6) {
+  const terms = new Set(searchTerms(message));
+  const scored = siteIndex.map((page) => {
+    const haystack = searchTerms(`${page.path} ${page.title} ${page.description}`);
+    const score = haystack.reduce((total, term) => total + (terms.has(term) ? 1 : 0), 0) + (page.path === currentPage?.path ? 5 : 0);
+    return { page, score };
+  }).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score || a.page.path.localeCompare(b.page.path));
+  return scored.slice(0, Math.max(1, Math.min(10, limit))).map(({ page }) => page);
+}
+function moneyFromCents(value) {
+  return Number.isFinite(Number(value)) ? `R$ ${(Number(value) / 100).toFixed(2).replace('.', ',')}` : null;
+}
+export async function commercialKnowledge(client, message, currentPage = null) {
+  const [servicesResult, plansResult] = await Promise.all([
+    client.query(`SELECT slug,name,category,price_cents,price_label,recurring
+      FROM public.commercial_services WHERE active=TRUE ORDER BY sort_order,name`),
+    client.query(`SELECT id,name,monthly_amount_cents,activation_amount_cents
+      FROM public.commercial_plans WHERE active=TRUE ORDER BY sort_order,name`),
+  ]);
+  const terms = new Set(searchTerms(message));
+  const asksAboutSite = /\b(site|sites|pagina|paginas|presenca digital)\b/i.test(String(message).normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  const asksPrice = /\b(preco|precos|valor|valores|custa|custam|barato|barata|plano|planos|mensalidade|investimento)\b/i.test(String(message).normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  const rankedServices = servicesResult.rows.map((service) => {
+    const haystack = searchTerms(`${service.slug} ${service.name} ${service.category}`);
+    const score = haystack.reduce((total, term) => total + (terms.has(term) ? 1 : 0), 0) + (asksAboutSite && service.slug === 'sites' ? 5 : 0);
+    return { service, score };
+  }).sort((a, b) => b.score - a.score);
+  const services = rankedServices.filter(({ score }) => score > 0).slice(0, 5).map(({ service }) => ({
+    slug: service.slug,
+    name: service.name,
+    category: service.category,
+    price: moneyFromCents(service.price_cents),
+    priceLabel: service.price_label,
+    recurring: service.recurring === true,
+    path: `/${service.slug}`,
+  }));
+  return {
+    pages: relevantSitePages(message, currentPage),
+    services,
+    plans: (asksAboutSite || asksPrice ? plansResult.rows : []).map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      monthly: moneyFromCents(plan.monthly_amount_cents),
+      activation: moneyFromCents(plan.activation_amount_cents),
+      path: `/planos#${plan.id}`,
+    })),
+    pricingPolicy: 'Valores marcados como “a partir de” são preços iniciais do escopo padrão. Não prometa preço final sem conhecer o escopo e não confunda ativação com mensalidade.',
+  };
+}
 async function settings(client) {
   const result = await client.query("SELECT key,value FROM public.automation_settings WHERE key LIKE 'visual_agent.%'");
   const map = Object.fromEntries(result.rows.map((row) => [row.key, row.value]));
@@ -51,7 +137,7 @@ export function localAnswer(message, authenticated) {
   if (/onde.{0,20}(meus )?pedidos|ver.{0,15}pedidos/.test(value)) return authenticated ? { message: 'Seus pedidos ficam em Meu painel → Pedidos.', path: '/painel/pedidos' } : { message: 'Entre na sua conta para consultar seus pedidos.', path: '/login' };
   if (/(alterar|trocar|mudar).{0,15}senha/.test(value)) return authenticated ? { message: 'Abra as configurações da conta para atualizar sua senha.', path: '/painel/configuracoes' } : { message: 'Na tela de login, use “Esqueci minha senha”.', path: '/login' };
   if (/entrar em contato|falar com|contato/.test(value)) return { message: 'Você pode falar com a equipe pela página de contato.', path: '/contato' };
-  if (/serviços|soluções/.test(value)) return { message: 'Veja todas as soluções disponíveis na página de soluções.', path: '/solucoes' };
+  if (/onde.{0,30}(serviços|soluções)|ver.{0,20}(serviços|soluções)/.test(value)) return { message: 'Veja todas as soluções disponíveis na página de soluções.', path: '/solucoes' };
   return null;
 }
 function structured(message, path = null, avatarState = 'success') { return { message, avatarState, speak: false, suggestedAction: path ? { type: 'open_page', path, label: 'Abrir página' } : null }; }
@@ -77,8 +163,8 @@ async function enforceGlobalBudget(client, config) {
     throw Object.assign(new Error('O orçamento diário do assistente foi atingido. As respostas locais continuam disponíveis.'), { status: 429 });
   }
 }
-export function validateAction(action) {
-  if (!action || action.type !== 'open_page' || !allowedPages.has(action.path)) return null;
+export function validateAction(action, paths = allowedPages) {
+  if (!action || action.type !== 'open_page' || !paths.has(action.path)) return null;
   return { type: 'open_page', path: action.path, label: String(action.label || 'Abrir página').slice(0, 60) };
 }
 
@@ -110,7 +196,7 @@ export async function handleVisualAgentApi(req, res, url, { dbClient, getSession
 
   if (url.pathname === `${PUBLIC_PREFIX}/chat` && req.method === 'POST') {
     if (!current.enabled) return json(res, 503, { error: 'Assistente temporariamente indisponível.' });
-    const body = await readJson(req); const message = String(body.message || '').trim();
+    const body = await readJson(req); const message = String(body.message || '').trim(); const currentPage = safePageContext(body.page);
     if (!message) return json(res, 400, { error: 'Digite uma mensagem.' });
     if (message.length > current.config.maxInputChars) return json(res, 413, { error: `A mensagem deve ter até ${current.config.maxInputChars} caracteres.` });
     const key = sessionKey(req, session);
@@ -139,10 +225,18 @@ export async function handleVisualAgentApi(req, res, url, { dbClient, getSession
     } else {
       const stored = await client.query('SELECT summary FROM public.visual_agent_sessions WHERE session_key=$1', [key]); summary = stored.rows[0]?.summary || '';
     }
-    const context = { message, scope, summary, history: recent, user: session ? { authenticated: true, role: session.role } : { authenticated: false }, allowedActions: [...allowedPages].map((path) => ({ type: 'open_page', path })) };
+    const knowledge = await commercialKnowledge(client, message, currentPage);
+    const actionPaths = new Set([...allowedPages, ...knowledge.pages.map((page) => page.path)]);
+    const context = {
+      message, scope, summary, history: recent, currentPage,
+      assistant: { name: current.config.agentName, personality: current.config.personality },
+      user: session ? { authenticated: true, role: session.role } : { authenticated: false },
+      commercialKnowledge: knowledge,
+      allowedActions: [...actionPaths].map((path) => ({ type: 'open_page', path })),
+    };
     try {
       const generated = await new AIService(client).generate({ purpose: 'visual_agent_chat', source: {}, contextOverride: context, enabledSetting: 'visual_agent.ai_enabled', maxTokens: current.config.maxOutputTokens });
-      const raw = generated.result || {}; const result = { message: String(raw.message || '').slice(0, 2000) || 'Não consegui formular uma resposta.', avatarState: allowedStates.has(raw.avatarState) ? raw.avatarState : 'success', speak: raw.speak === true, suggestedAction: validateAction(raw.suggestedAction) };
+      const raw = generated.result || {}; const result = { message: String(raw.message || '').slice(0, 2000) || 'Não consegui formular uma resposta.', avatarState: allowedStates.has(raw.avatarState) ? raw.avatarState : 'success', speak: raw.speak === true, suggestedAction: validateAction(raw.suggestedAction, actionPaths) };
       const saved = await client.query('INSERT INTO public.visual_agent_messages(session_key,user_id,role,content,scope_classification) VALUES($1,$2,$3,$4,$5) RETURNING id', [key, session?.id || null, 'assistant', result.message, scope]);
       return json(res, 200, { ...result, source: 'ai', requestId: generated.aiRunId, messageId: saved.rows[0].id });
     } catch {

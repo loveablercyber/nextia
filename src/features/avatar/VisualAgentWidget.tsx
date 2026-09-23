@@ -74,7 +74,7 @@ export default function VisualAgentWidget() {
     setInput(''); setMessages((current) => [...current, { role: 'user', text: message }]); setBusy(true);
     avatarEventBus.emit({ type: 'AI_THINKING' });
     try {
-      const response = await fetch('/api/visual-agent/chat', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, online: navigator.onLine }) });
+      const response = await fetch('/api/visual-agent/chat', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, online: navigator.onLine, page: currentPageContext() }) });
       const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Falha ao consultar o assistente.');
       const next = { role: 'assistant' as const, text: String(data.message), id: typeof data.messageId === 'string' ? data.messageId : undefined, action: data.suggestedAction || null };
       setMessages((current) => [...current, next]); avatarStateController.setState(data.avatarState || 'success'); if (data.speak !== false) speak(next.text);
@@ -142,3 +142,13 @@ function readPreferences(): Preferences { try { const value = JSON.parse(localSt
 function savePreferences(value: Partial<Preferences>) { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readPreferences(), ...value })); }
 function track(eventType: string) { return fetch('/api/visual-agent/event', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventType }) }).catch(() => undefined); }
 function viewportKind(): 'mobile' | 'tablet' | 'desktop' { return window.innerWidth >= 1024 ? 'desktop' : window.innerWidth >= 768 ? 'tablet' : 'mobile'; }
+function currentPageContext() {
+  const path = window.location.pathname;
+  if (/^\/(admin|painel|parceiro|tecnico)(\/|$)/i.test(path)) return { path };
+  return {
+    path,
+    title: document.title,
+    heading: document.querySelector('main h1, h1')?.textContent || '',
+    description: document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
+  };
+}
