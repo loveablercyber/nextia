@@ -52,6 +52,7 @@ const staticEntries = [
   ['/projeto-personalizado', 'Projeto Personalizado | Nextia', 'Solicite uma avaliação para um projeto digital ou sistema alinhado às necessidades da sua empresa.', 'monthly', '0.7'],
   ['/contato', 'Contato | Nextia', 'Entre em contato com a Nextia para falar sobre tecnologia, suporte ou um novo projeto.', 'monthly', '0.7'],
   ['/orcamento', 'Solicitar Orçamento | Nextia', 'Informe as necessidades do projeto para receber uma avaliação comercial da Nextia.', 'monthly', '0.7'],
+  ['/crie-seu-site', 'Crie uma prévia personalizada do seu site | Nextia', 'Escolha seu segmento e veja uma prévia navegável do site do seu negócio antes de contratar.', 'weekly', '0.9'],
   ['/conteudos', 'Conteúdos sobre tecnologia para empresas | Nextia', 'Guias e conteúdos revisados pela equipe Nextia sobre presença digital, automação responsável e operação de TI.', 'weekly', '0.7'],
   ['/parceiros', 'Programa de Parceiros | Nextia', 'Conheça o programa de parceiros da Nextia e as regras para indicações comerciais.', 'monthly', '0.5'],
   ['/termos', 'Termos de Uso | Nextia', 'Termos de uso dos serviços e canais digitais da Nextia.', 'yearly', '0.2'],

@@ -40,6 +40,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin/planos', icon: CreditCard, label: 'Planos Digitais' },
       { to: '/admin/customer-success', icon: HeartHandshake, label: 'Recorrência e pós-venda' },
       { to: '/admin/conteudos', icon: BookOpen, label: 'Conteúdo e SEO' },
+      { to: '/admin/aquisicao', icon: BarChart3, label: 'Aquisição e campanhas' },
     ],
   },
   {

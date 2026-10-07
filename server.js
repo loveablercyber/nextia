@@ -14,6 +14,7 @@ import { ensureAppSchema, handleAppApi, isAppApiPath } from './app-api.js';
 import { handleCrmApi, isCrmApiPath } from './crm-api.js';
 import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from './automation-api.js';
 import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
+import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } from './acquisition-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
@@ -1103,6 +1104,60 @@ async function handleCatalogApi(req, res, url) {
           addonCodes: draft ? [] : body.addonCodes || [],
           domain,
         });
+        let acquisitionFunnel = null;
+        if (body.funnelSessionKey || body.funnelAccessToken) {
+          if (!UUID_PATTERN.test(String(body.funnelSessionKey || '')) || !body.funnelAccessToken) {
+            throw httpError(401, 'Sessão de campanha inválida.', 'INVALID_FUNNEL_SESSION');
+          }
+          const funnelResult = await client.query(
+            `SELECT s.id,s.public_key,s.access_token_hash,s.selected_amount_cents,s.selected_addons,s.expires_at,
+                    c.service_slug,p.segment_slug,p.template_slug,p.business_name
+             FROM public.acquisition_funnel_sessions s
+             JOIN public.acquisition_campaigns c ON c.id=s.campaign_id
+             JOIN public.acquisition_preview_projects p ON p.session_id=s.id
+             WHERE s.public_key=$1 AND s.expires_at>NOW()`,
+            [body.funnelSessionKey],
+          );
+          const funnel = funnelResult.rows[0];
+          const presentedHash = createHash('sha256').update(String(body.funnelAccessToken)).digest('hex');
+          if (!funnel || !secureTextEqual(funnel.access_token_hash, presentedHash)) {
+            throw httpError(401, 'Sessão de campanha inválida ou expirada.', 'INVALID_FUNNEL_SESSION');
+          }
+          if (funnel.service_slug !== selection.service.slug || !Number.isInteger(Number(funnel.selected_amount_cents))) {
+            throw httpError(409, 'Finalize a escolha de investimento antes do checkout.', 'FUNNEL_PRICING_REQUIRED');
+          }
+          const chosenAmount = Number(funnel.selected_amount_cents);
+          const baseItem = selection.oneTimeItems[0];
+          if (!baseItem) throw httpError(409, 'A contratação não possui item de ativação.', 'ACTIVATION_ITEM_REQUIRED');
+          selection.oneTimeTotalCents += chosenAmount - Number(baseItem.amountCents);
+          baseItem.amountCents = chosenAmount;
+          baseItem.name = `${selection.service.name} — Ativação personalizada`;
+          const funnelAddonCodes = Array.isArray(funnel.selected_addons) ? funnel.selected_addons : [];
+          if (funnelAddonCodes.length) {
+            const funnelAddons = await client.query(
+              `SELECT code,name,amount_cents,billing_cycle FROM public.commercial_addons
+               WHERE active=TRUE AND code=ANY($1) AND (service_slug IS NULL OR service_slug=$2)`,
+              [funnelAddonCodes, selection.service.slug],
+            );
+            for (const addon of funnelAddons.rows) {
+              const item = { code: addon.code, name: addon.name, amountCents: Number(addon.amount_cents), billingCycle: addon.billing_cycle };
+              if (addon.billing_cycle === 'monthly') {
+                selection.monthlyItems.push(item);
+                selection.monthlyTotalCents += item.amountCents;
+              } else {
+                selection.oneTimeItems.push(item);
+                selection.oneTimeTotalCents += item.amountCents;
+              }
+            }
+          }
+          acquisitionFunnel = {
+            sessionId: funnel.id,
+            publicKey: funnel.public_key,
+            segmentSlug: funnel.segment_slug,
+            templateSlug: funnel.template_slug,
+            businessName: funnel.business_name,
+          };
+        }
         if (draft) {
           const domainFee = domain?.mode === 'register' ? 5000 : 0;
           const baseActivation = selection.oneTimeTotalCents - domainFee;
@@ -1143,12 +1198,15 @@ async function handleCatalogApi(req, res, url) {
               planId: selection.plan?.id || null,
               planName: selection.plan?.name || null,
               templateId: selection.template?.id || null,
-              templateSlug: selection.template?.slug || null,
-              templateName: selection.template?.name || null,
+              templateSlug: selection.template?.slug || acquisitionFunnel?.templateSlug || null,
+              templateName: selection.template?.name || (acquisitionFunnel ? `Site de ${acquisitionFunnel.businessName}` : null),
+              variantSlug: acquisitionFunnel?.segmentSlug || null,
+              variantName: acquisitionFunnel?.segmentSlug || null,
               addonCodes: body.addonCodes || [],
               domain,
               oneTimeTotalCents: selection.oneTimeTotalCents,
               monthlyTotalCents: selection.monthlyTotalCents,
+              acquisitionFunnel,
             }),
           ],
         );
@@ -1412,6 +1470,22 @@ async function handleCatalogApi(req, res, url) {
             crmLeadId,
           ],
         );
+
+        if (normalizedSelection.acquisitionFunnel?.sessionId) {
+          await client.query(
+            `UPDATE public.acquisition_funnel_sessions
+             SET user_id=$2,order_id=$3,current_step='checkout',status='checkout',last_activity_at=NOW(),updated_at=NOW()
+             WHERE id=$1 AND (user_id IS NULL OR user_id=$2)`,
+            [normalizedSelection.acquisitionFunnel.sessionId, sessionProfile.id, orderId],
+          );
+          await client.query(
+            `INSERT INTO public.acquisition_funnel_events(session_id,campaign_id,variant_id,event_name,event_key,properties)
+             SELECT id,campaign_id,variant_id,'checkout_started','order:'||$2,jsonb_build_object('orderId',$2::text)
+             FROM public.acquisition_funnel_sessions WHERE id=$1
+             ON CONFLICT(session_id,event_key) WHERE event_key IS NOT NULL DO NOTHING`,
+            [normalizedSelection.acquisitionFunnel.sessionId, orderId],
+          );
+        }
 
         await client.query(
           `INSERT INTO public.commercial_order_items
@@ -2087,6 +2161,27 @@ async function handleCatalogApi(req, res, url) {
              VALUES ($1,'Serviço contratado',$2,'project')`,
             [order.user_id, `${snapshot.serviceName || service.name} foi confirmado. Complete o onboarding no painel.`],
           );
+          if (snapshot.acquisitionFunnel?.sessionId) {
+            await client.query(
+              `INSERT INTO public.acquisition_provisioning_jobs(session_id,order_id,status,attempts,result,completed_at)
+               VALUES($1,$2,'completed',1,$3,NOW())
+               ON CONFLICT(session_id) DO UPDATE SET status='completed',attempts=acquisition_provisioning_jobs.attempts+1,
+                 result=EXCLUDED.result,last_error=NULL,completed_at=COALESCE(acquisition_provisioning_jobs.completed_at,NOW()),updated_at=NOW()`,
+              [snapshot.acquisitionFunnel.sessionId, order.id, JSON.stringify({ engagementId, providerPaymentId: resourceId })],
+            );
+            await client.query(
+              `UPDATE public.acquisition_funnel_sessions SET status='converted',current_step='complete',last_activity_at=NOW(),updated_at=NOW()
+               WHERE id=$1 AND order_id=$2`,
+              [snapshot.acquisitionFunnel.sessionId, order.id],
+            );
+            await client.query(
+              `INSERT INTO public.acquisition_funnel_events(session_id,campaign_id,variant_id,event_name,event_key,properties)
+               SELECT id,campaign_id,variant_id,'purchase_completed','payment:'||$2,jsonb_build_object('orderId',$3::text,'amountCents',$4::int)
+               FROM public.acquisition_funnel_sessions WHERE id=$1
+               ON CONFLICT(session_id,event_key) WHERE event_key IS NOT NULL DO NOTHING`,
+              [snapshot.acquisitionFunnel.sessionId, resourceId, order.id, Number(order.total_cents ?? order.amount_cents)],
+            );
+          }
         }
 
         await client.query(
@@ -4779,6 +4874,9 @@ createServer(async (req, res) => {
     if (isVisualAgentApiPath(url.pathname)) {
       return await handleVisualAgentApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
+    if (isAcquisitionApiPath(url.pathname)) {
+      return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
     if (isCustomerSuccessApiPath(url.pathname)) {
       return await handleCustomerSuccessApi(req, res, url, {
         dbClient,
@@ -4871,6 +4969,7 @@ createServer(async (req, res) => {
         await ensureAutomationSchema(client);
         await ensureCustomerSuccessSchema(client);
         await ensureContentSchema(client);
+        await ensureAcquisitionSchema(client);
         await client.end();
         console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
         if (process.env.AUTOMATION_WORKER_ENABLED !== 'false') {

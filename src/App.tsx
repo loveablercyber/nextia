@@ -33,6 +33,7 @@ const QuotePage = lazy(() => import('./pages/QuotePage'));
 const ContentHubPage = lazy(() => import('./pages/ContentHubPage'));
 const ContentDetailPage = lazy(() => import('./pages/ContentDetailPage'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
+const AcquisitionFunnelPage = lazy(() => import('./features/acquisition/AcquisitionFunnelPage'));
 const LojaVirtualPage = lazy(() => import('./pages/LojaVirtualPage'));
 const AutomacaoIAPage = lazy(() => import('./pages/AutomacaoIAPage'));
 const TechCarePage = lazy(() => import('./pages/TechCarePage'));
@@ -87,6 +88,7 @@ const AdminUserCreatePage = lazy(() => import('./pages/admin/AdminUserCreatePage
 const AdminTechnicalServicesPage = lazy(() => import('./pages/admin/AdminTechnicalServicesPage'));
 const AdminCustomerSuccessPage = lazy(() => import('./pages/admin/AdminCustomerSuccessPage'));
 const AdminContentPage = lazy(() => import('./pages/admin/AdminContentPage'));
+const AdminAcquisitionPage = lazy(() => import('./pages/admin/AdminAcquisitionPage'));
 const TechnicianDashboardPage = lazy(() => import('./pages/technician/TechnicianDashboardPage'));
 const TechnicianResourcesPage = lazy(() => import('./pages/technician/TechnicianResourcesPage'));
 const TechnicianAgendaPage = lazy(() => import('./pages/technician/TechnicianAgendaPage'));
@@ -165,6 +167,7 @@ const staticSeo: Record<string, { title: string; description: string }> = {
   '/projeto-personalizado': { title: 'Projeto Personalizado', description: 'Solicite uma avaliação para um projeto digital alinhado às necessidades da sua empresa.' },
   '/contato': { title: 'Contato', description: 'Entre em contato com a Nextia para falar sobre tecnologia, suporte ou um novo projeto.' },
   '/orcamento': { title: 'Solicitar Orçamento', description: 'Informe as necessidades do projeto para receber uma avaliação comercial da Nextia.' },
+  '/crie-seu-site': { title: 'Crie uma prévia personalizada do seu site', description: 'Escolha seu segmento e veja uma prévia navegável do seu site antes de contratar.' },
   '/termos': { title: 'Termos de Uso', description: 'Termos de uso dos serviços e canais digitais da Nextia.' },
   '/privacidade': { title: 'Política de Privacidade', description: 'Política de privacidade e tratamento de dados pessoais da Nextia.' },
   '/cookies': { title: 'Política de Cookies', description: 'Informações sobre o uso de cookies nos canais digitais da Nextia.' },
@@ -187,7 +190,7 @@ function LegacyCityRedirect() {
 }
 
 // Pages that DON'T use the Layout (Header/Footer)
-const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/parceiros', '/parceiros/cadastro'];
+const noLayoutPages = ['/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/parceiros', '/parceiros/cadastro', '/crie-seu-site'];
 
 function DashboardContainer({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
@@ -270,6 +273,7 @@ function AppRoutes() {
       <Route path="/projeto-personalizado" element={<CustomProjectPage />} />
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
+      <Route path="/crie-seu-site" element={<AcquisitionFunnelPage />} />
       <Route path="/conteudos" element={<ContentHubPage />} />
       <Route path="/conteudos/:slug" element={<ContentDetailPage />} />
       <Route path="/bauru" element={<CityPage />} />
@@ -510,6 +514,7 @@ function AppRoutes() {
       />
       <Route path="/admin/customer-success" element={<AdminContainer title="Recorrência e Customer Success"><AdminCustomerSuccessPage /></AdminContainer>} />
       <Route path="/admin/conteudos" element={<AdminContainer title="Conteúdo e SEO"><AdminContentPage /></AdminContainer>} />
+      <Route path="/admin/aquisicao" element={<AdminContainer title="Aquisição e campanhas"><AdminAcquisitionPage /></AdminContainer>} />
       <Route
         path="/admin/catalogo"
         element={
@@ -682,7 +687,7 @@ function AppRoutes() {
 
 function VisualAgentMount() {
   const { pathname } = useLocation();
-  if (/^\/admin(?:\/|$)/.test(pathname)) return null;
+  if (/^\/admin(?:\/|$)/.test(pathname) || pathname === '/crie-seu-site') return null;
   return <Suspense fallback={null}><VisualAgentWidget /></Suspense>;
 }
 

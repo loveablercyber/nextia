@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-22T00:00:00.874Z",
+  "generatedAt": "2026-10-07T18:38:19.690Z",
   "entries": [
     {
       "path": "/",
@@ -233,6 +233,15 @@
       "description": "Informe as necessidades do projeto para receber uma avaliação comercial da Nextia.",
       "changefreq": "monthly",
       "priority": "0.7",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/crie-seu-site",
+      "title": "Crie uma prévia personalizada do seu site | Nextia",
+      "description": "Escolha seu segmento e veja uma prévia navegável do site do seu negócio antes de contratar.",
+      "changefreq": "weekly",
+      "priority": "0.9",
       "indexable": true,
       "type": "website"
     },
