@@ -34,6 +34,7 @@ const ContentHubPage = lazy(() => import('./pages/ContentHubPage'));
 const ContentDetailPage = lazy(() => import('./pages/ContentDetailPage'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'));
 const AcquisitionFunnelPage = lazy(() => import('./features/acquisition/AcquisitionFunnelPage'));
+const PublicDemoPage = lazy(() => import('./features/acquisition/PublicDemoPage'));
 const LojaVirtualPage = lazy(() => import('./pages/LojaVirtualPage'));
 const AutomacaoIAPage = lazy(() => import('./pages/AutomacaoIAPage'));
 const TechCarePage = lazy(() => import('./pages/TechCarePage'));
@@ -50,6 +51,7 @@ const CityPage = lazy(() => import('./pages/CityPage'));
 const LocalServicePage = lazy(() => import('./pages/LocalServicePage'));
 const LocalNicheServicePage = lazy(() => import('./pages/LocalNicheServicePage'));
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage'));
+const DemoProjectPage = lazy(() => import('./pages/dashboard/DemoProjectPage'));
 const ProjectPage = lazy(() => import('./pages/dashboard/ProjectPage'));
 const BriefingPage = lazy(() => import('./pages/dashboard/BriefingPage'));
 const FilesPage = lazy(() => import('./pages/dashboard/FilesPage'));
@@ -233,7 +235,7 @@ function PartnerContainer() {
 function AppRoutes() {
   const { pathname } = useLocation();
   const isPrivate = ['/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'].some((prefix) => pathname.startsWith(prefix));
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/parceiro') && !pathname.startsWith('/tecnico');
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/demonstracao') && !pathname.startsWith('/parceiro') && !pathname.startsWith('/tecnico');
 
   const content = (
     <Routes>
@@ -274,6 +276,7 @@ function AppRoutes() {
       <Route path="/contato" element={<ContactPage />} />
       <Route path="/orcamento" element={<QuotePage />} />
       <Route path="/crie-seu-site" element={<AcquisitionFunnelPage />} />
+      <Route path="/demonstracao/:shareKey" element={<PublicDemoPage />} />
       <Route path="/conteudos" element={<ContentHubPage />} />
       <Route path="/conteudos/:slug" element={<ContentDetailPage />} />
       <Route path="/bauru" element={<CityPage />} />
@@ -397,6 +400,7 @@ function AppRoutes() {
         }
       />
       <Route path="/painel/assinaturas" element={<DashboardContainer title="Assinaturas e pós-venda"><CustomerSuccessPage /></DashboardContainer>} />
+      <Route path="/painel/demonstracao" element={<DashboardContainer title="Minha demonstração"><DemoProjectPage /></DashboardContainer>} />
       <Route
         path="/painel/configuracoes"
         element={

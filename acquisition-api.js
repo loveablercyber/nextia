@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createSlidingWindowLimiter, requestIp } from './operational-guards.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const EVENT_NAMES = new Set(['campaign_view','configurator_started','segment_selected','preview_created','preview_viewed','preview_edited','pricing_viewed','addon_selected','lead_identified','checkout_started','purchase_completed']);
+const EVENT_NAMES = new Set(['campaign_view','configurator_started','segment_selected','preview_created','preview_viewed','preview_edited','pricing_viewed','addon_selected','lead_identified','demo_created','checkout_started','purchase_completed']);
 const STEPS = new Set(['landing','segment','configuration','preview','pricing','contact','checkout','complete']);
 let schemaPromise;
 const publicLimiter = createSlidingWindowLimiter({ windowMs: 60_000, maxEntries: 10_000 });
@@ -30,6 +30,34 @@ function phone(value) { const result = String(value || '').replace(/\D/g, '').sl
 function tokenFrom(req) { return clean(req.headers['x-funnel-token'] || String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), 200); }
 function publicKeyFrom(pathname) { return pathname.match(/\/sessions\/([0-9a-f-]{36})(?:\/|$)/i)?.[1] || ''; }
 function error(statusCode, message, code = 'INVALID_REQUEST') { const value = new Error(message); value.statusCode = statusCode; value.code = code; return value; }
+
+function cleanServices(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).map((item) => typeof item === 'string'
+    ? { title: clean(item, 70), description: '' }
+    : { title: clean(item?.title, 70), description: clean(item?.description, 220) })
+    .filter((item) => item.title);
+}
+
+function cleanPreviewContent(value, businessName) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    eyebrow: clean(source.eyebrow, 80),
+    headline: clean(source.headline || `${businessName}, mais perto dos seus clientes`, 140),
+    description: clean(source.description || 'Uma presença digital profissional, rápida e preparada para gerar oportunidades.', 320),
+    cta: clean(source.cta || 'Falar com a equipe', 50),
+    aboutTitle: clean(source.aboutTitle, 100),
+    aboutText: clean(source.aboutText, 420),
+    servicesTitle: clean(source.servicesTitle || 'Soluções para você', 100),
+    services: cleanServices(source.services),
+    bookingTitle: clean(source.bookingTitle || 'Agende seu atendimento', 100),
+    bookingText: clean(source.bookingText, 280),
+    bookingButton: clean(source.bookingButton || 'Consultar horários', 50),
+    phone: clean(source.phone, 30),
+    whatsapp: String(source.whatsapp || '').replace(/\D/g, '').slice(0, 15),
+    address: clean(source.address, 160),
+  };
+}
 
 function chooseVariant(rows) {
   const active = rows.filter((row) => row.active && Number(row.weight) > 0);
@@ -65,13 +93,70 @@ async function appendEvent(client, session, name, properties = {}, eventKey = nu
 }
 
 export async function handleAcquisitionApi(req, res, url, deps) {
-  const { dbClient, getSessionProfile, json, readJson } = deps;
+  const { dbClient, getSessionProfile, json, readJson, hashPassword, signToken, sessionCookie } = deps;
   const client = dbClient();
   await client.connect();
   try {
     await ensureAcquisitionSchema(client);
     if (!url.pathname.startsWith('/api/admin/') && !publicLimiter.allow(`acquisition:${requestIp(req)}`, url.pathname === '/api/acquisition/sessions' ? 10 : 60)) {
       return json(res, 429, { error: 'Muitas tentativas. Aguarde um minuto e tente novamente.', code: 'RATE_LIMITED' });
+    }
+
+    const publicDemoMatch = url.pathname.match(/^\/api\/acquisition\/demos\/([0-9a-f-]{36})$/i);
+    if (publicDemoMatch && req.method === 'GET') {
+      await client.query("UPDATE public.acquisition_preview_projects SET demo_status='expired',updated_at=NOW() WHERE share_key=$1 AND demo_status='active' AND expires_at<=NOW()", [publicDemoMatch[1]]);
+      const result = await client.query(`SELECT p.segment_slug,p.template_slug,p.business_name,p.theme,p.content,p.revision,p.expires_at
+        FROM public.acquisition_preview_projects p WHERE p.share_key=$1 AND p.demo_status='active' AND p.expires_at>NOW()`, [publicDemoMatch[1]]);
+      if (!result.rows[0]) return json(res, 404, { error: 'Demonstração não encontrada ou expirada.', code: 'DEMO_EXPIRED' });
+      return json(res, 200, { preview: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/acquisition/my-demo' && req.method === 'GET') {
+      const profile = await getSessionProfile(req, client);
+      if (!profile) return json(res, 401, { error: 'Autenticação necessária.' });
+      const result = await client.query(`SELECT p.share_key,p.business_name,p.segment_slug,p.expires_at,p.demo_status,p.engagement_id,
+          s.public_key session_key,s.selected_plan_id,e.plan_name_snapshot,e.activation_amount_cents,e.monthly_amount_cents,
+          COALESCE((SELECT json_agg(json_build_object('code',a.code,'name',a.name,'amount_cents',a.amount_cents,'billing_cycle',a.billing_cycle) ORDER BY a.name)
+            FROM public.commercial_addons a WHERE a.code IN (SELECT jsonb_array_elements_text(s.selected_addons))),'[]') addons
+        FROM public.acquisition_preview_projects p JOIN public.acquisition_funnel_sessions s ON s.id=p.session_id
+        LEFT JOIN public.service_engagements e ON e.id=p.engagement_id
+        WHERE p.owner_user_id=$1 ORDER BY p.created_at DESC LIMIT 1`, [profile.id]);
+      const demo = result.rows[0];
+      if (!demo) return json(res, 200, { demo: null });
+      if (demo.demo_status === 'active' && new Date(demo.expires_at).getTime() <= Date.now()) {
+        await client.query("UPDATE public.acquisition_preview_projects SET demo_status='expired',updated_at=NOW() WHERE share_key=$1", [demo.share_key]);
+        if (demo.engagement_id) await client.query("UPDATE public.service_engagements SET status='demo_expired',updated_at=NOW() WHERE id=$1 AND status='demo_active'", [demo.engagement_id]);
+        demo.demo_status = 'expired';
+      }
+      const availableAddons = (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons
+        WHERE active=TRUE AND (service_slug IS NULL OR service_slug='sites-prontos') AND $1=ANY(eligible_segments) ORDER BY name`, [demo.segment_slug])).rows;
+      return json(res, 200, { demo: { ...demo, active: demo.demo_status === 'active' && new Date(demo.expires_at).getTime() > Date.now(), availableAddons, demoUrl: `/demonstracao/${demo.share_key}`, checkoutUrl: `/checkout?service=sites-prontos&plan=${encodeURIComponent(demo.selected_plan_id || '')}&funnel=${demo.session_key}` } });
+    }
+
+    if (url.pathname === '/api/acquisition/my-demo/configuration' && req.method === 'POST') {
+      const profile = await getSessionProfile(req, client);
+      if (!profile) return json(res, 401, { error: 'Autenticação necessária.' });
+      const body = await readJson(req);
+      const codes = Array.isArray(body.addonCodes) ? [...new Set(body.addonCodes.map((item) => clean(item,80)).filter(Boolean))].slice(0,12) : [];
+      const record = (await client.query(`SELECT p.id preview_id,p.segment_slug,p.engagement_id,p.expires_at,p.demo_status,s.id session_id,s.selected_plan_id
+        FROM public.acquisition_preview_projects p JOIN public.acquisition_funnel_sessions s ON s.id=p.session_id
+        WHERE p.owner_user_id=$1 ORDER BY p.created_at DESC LIMIT 1 FOR UPDATE OF p,s`, [profile.id])).rows[0];
+      if (!record) return json(res, 404, { error: 'Demonstração não encontrada.' });
+      if (record.demo_status !== 'active' || new Date(record.expires_at).getTime() <= Date.now()) return json(res, 410, { error: 'Esta demonstração expirou.', code: 'DEMO_EXPIRED' });
+      const plan = (await client.query('SELECT id,name,activation_amount_cents,monthly_amount_cents FROM public.commercial_plans WHERE id=$1 AND active=TRUE', [record.selected_plan_id])).rows[0];
+      if (!plan) return json(res, 409, { error: 'Plano da demonstração indisponível.' });
+      const addonRows = codes.length ? (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons
+        WHERE active=TRUE AND code=ANY($1) AND (service_slug IS NULL OR service_slug='sites-prontos') AND $2=ANY(eligible_segments)`, [codes,record.segment_slug])).rows : [];
+      const validCodes = addonRows.map((item)=>item.code);
+      const activationTotal = Number(plan.activation_amount_cents)+addonRows.filter((item)=>item.billing_cycle!=='monthly').reduce((sum,item)=>sum+Number(item.amount_cents),0);
+      const monthlyTotal = Number(plan.monthly_amount_cents)+addonRows.filter((item)=>item.billing_cycle==='monthly').reduce((sum,item)=>sum+Number(item.amount_cents),0);
+      await client.query('BEGIN');
+      try {
+        await client.query('UPDATE public.acquisition_funnel_sessions SET selected_addons=$2,selected_amount_cents=$3,last_activity_at=NOW(),updated_at=NOW() WHERE id=$1',[record.session_id,JSON.stringify(validCodes),Number(plan.activation_amount_cents)]);
+        if (record.engagement_id) await client.query('UPDATE public.service_engagements SET activation_amount_cents=$2,monthly_amount_cents=$3,updated_at=NOW() WHERE id=$1',[record.engagement_id,activationTotal,monthlyTotal]);
+        await client.query('COMMIT');
+        return json(res,200,{saved:true,addons:addonRows,activationTotalCents:activationTotal,monthlyTotalCents:monthlyTotal});
+      } catch (cause) { await client.query('ROLLBACK'); throw cause; }
     }
 
     const campaignMatch = url.pathname.match(/^\/api\/acquisition\/campaigns\/([a-z0-9-]+)$/);
@@ -103,7 +188,7 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       const session = await loadSession(client, req, url.pathname);
       const preview = (await client.query('SELECT segment_slug,template_slug,business_name,theme,content,revision,expires_at FROM public.acquisition_preview_projects WHERE session_id=$1', [session.id])).rows[0] || null;
       const pricing = (await client.query('SELECT mode,minimum_cents,maximum_cents,suggested_cents,activation_cents,monthly_cents,suggestions FROM public.acquisition_pricing_rules WHERE campaign_id=$1 AND active=TRUE LIMIT 1', [session.campaign_id])).rows[0] || null;
-      return json(res, 200, { session: { publicKey: session.public_key, status: session.status, currentStep: session.current_step, configuration: session.configuration, selectedAddons: session.selected_addons, selectedAmountCents: session.selected_amount_cents, variantCode: session.variant_code, expiresAt: session.expires_at }, preview, pricing });
+      return json(res, 200, { session: { publicKey: session.public_key, status: session.status, currentStep: session.current_step, configuration: session.configuration, selectedAddons: session.selected_addons, selectedAmountCents: session.selected_amount_cents, selectedPlanId: session.selected_plan_id, variantCode: session.variant_code, expiresAt: session.expires_at }, preview, pricing });
     }
 
     if (url.pathname.match(/^\/api\/acquisition\/sessions\/[0-9a-f-]{36}$/i) && req.method === 'PATCH') {
@@ -126,7 +211,7 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       const businessName = clean(body.businessName, 100);
       if (businessName.length < 2) throw error(400, 'Informe o nome do negócio.');
       const color = /^#[0-9a-f]{6}$/i.test(body.theme?.primaryColor) ? body.theme.primaryColor : '#1677ff';
-      const content = { headline: clean(body.content?.headline || `${businessName}, mais perto dos seus clientes`, 120), description: clean(body.content?.description || 'Uma presença digital profissional, rápida e preparada para gerar oportunidades.', 280), cta: clean(body.content?.cta || 'Falar com a equipe', 50), services: Array.isArray(body.content?.services) ? body.content.services.slice(0, 6).map((item) => clean(item, 60)).filter(Boolean) : [] };
+      const content = cleanPreviewContent(body.content, businessName);
       const result = await client.query(`INSERT INTO public.acquisition_preview_projects(session_id,segment_slug,template_slug,business_name,theme,content,expires_at)
         VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(session_id) DO UPDATE SET segment_slug=EXCLUDED.segment_slug,template_slug=EXCLUDED.template_slug,business_name=EXCLUDED.business_name,theme=EXCLUDED.theme,content=EXCLUDED.content,revision=acquisition_preview_projects.revision+1,updated_at=NOW() RETURNING segment_slug,template_slug,business_name,theme,content,revision,expires_at`, [session.id, segmentSlug, templateSlug, businessName, JSON.stringify({ primaryColor: color }), JSON.stringify(content), session.expires_at]);
       await client.query("UPDATE public.acquisition_funnel_sessions SET current_step='preview',status='previewed',configuration=configuration||$2::jsonb,last_activity_at=NOW(),updated_at=NOW() WHERE id=$1", [session.id, JSON.stringify({ segmentSlug, templateSlug, businessName })]);
@@ -139,16 +224,71 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       const session = await loadSession(client, req, url.pathname);
       const pricing = (await client.query('SELECT * FROM public.acquisition_pricing_rules WHERE campaign_id=$1 AND active=TRUE LIMIT 1', [session.campaign_id])).rows[0];
       if (!pricing) throw error(409, 'Preço da campanha não configurado.');
-      const requested = Math.round(Number(body.amountCents || pricing.suggested_cents));
-      const amount = Math.max(Number(pricing.minimum_cents), Math.min(Number(pricing.maximum_cents || requested), requested));
+      const planId = clean(body.planId, 30);
+      const plan = (await client.query('SELECT id,name,monthly_amount_cents,activation_amount_cents FROM public.commercial_plans WHERE id=$1 AND active=TRUE', [planId])).rows[0];
+      if (!plan) throw error(400, 'Escolha um plano válido.', 'INVALID_PLAN');
+      const preview = (await client.query('SELECT segment_slug FROM public.acquisition_preview_projects WHERE session_id=$1', [session.id])).rows[0];
+      if (!preview) throw error(409, 'Crie a prévia antes de selecionar o plano.', 'PREVIEW_REQUIRED');
       const addons = Array.isArray(body.addonCodes) ? [...new Set(body.addonCodes.map((item) => clean(item, 80)).filter(Boolean))].slice(0, 12) : [];
-      const addonRows = addons.length ? (await client.query('SELECT code,name,amount_cents,billing_cycle FROM public.commercial_addons WHERE active=TRUE AND code=ANY($1)', [addons])).rows : [];
+      const addonRows = addons.length ? (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons
+        WHERE active=TRUE AND code=ANY($1) AND (service_slug IS NULL OR service_slug='sites-prontos')
+          AND $2=ANY(eligible_segments)`, [addons, preview.segment_slug])).rows : [];
       const activationAddons = addonRows.filter((item) => item.billing_cycle !== 'monthly').reduce((sum, item) => sum + Number(item.amount_cents), 0);
       const monthlyAddons = addonRows.filter((item) => item.billing_cycle === 'monthly').reduce((sum, item) => sum + Number(item.amount_cents), 0);
       const validAddonCodes = addonRows.map((item) => item.code);
-      await client.query("UPDATE public.acquisition_funnel_sessions SET selected_amount_cents=$2,selected_addons=$3,current_step='pricing',status='priced',last_activity_at=NOW(),updated_at=NOW() WHERE id=$1", [session.id, amount, JSON.stringify(validAddonCodes)]);
-      await appendEvent(client, session, 'pricing_viewed', { amountCents: amount, addonCount: addonRows.length }, 'pricing_viewed');
-      return json(res, 200, { currency: 'BRL', selectedAmountCents: amount, minimumCents: Number(pricing.minimum_cents), activationTotalCents: amount + activationAddons, monthlyTotalCents: Number(pricing.monthly_cents) + monthlyAddons, addons: addonRows });
+      await client.query("UPDATE public.acquisition_funnel_sessions SET selected_plan_id=$2,selected_amount_cents=$3,selected_addons=$4,current_step='pricing',status='priced',last_activity_at=NOW(),updated_at=NOW() WHERE id=$1", [session.id, plan.id, Number(plan.activation_amount_cents), JSON.stringify(validAddonCodes)]);
+      await appendEvent(client, session, 'pricing_viewed', { planId: plan.id, activationCents: Number(plan.activation_amount_cents), addonCount: addonRows.length }, 'pricing_viewed');
+      return json(res, 200, { currency: 'BRL', selectedPlanId: plan.id, planName: plan.name, selectedAmountCents: Number(plan.activation_amount_cents), activationTotalCents: Number(plan.activation_amount_cents) + activationAddons, monthlyTotalCents: Number(plan.monthly_amount_cents) + monthlyAddons, addons: addonRows });
+    }
+
+    if (url.pathname.match(/^\/api\/acquisition\/sessions\/[0-9a-f-]{36}\/demo-account$/i) && req.method === 'POST') {
+      const body = await readJson(req);
+      const session = await loadSession(client, req, url.pathname, true);
+      if (body.acceptedTerms !== true) throw error(400, 'Aceite os termos para criar a conta e a demonstração.', 'TERMS_REQUIRED');
+      const name = clean(body.name, 100);
+      const contactEmail = email(body.email);
+      const contactPhone = phone(body.phone);
+      if (name.length < 2 || !contactEmail) throw error(400, 'Informe nome e e-mail válido.');
+      if (!session.selected_plan_id) throw error(409, 'Escolha um plano antes de criar a demonstração.', 'PLAN_REQUIRED');
+      const preview = (await client.query('SELECT * FROM public.acquisition_preview_projects WHERE session_id=$1 FOR UPDATE', [session.id])).rows[0];
+      if (!preview) throw error(409, 'Crie a prévia antes de continuar.', 'PREVIEW_REQUIRED');
+      const plan = (await client.query('SELECT * FROM public.commercial_plans WHERE id=$1 AND active=TRUE', [session.selected_plan_id])).rows[0];
+      if (!plan) throw error(409, 'O plano selecionado não está disponível.', 'PLAN_UNAVAILABLE');
+      const currentProfile = await getSessionProfile(req, client);
+      const existing = (await client.query('SELECT id,email FROM public.profiles WHERE lower(email)=lower($1)', [contactEmail])).rows[0];
+      if (existing && currentProfile?.id !== existing.id) throw error(409, 'Este e-mail já possui uma conta.', 'ACCOUNT_EXISTS');
+      if (currentProfile && currentProfile.email && currentProfile.email.toLowerCase() !== contactEmail) throw error(409, 'Use o mesmo e-mail da conta conectada.', 'ACCOUNT_EMAIL_MISMATCH');
+
+      let userId = existing?.id || currentProfile?.id || null;
+      let temporaryPassword = null;
+      let accountCreated = false;
+      let authToken = null;
+      await client.query('BEGIN');
+      try {
+        if (!userId) {
+          userId = randomUUID();
+          temporaryPassword = `Nx!${randomBytes(9).toString('base64url')}`;
+          const initials = name.split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0,2).join('').toUpperCase() || 'NX';
+          await client.query(`INSERT INTO public.profiles(id,email,name,company,phone,role,avatar_initials) VALUES($1,$2,$3,$4,$5,'client',$6)`, [userId, contactEmail, name, preview.business_name, contactPhone || '', initials]);
+          await client.query(`INSERT INTO public.local_auth_users(id,password_hash,must_change_password,temporary_password_expires_at) VALUES($1,$2,TRUE,NOW()+INTERVAL '24 hours')`, [userId, hashPassword(temporaryPassword)]);
+          authToken = signToken({ sub: userId, exp: Math.floor(Date.now()/1000) + 7*24*60*60 });
+          accountCreated = true;
+        }
+        const addonRows = session.selected_addons?.length ? (await client.query('SELECT amount_cents,billing_cycle FROM public.commercial_addons WHERE active=TRUE AND code=ANY($1)', [session.selected_addons])).rows : [];
+        const activationTotal = Number(plan.activation_amount_cents) + addonRows.filter((item)=>item.billing_cycle!=='monthly').reduce((sum,item)=>sum+Number(item.amount_cents),0);
+        const monthlyTotal = Number(plan.monthly_amount_cents) + addonRows.filter((item)=>item.billing_cycle==='monthly').reduce((sum,item)=>sum+Number(item.amount_cents),0);
+        const engagement = await client.query(`INSERT INTO public.service_engagements(public_code,user_id,service_slug,service_name_snapshot,service_category,segment_slug,segment_name_snapshot,template_slug_snapshot,template_name_snapshot,plan_id,plan_name_snapshot,workflow_key,execution_mode,status,source_kind,activation_amount_cents,monthly_amount_cents,demo_session_id)
+          VALUES($1,$2,'sites-prontos','Site profissional','digital',$3,$4,$5,$6,$7,$8,'site_ready_v1','client_admin','demo_active','demo',$9,$10,$11)
+          ON CONFLICT(demo_session_id) WHERE demo_session_id IS NOT NULL DO UPDATE SET user_id=EXCLUDED.user_id,plan_id=EXCLUDED.plan_id,plan_name_snapshot=EXCLUDED.plan_name_snapshot,activation_amount_cents=EXCLUDED.activation_amount_cents,monthly_amount_cents=EXCLUDED.monthly_amount_cents,updated_at=NOW() RETURNING id`,
+        [`DEMO-${randomUUID().slice(0,8).toUpperCase()}`,userId,preview.segment_slug,clean(preview.segment_slug.replace(/-/g,' '),80),preview.template_slug,preview.business_name,plan.id,plan.name,activationTotal,monthlyTotal,session.id]);
+        await client.query(`UPDATE public.acquisition_preview_projects SET owner_user_id=$2,engagement_id=$3,demo_status='active',expires_at=LEAST(expires_at,NOW()+INTERVAL '7 days'),updated_at=NOW() WHERE id=$1`, [preview.id,userId,engagement.rows[0].id]);
+        await client.query(`UPDATE public.acquisition_funnel_sessions SET user_id=$2,consent_recovery=$3,accepted_terms_at=NOW(),demo_created_at=COALESCE(demo_created_at,NOW()),current_step='complete',last_activity_at=NOW(),updated_at=NOW() WHERE id=$1`, [session.id,userId,body.consentRecovery===true]);
+        if (body.consentRecovery === true) await client.query(`INSERT INTO public.acquisition_abandonment_contacts(session_id,name,email,phone,consented_at) VALUES($1,$2,$3,$4,NOW()) ON CONFLICT(session_id) DO UPDATE SET name=EXCLUDED.name,email=EXCLUDED.email,phone=EXCLUDED.phone,consented_at=NOW(),revoked_at=NULL,updated_at=NOW()`, [session.id,name,contactEmail,contactPhone||null]);
+        await appendEvent(client, session, 'demo_created', { planId: plan.id, segment: preview.segment_slug }, 'demo_created');
+        await client.query('COMMIT');
+        const headers = authToken ? { 'Set-Cookie': sessionCookie(authToken) } : {};
+        return json(res, 201, { demoUrl:`/demonstracao/${preview.share_key}`,expiresAt:preview.expires_at,dashboardUrl:'/painel',email:contactEmail,temporaryPassword,accountCreated,planName:plan.name,activationTotalCents:activationTotal,monthlyTotalCents:monthlyTotal }, headers);
+      } catch (cause) { await client.query('ROLLBACK'); throw cause; }
     }
 
     if (url.pathname.match(/^\/api\/acquisition\/sessions\/[0-9a-f-]{36}\/contact$/i) && req.method === 'POST') {

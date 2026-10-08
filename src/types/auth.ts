@@ -12,6 +12,7 @@ export interface User {
   role: 'client' | 'admin' | 'partner' | 'technician';
   createdAt: string;
   lastLogin?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthState {

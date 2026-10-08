@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { useServiceEngagements } from '../../context/ServiceEngagementContext';
+import { useAuth } from '../../context/AuthContext';
 import { statusConfig } from '../../types/project';
 import Button from '../../components/ui/Button';
 
@@ -33,6 +34,8 @@ interface ClientContract {
   subscription_checkout_url?: string;
 }
 
+interface DemoSummary { business_name:string;expires_at:string;active:boolean;demoUrl:string;checkoutUrl:string;plan_name_snapshot:string;activation_amount_cents:number;monthly_amount_cents:number }
+
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: 'Criado', color: 'text-amber-800', bg: 'bg-amber-100' },
   payment_pending: { label: 'Aguardando Pagamento', color: 'text-amber-800', bg: 'bg-amber-100' },
@@ -45,20 +48,24 @@ const statusLabels: Record<string, { label: string; color: string; bg: string }>
 };
 
 export default function OverviewPage() {
+  const { user } = useAuth();
   const { project, loading, pendingActions } = useProject();
   const { engagements } = useServiceEngagements();
   const [orders, setOrders] = useState<ClientOrder[]>([]);
   const [contracts, setContracts] = useState<ClientContract[]>([]);
   const [loadingCommerce, setLoadingCommerce] = useState(true);
+  const [demo, setDemo] = useState<DemoSummary | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/commerce/orders').then((r) => (r.ok ? r.json() : { orders: [] })),
       fetch('/api/commerce/plan-contracts').then((r) => (r.ok ? r.json() : { contracts: [] })),
+      fetch('/api/acquisition/my-demo').then((r) => (r.ok ? r.json() : { demo: null })),
     ])
-      .then(([ordersRes, contractsRes]) => {
+      .then(([ordersRes, contractsRes, demoRes]) => {
         if (Array.isArray(ordersRes.orders)) setOrders(ordersRes.orders);
         if (Array.isArray(contractsRes.contracts)) setContracts(contractsRes.contracts);
+        setDemo(demoRes.demo || null);
       })
       .catch(() => {})
       .finally(() => setLoadingCommerce(false));
@@ -90,6 +97,8 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
+      {user?.mustChangePassword && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-black text-amber-950">Proteja sua conta</h2><p className="mt-1 text-xs leading-5 text-amber-800">Você entrou com uma senha temporária. Altere-a agora para manter o acesso depois do prazo de segurança.</p><Link to="/painel/configuracoes" className="mt-3 inline-flex text-xs font-black text-amber-900 underline">Alterar minha senha</Link></section>}
+      {demo && <section className={`rounded-3xl border p-6 ${demo.active?'border-indigo-200 bg-gradient-to-br from-indigo-50 to-white':'border-gray-200 bg-gray-50'}`}><div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-[10px] font-black uppercase tracking-[.2em] text-indigo-600">Demonstração de 7 dias</span><h2 className="mt-2 text-xl font-black text-gray-950">{demo.business_name}</h2><p className="mt-1 text-xs text-gray-500">{demo.active?`Ativa até ${new Date(demo.expires_at).toLocaleDateString('pt-BR')}`:'Esta demonstração expirou'} · {demo.plan_name_snapshot}</p><p className="mt-2 text-xs font-semibold text-gray-700">{formatCurrency(demo.activation_amount_cents)} de ativação + {formatCurrency(demo.monthly_amount_cents)}/mês</p></div><div className="flex flex-wrap gap-2"><a href={demo.demoUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-black text-indigo-700">Abrir demonstração</a><Link to="/painel/demonstracao" className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white">Plano, domínio e pagamento</Link></div></div></section>}
       <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-bold text-gray-950">Seus projetos e serviços</h2><p className="mt-1 text-xs text-gray-400">{engagements.length} serviço(s) contratado(s) · {pendingActions.length} ação(ões) pendente(s) no projeto aberto</p></div><Link to="/painel/servicos" className="text-xs font-bold text-[#5B4FE9]">Ver todos →</Link></div>
         {engagements.length === 0 ? <p className="rounded-2xl bg-gray-50 p-5 text-center text-xs text-gray-500">Você ainda não possui projetos ativos.</p> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{engagements.map((engagement) => <Link key={engagement.id} to={`/painel/servicos/${engagement.id}`} className="rounded-2xl border border-gray-100 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/30"><div className="flex items-start justify-between gap-2"><strong className="text-xs text-gray-900">{engagement.project_name || engagement.service_name_snapshot}</strong><span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">{engagement.project_status || engagement.status}</span></div><p className="mt-2 text-[11px] text-gray-500">{engagement.plan_name_snapshot || 'Plano conforme contratação'}</p>{typeof engagement.progress_percent === 'number' && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#5B4FE9]" style={{ width: `${engagement.progress_percent}%` }} /></div>}</Link>)}</div>}

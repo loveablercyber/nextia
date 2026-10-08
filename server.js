@@ -65,11 +65,12 @@ function securityHeaders() {
   };
 }
 
-function json(res, status, body) {
+function json(res, status, body, extraHeaders = {}) {
   res.writeHead(status, {
     ...securityHeaders(),
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...extraHeaders,
   });
   res.end(JSON.stringify(body));
 }
@@ -518,6 +519,7 @@ function mapProfile(row) {
     role: row.role === 'admin' ? 'admin' : (row.role === 'technician' ? 'technician' : (row.is_partner ? 'partner' : 'client')),
     createdAt: row.created_at || new Date().toISOString(),
     lastLogin: row.last_login_at || row.created_at || new Date().toISOString(),
+    mustChangePassword: row.must_change_password === true,
   };
 }
 
@@ -570,8 +572,10 @@ async function getUserById(userId) {
     await client.query(`UPDATE public.profiles SET last_login_at = NOW() WHERE id = $1 AND (last_login_at IS NULL OR last_login_at < NOW() - INTERVAL '2 minutes')`, [userId]).catch(() => {});
     const result = await client.query(
       `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, p.last_login_at,
+              COALESCE(a.must_change_password,FALSE) must_change_password,
               EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
        FROM public.profiles p
+       LEFT JOIN public.local_auth_users a ON a.id=p.id
        WHERE p.id = $1`,
       [userId],
     );
@@ -1036,10 +1040,14 @@ async function handleCatalogApi(req, res, url) {
     if (url.pathname === '/api/catalog/addons' && req.method === 'GET') {
       try {
         const serviceSlug = url.searchParams.get('service');
+        const segmentSlug = url.searchParams.get('segment');
         const result = await client.query(
           `SELECT code, name, description, amount_cents, billing_cycle, service_slug
-           FROM public.commercial_addons WHERE active = TRUE ${serviceSlug ? 'AND (service_slug IS NULL OR service_slug = $1)' : ''} ORDER BY name`,
-          serviceSlug ? [serviceSlug] : []
+           FROM public.commercial_addons WHERE active = TRUE
+             ${serviceSlug ? 'AND (service_slug IS NULL OR service_slug = $1)' : ''}
+             ${segmentSlug ? `AND $${serviceSlug ? 2 : 1}=ANY(eligible_segments)` : ''}
+           ORDER BY name`,
+          [serviceSlug, segmentSlug].filter(Boolean)
         );
         return json(res, 200, { addons: result.rows || [] });
       } catch (err) {
@@ -1106,11 +1114,11 @@ async function handleCatalogApi(req, res, url) {
         });
         let acquisitionFunnel = null;
         if (body.funnelSessionKey || body.funnelAccessToken) {
-          if (!UUID_PATTERN.test(String(body.funnelSessionKey || '')) || !body.funnelAccessToken) {
+          if (!UUID_PATTERN.test(String(body.funnelSessionKey || ''))) {
             throw httpError(401, 'Sessão de campanha inválida.', 'INVALID_FUNNEL_SESSION');
           }
           const funnelResult = await client.query(
-            `SELECT s.id,s.public_key,s.access_token_hash,s.selected_amount_cents,s.selected_addons,s.expires_at,
+            `SELECT s.id,s.public_key,s.user_id,s.access_token_hash,s.selected_amount_cents,s.selected_addons,s.expires_at,
                     c.service_slug,p.segment_slug,p.template_slug,p.business_name
              FROM public.acquisition_funnel_sessions s
              JOIN public.acquisition_campaigns c ON c.id=s.campaign_id
@@ -1119,8 +1127,10 @@ async function handleCatalogApi(req, res, url) {
             [body.funnelSessionKey],
           );
           const funnel = funnelResult.rows[0];
-          const presentedHash = createHash('sha256').update(String(body.funnelAccessToken)).digest('hex');
-          if (!funnel || !secureTextEqual(funnel.access_token_hash, presentedHash)) {
+          const presentedHash = body.funnelAccessToken ? createHash('sha256').update(String(body.funnelAccessToken)).digest('hex') : '';
+          const ownsDemo = Boolean(funnel && sessionProfile?.id && funnel.user_id === sessionProfile.id);
+          const tokenMatches = Boolean(funnel && presentedHash && secureTextEqual(funnel.access_token_hash, presentedHash));
+          if (!funnel || (!ownsDemo && !tokenMatches)) {
             throw httpError(401, 'Sessão de campanha inválida ou expirada.', 'INVALID_FUNNEL_SESSION');
           }
           if (funnel.service_slug !== selection.service.slug || !Number.isInteger(Number(funnel.selected_amount_cents))) {
@@ -4440,7 +4450,7 @@ async function handleAuth(req, res, pathname) {
 
       const newHash = hashPassword(newPassword);
       await client.query(
-        `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+        `UPDATE public.local_auth_users SET password_hash = $1, must_change_password=FALSE, temporary_password_expires_at=NULL, updated_at = NOW() WHERE id = $2`,
         [newHash, payload.sub],
       );
 
@@ -4466,6 +4476,7 @@ async function handleAuth(req, res, pathname) {
     try {
       const result = await client.query(
         `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, a.password_hash,
+                a.must_change_password,a.temporary_password_expires_at,
                 EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
          FROM public.local_auth_users a
          JOIN public.profiles p ON p.id = a.id
@@ -4483,6 +4494,9 @@ async function handleAuth(req, res, pathname) {
 
       if (!row || !validPassword) {
         return json(res, 401, { error: 'E-mail ou senha incorretos.' });
+      }
+      if (row.must_change_password && row.temporary_password_expires_at && new Date(row.temporary_password_expires_at).getTime() <= Date.now()) {
+        return json(res, 401, { error: 'A senha temporária expirou. Use a recuperação de senha para criar uma nova.' });
       }
       const user = mapProfile(row);
       const token = signToken({ sub: user.id, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 });
@@ -4875,7 +4889,7 @@ createServer(async (req, res) => {
       return await handleVisualAgentApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
     if (isAcquisitionApiPath(url.pathname)) {
-      return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+      return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson, hashPassword, signToken, sessionCookie });
     }
     if (isCustomerSuccessApiPath(url.pathname)) {
       return await handleCustomerSuccessApi(req, res, url, {
