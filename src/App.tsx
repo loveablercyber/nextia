@@ -52,6 +52,8 @@ const LocalServicePage = lazy(() => import('./pages/LocalServicePage'));
 const LocalNicheServicePage = lazy(() => import('./pages/LocalNicheServicePage'));
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage'));
 const DemoProjectPage = lazy(() => import('./pages/dashboard/DemoProjectPage'));
+const SiteEditorPage = lazy(() => import('./pages/dashboard/SiteEditorPage'));
+const SiteInboxPage = lazy(() => import('./pages/dashboard/SiteInboxPage'));
 const ProjectPage = lazy(() => import('./pages/dashboard/ProjectPage'));
 const BriefingPage = lazy(() => import('./pages/dashboard/BriefingPage'));
 const FilesPage = lazy(() => import('./pages/dashboard/FilesPage'));
@@ -401,6 +403,8 @@ function AppRoutes() {
       />
       <Route path="/painel/assinaturas" element={<DashboardContainer title="Assinaturas e pós-venda"><CustomerSuccessPage /></DashboardContainer>} />
       <Route path="/painel/demonstracao" element={<DashboardContainer title="Minha demonstração"><DemoProjectPage /></DashboardContainer>} />
+      <Route path="/painel/site" element={<DashboardContainer title="Meu site"><SiteEditorPage /></DashboardContainer>} />
+      <Route path="/painel/mensagens" element={<DashboardContainer title="Mensagens do site"><SiteInboxPage /></DashboardContainer>} />
       <Route
         path="/painel/configuracoes"
         element={

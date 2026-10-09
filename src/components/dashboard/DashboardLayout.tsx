@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
   Upload, Settings, LogOut, Zap, Menu, ChevronRight,
-  Bell, ExternalLink, HelpCircle, User, ClipboardList, Users, HeartHandshake
+  Bell, ExternalLink, HelpCircle, User, ClipboardList, Users, HeartHandshake, Globe2
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,8 @@ interface DashboardLayoutProps {
 
 const globalNavItems = [
   { to: '/painel', icon: LayoutDashboard, label: 'Visão geral', exact: true },
+  { to: '/painel/site', icon: Globe2, label: 'Meu site' },
+  { to: '/painel/mensagens', icon: MessageSquare, label: 'Mensagens do site' },
   { to: '/painel/servicos', icon: FolderOpen, label: 'Serviços contratados' },
   { to: '/painel/pedidos', icon: ClipboardList, label: 'Meus pedidos' },
   { to: '/painel/pagamentos', icon: CreditCard, label: 'Pagamentos' },

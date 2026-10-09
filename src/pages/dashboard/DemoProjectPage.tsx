@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, Globe2, Loader2, Mail, Save, Timer, WalletCards } from 'lucide-react';
+import { Blocks, ExternalLink, Globe2, Loader2, Mail, Save, Timer, WalletCards } from 'lucide-react';
 
 type Addon = { code:string;name:string;description?:string;amount_cents:number;billing_cycle:string };
 type Demo = { business_name:string;segment_slug:string;expires_at:string;active:boolean;demoUrl:string;checkoutUrl:string;plan_name_snapshot:string;activation_amount_cents:number;monthly_amount_cents:number;addons:Addon[];availableAddons:Addon[] };
+type SiteModule = { code:string;name:string;description:string;category:string;enabled:boolean|null;source:string|null };
+type CustomerSite = { id:string;business_name:string;segment_slug:string;lifecycle_status:string;demo_experience_plan_id:string;selected_plan_id:string;content_revision:number;modules:SiteModule[] };
 const money = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 
 export default function DemoProjectPage() {
   const [demo,setDemo]=useState<Demo|null|undefined>(undefined);
+  const [site,setSite]=useState<CustomerSite|null>(null);
   const [selected,setSelected]=useState<string[]>([]);
   const [domain,setDomain]=useState('');
   const [domainMode,setDomainMode]=useState<'register'|'connect'>('register');
@@ -14,9 +17,11 @@ export default function DemoProjectPage() {
   const [message,setMessage]=useState('');
 
   useEffect(()=>{
-    fetch('/api/acquisition/my-demo',{credentials:'include',cache:'no-store'})
-      .then(r=>r.json())
-      .then(data=>{ const value=data.demo||null; setDemo(value); setSelected(value?.addons?.map((item:Addon)=>item.code)||[]); })
+    Promise.all([
+      fetch('/api/acquisition/my-demo',{credentials:'include',cache:'no-store'}).then(r=>r.ok?r.json():{demo:null}),
+      fetch('/api/sites/me',{credentials:'include',cache:'no-store'}).then(r=>r.ok?r.json():{sites:[]}),
+    ])
+      .then(([demoData,siteData])=>{ const value=demoData.demo||null; setDemo(value); setSelected(value?.addons?.map((item:Addon)=>item.code)||[]); setSite(siteData.sites?.[0]||null); })
       .catch(()=>setDemo(null));
   },[]);
 
@@ -39,6 +44,19 @@ export default function DemoProjectPage() {
     finally{ setSaving(false); }
   }
 
+  async function toggleModule(module:SiteModule){
+    if(!site) return;
+    setMessage('');
+    const enabled=!module.enabled;
+    try{
+      const response=await fetch(`/api/sites/${site.id}/modules/${module.code}`,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.error||'Não foi possível alterar o módulo.');
+      setSite(current=>current?{...current,modules:current.modules.map(item=>item.code===module.code?{...item,enabled}:item)}:current);
+      setMessage(`${module.name} ${enabled?'ativado':'desativado'} na demonstração.`);
+    }catch(cause){ setMessage(cause instanceof Error?cause.message:'Não foi possível alterar o módulo.'); }
+  }
+
   if(demo===undefined) return <div className="grid min-h-60 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-indigo-600"/></div>;
   if(!demo) return <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center"><h1 className="text-xl font-black">Nenhuma demonstração vinculada</h1><p className="mt-2 text-sm text-gray-500">Crie uma prévia para experimentar seu modelo antes de contratar.</p><a href="/crie-seu-site" className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white">Criar prévia</a></div>;
   const days=Math.max(0,Math.ceil((new Date(demo.expires_at).getTime()-Date.now())/86400000));
@@ -56,6 +74,11 @@ export default function DemoProjectPage() {
       <Card icon={<Globe2/>} title="Domínio e pagamento"><p>Registre um domínio novo ou conecte um domínio que você já possui no checkout.</p></Card>
       <Card icon={<Mail/>} title="Conta e e-mail"><p>Seu acesso já está ativo. Marque “E-mail profissional” nos opcionais para usar o domínio do negócio.</p></Card>
     </section>
+
+    {site&&<section className="rounded-3xl border border-indigo-100 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[.16em] text-indigo-600"><Blocks className="h-4 w-4"/>Site operacional</span><h2 className="mt-2 text-xl font-black">Demonstração completa no Nextia Pro</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">Este já é o seu site. Ao contratar, a mesma instância será publicada, preservando conteúdo e configurações. Durante o teste, os módulos Pro compatíveis com o segmento ficam disponíveis.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">Revisão {site.content_revision}</span></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{site.modules.map(module=><button key={module.code} type="button" onClick={()=>toggleModule(module)} disabled={!demo.active} aria-pressed={Boolean(module.enabled)} className={`rounded-2xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${module.enabled?'border-indigo-300 bg-indigo-50':'border-gray-200 bg-gray-50'}`}><span className="flex items-center justify-between gap-3"><strong className="text-sm text-gray-950">{module.name}</strong><span className={`h-5 w-9 rounded-full p-0.5 ${module.enabled?'bg-indigo-600':'bg-gray-300'}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${module.enabled?'translate-x-4':'translate-x-0'}`}/></span></span><span className="mt-2 block text-xs leading-5 text-gray-500">{module.description}</span><span className="mt-3 block text-[10px] font-black uppercase tracking-wide text-indigo-600">{module.enabled?'Ativo':'Desativado'}</span></button>)}</div>
+    </section>}
 
     <section className="rounded-3xl border border-gray-100 bg-white p-6">
       <h2 className="font-black">Opcionais para {demo.segment_slug.replace(/-/g,' ')}</h2>

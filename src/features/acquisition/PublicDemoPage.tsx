@@ -12,7 +12,7 @@ export default function PublicDemoPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`/api/acquisition/demos/${encodeURIComponent(shareKey)}`, { cache: 'no-store' })
+    fetch(`/api/public/sites/${encodeURIComponent(shareKey)}`, { cache: 'no-store' })
       .then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Demonstração indisponível.'); return data; })
       .then((data) => setPreview(data.preview))
       .catch((cause) => setError(cause instanceof Error ? cause.message : 'Demonstração indisponível.'));

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSlidingWindowLimiter, requestIp } from './operational-guards.js';
+import { provisionSiteFromPreview } from './site-platform-api.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EVENT_NAMES = new Set(['campaign_view','configurator_started','segment_selected','preview_created','preview_viewed','preview_edited','pricing_viewed','addon_selected','lead_identified','demo_created','checkout_started','purchase_completed']);
@@ -115,10 +116,12 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       const profile = await getSessionProfile(req, client);
       if (!profile) return json(res, 401, { error: 'Autenticação necessária.' });
       const result = await client.query(`SELECT p.share_key,p.business_name,p.segment_slug,p.expires_at,p.demo_status,p.engagement_id,
+          si.id site_id,si.lifecycle_status,si.content_revision,
           s.public_key session_key,s.selected_plan_id,e.plan_name_snapshot,e.activation_amount_cents,e.monthly_amount_cents,
           COALESCE((SELECT json_agg(json_build_object('code',a.code,'name',a.name,'amount_cents',a.amount_cents,'billing_cycle',a.billing_cycle) ORDER BY a.name)
             FROM public.commercial_addons a WHERE a.code IN (SELECT jsonb_array_elements_text(s.selected_addons))),'[]') addons
         FROM public.acquisition_preview_projects p JOIN public.acquisition_funnel_sessions s ON s.id=p.session_id
+        LEFT JOIN public.site_instances si ON si.acquisition_preview_id=p.id
         LEFT JOIN public.service_engagements e ON e.id=p.engagement_id
         WHERE p.owner_user_id=$1 ORDER BY p.created_at DESC LIMIT 1`, [profile.id]);
       const demo = result.rows[0];
@@ -282,12 +285,14 @@ export async function handleAcquisitionApi(req, res, url, deps) {
           ON CONFLICT(demo_session_id) WHERE demo_session_id IS NOT NULL DO UPDATE SET user_id=EXCLUDED.user_id,plan_id=EXCLUDED.plan_id,plan_name_snapshot=EXCLUDED.plan_name_snapshot,activation_amount_cents=EXCLUDED.activation_amount_cents,monthly_amount_cents=EXCLUDED.monthly_amount_cents,updated_at=NOW() RETURNING id`,
         [`DEMO-${randomUUID().slice(0,8).toUpperCase()}`,userId,preview.segment_slug,clean(preview.segment_slug.replace(/-/g,' '),80),preview.template_slug,preview.business_name,plan.id,plan.name,activationTotal,monthlyTotal,session.id]);
         await client.query(`UPDATE public.acquisition_preview_projects SET owner_user_id=$2,engagement_id=$3,demo_status='active',expires_at=LEAST(expires_at,NOW()+INTERVAL '7 days'),updated_at=NOW() WHERE id=$1`, [preview.id,userId,engagement.rows[0].id]);
+        const persistedPreview = { ...preview, owner_user_id:userId, engagement_id:engagement.rows[0].id };
+        const site = await provisionSiteFromPreview(client, { preview:persistedPreview, session, userId, engagementId:engagement.rows[0].id });
         await client.query(`UPDATE public.acquisition_funnel_sessions SET user_id=$2,consent_recovery=$3,accepted_terms_at=NOW(),demo_created_at=COALESCE(demo_created_at,NOW()),current_step='complete',last_activity_at=NOW(),updated_at=NOW() WHERE id=$1`, [session.id,userId,body.consentRecovery===true]);
         if (body.consentRecovery === true) await client.query(`INSERT INTO public.acquisition_abandonment_contacts(session_id,name,email,phone,consented_at) VALUES($1,$2,$3,$4,NOW()) ON CONFLICT(session_id) DO UPDATE SET name=EXCLUDED.name,email=EXCLUDED.email,phone=EXCLUDED.phone,consented_at=NOW(),revoked_at=NULL,updated_at=NOW()`, [session.id,name,contactEmail,contactPhone||null]);
         await appendEvent(client, session, 'demo_created', { planId: plan.id, segment: preview.segment_slug }, 'demo_created');
         await client.query('COMMIT');
         const headers = authToken ? { 'Set-Cookie': sessionCookie(authToken) } : {};
-        return json(res, 201, { demoUrl:`/demonstracao/${preview.share_key}`,expiresAt:preview.expires_at,dashboardUrl:'/painel',email:contactEmail,temporaryPassword,accountCreated,planName:plan.name,activationTotalCents:activationTotal,monthlyTotalCents:monthlyTotal }, headers);
+        return json(res, 201, { siteId:site.id,demoUrl:`/demonstracao/${site.public_key}`,expiresAt:site.demo_expires_at,dashboardUrl:'/painel/demonstracao',email:contactEmail,temporaryPassword,accountCreated,planName:plan.name,activationTotalCents:activationTotal,monthlyTotalCents:monthlyTotal }, headers);
       } catch (cause) { await client.query('ROLLBACK'); throw cause; }
     }
 

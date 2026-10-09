@@ -15,6 +15,7 @@ import { handleCrmApi, isCrmApiPath } from './crm-api.js';
 import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from './automation-api.js';
 import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
 import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } from './acquisition-api.js';
+import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
@@ -2172,12 +2173,49 @@ async function handleCatalogApi(req, res, url) {
             [order.user_id, `${snapshot.serviceName || service.name} foi confirmado. Complete o onboarding no painel.`],
           );
           if (snapshot.acquisitionFunnel?.sessionId) {
+            const activatedSite = await client.query(
+              `UPDATE public.site_instances si SET lifecycle_status='active',selected_plan_id=$2,engagement_id=$3,
+                 demo_expires_at=NULL,published_at=COALESCE(published_at,NOW()),suspended_at=NULL,updated_at=NOW()
+               FROM public.acquisition_preview_projects p
+               WHERE si.acquisition_preview_id=p.id AND p.session_id=$1
+               RETURNING si.id`,
+              [snapshot.acquisitionFunnel.sessionId, snapshot.planId || null, engagementId],
+            );
+            const activatedSiteId = activatedSite.rows[0]?.id || null;
+            if (activatedSiteId) {
+              await client.query(
+                `UPDATE public.site_modules SET enabled=FALSE,source='plan',updated_at=NOW()
+                 WHERE site_id=$1 AND source IN ('plan','demo')`,
+                [activatedSiteId],
+              );
+              await client.query(
+                `INSERT INTO public.site_modules(site_id,module_code,enabled,source)
+                 SELECT $1,module_code,TRUE,'plan' FROM public.plan_module_entitlements
+                 WHERE plan_id=$2 AND enabled=TRUE
+                 ON CONFLICT(site_id,module_code) DO UPDATE SET enabled=TRUE,source='plan',updated_at=NOW()`,
+                [activatedSiteId, snapshot.planId || null],
+              );
+              await client.query(
+                `UPDATE public.site_addons SET status='active',updated_at=NOW() WHERE site_id=$1`,
+                [activatedSiteId],
+              );
+              await client.query(
+                `UPDATE public.acquisition_preview_projects SET demo_status='published',engagement_id=$2,updated_at=NOW()
+                 WHERE session_id=$1`,
+                [snapshot.acquisitionFunnel.sessionId, engagementId],
+              );
+              await client.query(
+                `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+                 VALUES($1,'site.activated','site_instance',$2,$3)`,
+                [order.user_id, activatedSiteId, JSON.stringify({ orderId, engagementId, planId: snapshot.planId || null })],
+              );
+            }
             await client.query(
               `INSERT INTO public.acquisition_provisioning_jobs(session_id,order_id,status,attempts,result,completed_at)
                VALUES($1,$2,'completed',1,$3,NOW())
                ON CONFLICT(session_id) DO UPDATE SET status='completed',attempts=acquisition_provisioning_jobs.attempts+1,
                  result=EXCLUDED.result,last_error=NULL,completed_at=COALESCE(acquisition_provisioning_jobs.completed_at,NOW()),updated_at=NOW()`,
-              [snapshot.acquisitionFunnel.sessionId, order.id, JSON.stringify({ engagementId, providerPaymentId: resourceId })],
+              [snapshot.acquisitionFunnel.sessionId, order.id, JSON.stringify({ engagementId, providerPaymentId: resourceId, siteId: activatedSiteId })],
             );
             await client.query(
               `UPDATE public.acquisition_funnel_sessions SET status='converted',current_step='complete',last_activity_at=NOW(),updated_at=NOW()
@@ -4887,6 +4925,9 @@ createServer(async (req, res) => {
     }
     if (isVisualAgentApiPath(url.pathname)) {
       return await handleVisualAgentApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
+    if (isSitePlatformApiPath(url.pathname)) {
+      return await handleSitePlatformApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
     if (isAcquisitionApiPath(url.pathname)) {
       return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson, hashPassword, signToken, sessionCookie });
