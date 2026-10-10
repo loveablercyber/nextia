@@ -1,5 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { AIService } from './ai-service.js';
+import { deliverSiteMessage, markSiteMessageFailed } from './site-message-delivery.js';
 import {
   AutomationError,
   evaluateConditions,
@@ -149,11 +150,12 @@ export class AutomationEngine {
 
   async processEvent(event) {
     try {
-      if (!settingEnabled(await getSetting(this.client, 'automation.enabled', true))) {
+      if (event.event_type === 'site.message_reply_requested') {
+        await deliverSiteMessage(this.client,event,{fetchImpl:this.fetchImpl});
+      } else if (!settingEnabled(await getSetting(this.client, 'automation.enabled', true))) {
         await this.releaseEvent(event.id, 60);
         return 'retry';
-      }
-      if (event.event_type === 'automation.approval.approved') {
+      } else if (event.event_type === 'automation.approval.approved') {
         const approvalId = payloadObject(event.payload).approvalId;
         await this.executeApprovedAction(approvalId);
       } else {
@@ -186,6 +188,9 @@ export class AutomationEngine {
           [event.id, delay, String(error.message || error).slice(0, 1000)],
         );
         return 'retry';
+      }
+      if (event.event_type === 'site.message_reply_requested') {
+        await markSiteMessageFailed(this.client,event,error).catch(()=>undefined);
       }
       await this.client.query(
         `UPDATE public.outbox_events SET status='dead_letter',dead_lettered_at=NOW(),locked_at=NULL,locked_by=NULL,last_error=$2 WHERE id=$1`,

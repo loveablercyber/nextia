@@ -202,7 +202,8 @@ export async function handleSitePlatformApi(req, res, url, deps) {
         FROM public.site_conversations c JOIN public.site_contacts ct ON ct.id=c.contact_id
         WHERE c.id=$1 AND c.site_id=$2`, [conversationMatch[2],site.id])).rows[0];
       if (!conversation) return json(res,404,{error:'Conversa não encontrada.'});
-      const messages = (await client.query(`SELECT id,direction,body,delivery_status,created_at FROM public.site_messages
+      const messages = (await client.query(`SELECT id,direction,body,delivery_status,delivery_channel,delivery_provider,
+        delivery_attempts,delivery_error,provider_reference,sent_at,created_at FROM public.site_messages
         WHERE conversation_id=$1 ORDER BY created_at`, [conversation.id])).rows;
       return json(res,200,{conversation,messages});
     }
@@ -215,18 +216,32 @@ export async function handleSitePlatformApi(req, res, url, deps) {
       const site = await requireSite(client,profile,replyMatch[1]);
       if (!site) return json(res,404,{error:'Site não encontrado.'});
       if (!['owner','admin','editor','attendant'].includes(site.role)) return json(res,403,{error:'Sem permissão para responder mensagens.'});
-      const conversation = (await client.query('SELECT id,channel FROM public.site_conversations WHERE id=$1 AND site_id=$2', [replyMatch[2],site.id])).rows[0];
+      const conversation = (await client.query(`SELECT c.id,c.channel,ct.email contact_email,ct.phone contact_phone
+        FROM public.site_conversations c JOIN public.site_contacts ct ON ct.id=c.contact_id
+        WHERE c.id=$1 AND c.site_id=$2`, [replyMatch[2],site.id])).rows[0];
       if (!conversation) return json(res,404,{error:'Conversa não encontrada.'});
+      const requestedChannel = clean(body.channel,20) || 'auto';
+      if (!['auto','email','whatsapp'].includes(requestedChannel)) return json(res,400,{error:'Canal de resposta inválido.'});
+      const deliveryChannel = requestedChannel === 'auto'
+        ? (conversation.contact_email ? 'email' : conversation.contact_phone ? 'whatsapp' : null)
+        : requestedChannel;
+      if (!deliveryChannel || (deliveryChannel==='email' && !conversation.contact_email) || (deliveryChannel==='whatsapp' && !conversation.contact_phone)) {
+        return json(res,409,{error:'O contato não possui os dados necessários para este canal.',code:'CONTACT_CHANNEL_UNAVAILABLE'});
+      }
+      if (deliveryChannel==='email' && !process.env.RESEND_API_KEY) return json(res,503,{error:'O provedor de e-mail ainda não está configurado.',code:'EMAIL_PROVIDER_NOT_CONFIGURED'});
+      if (deliveryChannel==='whatsapp' && (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID || !process.env.WHATSAPP_API_VERSION || (conversation.channel!=='whatsapp' && !process.env.WHATSAPP_REPLY_TEMPLATE_NAME))) {
+        return json(res,503,{error:'O provedor do WhatsApp ainda não está configurado.',code:'WHATSAPP_PROVIDER_NOT_CONFIGURED'});
+      }
       await client.query('BEGIN');
       try {
-        const sent = (await client.query(`INSERT INTO public.site_messages(conversation_id,direction,sender_user_id,body,delivery_status)
-          VALUES($1,'outbound',$2,$3,'queued') RETURNING id,direction,body,delivery_status,created_at`, [conversation.id,profile.id,message])).rows[0];
+        const sent = (await client.query(`INSERT INTO public.site_messages(conversation_id,direction,sender_user_id,body,delivery_status,delivery_channel)
+          VALUES($1,'outbound',$2,$3,'queued',$4) RETURNING id,direction,body,delivery_status,delivery_channel,created_at`, [conversation.id,profile.id,message,deliveryChannel])).rows[0];
         await client.query(`UPDATE public.site_conversations SET status='pending',last_message_at=NOW(),updated_at=NOW() WHERE id=$1`, [conversation.id]);
         await client.query(`INSERT INTO public.outbox_events(aggregate_type,aggregate_id,event_type,payload,idempotency_key)
           VALUES('site_conversation',$1,'site.message_reply_requested',$2,$3) ON CONFLICT(idempotency_key) DO NOTHING`,
         [conversation.id,JSON.stringify({siteId:site.id,conversationId:conversation.id,messageId:sent.id,channel:conversation.channel}),`site.message_reply_requested:${sent.id}`]);
         await client.query('COMMIT');
-        return json(res,201,{message:sent,delivery:{status:'queued',providerRequired:true,notice:'A resposta foi registrada. O envio externo requer um provedor de e-mail ou WhatsApp configurado.'}});
+        return json(res,201,{message:sent,delivery:{status:'queued',channel:deliveryChannel,providerRequired:false,notice:`Resposta registrada e adicionada à fila de envio por ${deliveryChannel==='email'?'e-mail':'WhatsApp'}.`}});
       } catch (cause) { await client.query('ROLLBACK'); throw cause; }
     }
 
