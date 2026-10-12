@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { createSlidingWindowLimiter, requestIp } from './operational-guards.js';
+import { handleEvolutionWebhook } from './evolution-whatsapp.js';
+import { isWhatsAppConfigured } from './site-message-delivery.js';
 
 const SITE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_SEGMENTS = new Set(['contabilidade','advocacia','clinicas','restaurantes','hoteis','saloes-de-beleza','prestadores-de-servicos','lojas']);
 const publicContactLimiter = createSlidingWindowLimiter({ windowMs: 60_000 });
 
 export function isSitePlatformApiPath(pathname) {
-  return pathname.startsWith('/api/sites') || pathname.startsWith('/api/public/sites/');
+  return pathname.startsWith('/api/sites') || pathname.startsWith('/api/public/sites/') || pathname === '/api/webhooks/evolution';
 }
 
 export async function ensureSitePlatformSchema(client) {
@@ -106,6 +108,10 @@ export async function handleSitePlatformApi(req, res, url, deps) {
   await client.connect();
   try {
     await ensureSitePlatformSchema(client);
+
+    if (url.pathname === '/api/webhooks/evolution' && req.method === 'POST') {
+      return handleEvolutionWebhook(req,res,{client,json,readJson,env:process.env});
+    }
 
     const publicContactMatch = url.pathname.match(/^\/api\/public\/sites\/([0-9a-f-]{36})\/contact$/i);
     if (publicContactMatch && req.method === 'POST') {
@@ -229,7 +235,7 @@ export async function handleSitePlatformApi(req, res, url, deps) {
         return json(res,409,{error:'O contato não possui os dados necessários para este canal.',code:'CONTACT_CHANNEL_UNAVAILABLE'});
       }
       if (deliveryChannel==='email' && !process.env.RESEND_API_KEY) return json(res,503,{error:'O provedor de e-mail ainda não está configurado.',code:'EMAIL_PROVIDER_NOT_CONFIGURED'});
-      if (deliveryChannel==='whatsapp' && (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID || !process.env.WHATSAPP_API_VERSION || (conversation.channel!=='whatsapp' && !process.env.WHATSAPP_REPLY_TEMPLATE_NAME))) {
+      if (deliveryChannel==='whatsapp' && !isWhatsAppConfigured(process.env,{directReply:conversation.channel==='whatsapp'})) {
         return json(res,503,{error:'O provedor do WhatsApp ainda não está configurado.',code:'WHATSAPP_PROVIDER_NOT_CONFIGURED'});
       }
       await client.query('BEGIN');

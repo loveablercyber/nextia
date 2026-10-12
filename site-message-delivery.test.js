@@ -46,6 +46,19 @@ describe('site message delivery',()=>{
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({to:'5511999999999',type:'template',template:{name:'resposta_site'}});
   });
 
+  it('sends a WhatsApp text through Evolution using the Agenda CarolSol configuration pattern',async()=>{
+    const client=database(message({delivery_channel:'whatsapp',contact_email:null}));
+    const fetchImpl=vi.fn().mockResolvedValue({ok:true,status:201,text:async()=>JSON.stringify({key:{id:'EVO-123'}})});
+    const result=await deliverSiteMessage(client,event,{fetchImpl,env:{
+      WHATSAPP_DRIVER:'evolution',WHATSAPP_API_URL:'https://evo.example.com/',WHATSAPP_API_KEY:'secret',WHATSAPP_INSTANCE:'nextia',
+    }});
+    expect(result).toMatchObject({channel:'whatsapp',provider:'evolution-api',reference:'EVO-123'});
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://evo.example.com/message/sendText/nextia');
+    expect(fetchImpl.mock.calls[0][1].headers.apikey).toBe('secret');
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({number:'5511999999999',text:'Sua solicitação foi aprovada.'});
+    expect(client.calls.some(call=>call.sql.includes('external_thread_key')&&call.params[2]==='5511999999999')).toBe(true);
+  });
+
   it('does not retry a missing provider configuration indefinitely',async()=>{
     const client=database(message());
     await expect(deliverSiteMessage(client,event,{fetchImpl:vi.fn(),env:{}})).rejects.toMatchObject({code:'RESEND_NOT_CONFIGURED',retryable:false});

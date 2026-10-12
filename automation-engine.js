@@ -1,6 +1,8 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { AIService } from './ai-service.js';
 import { deliverSiteMessage, markSiteMessageFailed } from './site-message-delivery.js';
+import { markWhatsAppInboundFailed, processWhatsAppInbound } from './whatsapp-ai-service.js';
+import { processWhatsAppCampaigns } from './whatsapp-campaign-service.js';
 import {
   AutomationError,
   evaluateConditions,
@@ -110,6 +112,7 @@ export class AutomationEngine {
 
   async processBatch(limit = 10) {
     await this.enqueueDueSchedules();
+    await processWhatsAppCampaigns(this.client,{fetchImpl:this.fetchImpl});
     const events = await this.claimEvents(limit);
     const summary = { claimed: events.length, completed: 0, retried: 0, deadLettered: 0 };
     for (const event of events) {
@@ -152,6 +155,8 @@ export class AutomationEngine {
     try {
       if (event.event_type === 'site.message_reply_requested') {
         await deliverSiteMessage(this.client,event,{fetchImpl:this.fetchImpl});
+      } else if (event.event_type === 'whatsapp.message_received') {
+        await processWhatsAppInbound(this.client,event,{fetchImpl:this.fetchImpl});
       } else if (!settingEnabled(await getSetting(this.client, 'automation.enabled', true))) {
         await this.releaseEvent(event.id, 60);
         return 'retry';
@@ -191,6 +196,8 @@ export class AutomationEngine {
       }
       if (event.event_type === 'site.message_reply_requested') {
         await markSiteMessageFailed(this.client,event,error).catch(()=>undefined);
+      } else if (event.event_type === 'whatsapp.message_received') {
+        await markWhatsAppInboundFailed(this.client,event,error).catch(()=>undefined);
       }
       await this.client.query(
         `UPDATE public.outbox_events SET status='dead_letter',dead_lettered_at=NOW(),locked_at=NULL,locked_by=NULL,last_error=$2 WHERE id=$1`,

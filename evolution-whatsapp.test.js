@@ -1,0 +1,47 @@
+import { describe,expect,it,vi } from 'vitest';
+import { handleEvolutionWebhook,parseEvolutionMessage } from './evolution-whatsapp.js';
+
+const payload={
+  event:'messages.upsert',instance:'nextia',apikey:'must-not-be-persisted',
+  data:{key:{id:'MSG-123',remoteJid:'5511999999999@s.whatsapp.net',fromMe:false},pushName:'Ana',message:{conversation:'Quero saber mais sobre o plano Pro.'}},
+};
+
+function response(){
+  return {status:null,body:null,json(status,body){this.status=status;this.body=body;return body;}};
+}
+
+describe('Evolution WhatsApp webhook',()=>{
+  it('extracts text and ignores messages sent by the connected account',()=>{
+    expect(parseEvolutionMessage(payload)).toMatchObject({eventId:'MSG-123',instance:'nextia',phone:'5511999999999',contactName:'Ana'});
+    expect(parseEvolutionMessage({...payload,data:{...payload.data,key:{...payload.data.key,fromMe:true}}})).toBeNull();
+  });
+
+  it('routes an inbound reply to the established site conversation idempotently',async()=>{
+    const calls=[];
+    const client={query:vi.fn(async(sql,params)=>{
+      calls.push({sql:String(sql),params});
+      if(String(sql).includes('INSERT INTO public.provider_webhook_events'))return {rows:[{id:'webhook-1'}],rowCount:1};
+      if(String(sql).includes('SELECT c.id,c.contact_id,c.site_id'))return {rows:[{id:'conversation-1',contact_id:'contact-1',site_id:'site-1'}],rowCount:1};
+      return {rows:[],rowCount:1};
+    })};
+    const res=response();
+    const json=(target,status,body)=>target.json(status,body);
+    await handleEvolutionWebhook({headers:{'x-webhook-secret':'forward-secret'}},res,{
+      client,json,readJson:async()=>payload,env:{EVOLUTION_WEBHOOK_SECRET:'forward-secret'},
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({received:true,routed:true});
+    expect(calls.some(call=>call.sql.includes('INSERT INTO public.site_messages')&&call.params[3]==='MSG-123')).toBe(true);
+    const eventInsert=calls.find(call=>call.sql.includes('INSERT INTO public.provider_webhook_events'));
+    expect(eventInsert.params[4]).not.toContain('must-not-be-persisted');
+  });
+
+  it('rejects an unauthenticated forwarding request before writing to the database',async()=>{
+    const client={query:vi.fn()};
+    const res=response();
+    const json=(target,status,body)=>target.json(status,body);
+    await handleEvolutionWebhook({headers:{}},res,{client,json,readJson:async()=>payload,env:{EVOLUTION_WEBHOOK_SECRET:'secret'}});
+    expect(res.status).toBe(401);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+});

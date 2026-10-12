@@ -111,6 +111,7 @@ const AdminAutomationRunsPage = lazy(() => import('./pages/automation/AdminAutom
 const AdminApprovalsPage = lazy(() => import('./pages/automation/AdminApprovalsPage'));
 const AdminAiPage = lazy(() => import('./pages/automation/AdminAiPage'));
 const AdminVisualAgentPage = lazy(() => import('./pages/automation/AdminVisualAgentPage'));
+const AdminWhatsAppPage = lazy(() => import('./pages/automation/AdminWhatsAppPage'));
 const VisualAgentWidget = lazy(() => import('./features/avatar/VisualAgentWidget'));
 
 // Support & Tickets Pages
@@ -490,6 +491,7 @@ function AppRoutes() {
       <Route path="/admin/automacoes" element={<AdminContainer title="Automações"><AdminAutomationsPage /></AdminContainer>}/>
       <Route path="/admin/automacoes/execucoes" element={<AdminContainer title="Execuções de automação"><AdminAutomationRunsPage /></AdminContainer>}/>
       <Route path="/admin/automacoes/aprovacoes" element={<AdminContainer title="Aprovações"><AdminApprovalsPage /></AdminContainer>}/>
+      <Route path="/admin/whatsapp" element={<AdminContainer title="WhatsApp, IA e Marketing"><AdminWhatsAppPage /></AdminContainer>}/>
       <Route path="/admin/ia" element={<AdminContainer title="Inteligência Artificial"><AdminAiPage /></AdminContainer>}/>
       <Route path="/admin/ia/assistente" element={<AdminContainer title="Assistente IA e Avatar Live2D"><AdminVisualAgentPage /></AdminContainer>}/>
       <Route

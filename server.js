@@ -16,6 +16,7 @@ import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from
 import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
 import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } from './acquisition-api.js';
 import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-api.js';
+import { handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
@@ -4928,6 +4929,9 @@ createServer(async (req, res) => {
     }
     if (isSitePlatformApiPath(url.pathname)) {
       return await handleSitePlatformApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
+    if (isWhatsAppManagementApiPath(url.pathname)) {
+      return await handleWhatsAppManagementApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
     }
     if (isAcquisitionApiPath(url.pathname)) {
       return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson, hashPassword, signToken, sessionCookie });

@@ -33,6 +33,20 @@ function whatsappNumber(value) {
   return digits;
 }
 
+function whatsappDriver(env) {
+  return String(env.WHATSAPP_DRIVER || (env.WHATSAPP_API_URL ? 'evolution' : 'cloud')).trim().toLowerCase();
+}
+
+export function isWhatsAppConfigured(env = process.env, { directReply = false } = {}) {
+  const driver = whatsappDriver(env);
+  if (driver === 'evolution') {
+    return Boolean(env.WHATSAPP_API_URL && env.WHATSAPP_API_KEY && (env.WHATSAPP_INSTANCE || env.EVOLUTION_INSTANCE));
+  }
+  if (driver !== 'cloud') return false;
+  return Boolean(env.WHATSAPP_ACCESS_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID && env.WHATSAPP_API_VERSION
+    && (directReply || env.WHATSAPP_REPLY_TEMPLATE_NAME));
+}
+
 async function sendEmail(message, { fetchImpl, env }) {
   if (!env.RESEND_API_KEY) throw new AutomationError('Provedor de e-mail não configurado.', { code: 'RESEND_NOT_CONFIGURED', retryable: false });
   if (!message.contact_email) throw new AutomationError('O contato não possui e-mail.', { code: 'CONTACT_EMAIL_MISSING', retryable: false });
@@ -61,6 +75,11 @@ async function sendEmail(message, { fetchImpl, env }) {
 }
 
 async function sendWhatsApp(message, { fetchImpl, env }) {
+  const driver = whatsappDriver(env);
+  if (driver === 'evolution') return sendWhatsAppEvolution(message, { fetchImpl, env });
+  if (driver !== 'cloud') {
+    throw new AutomationError('Driver do WhatsApp não suportado.', { code: 'WHATSAPP_DRIVER_INVALID', retryable: false });
+  }
   if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID || !env.WHATSAPP_API_VERSION) {
     throw new AutomationError('Provedor do WhatsApp não configurado.', { code: 'WHATSAPP_NOT_CONFIGURED', retryable: false });
   }
@@ -91,6 +110,36 @@ async function sendWhatsApp(message, { fetchImpl, env }) {
   return { provider: 'whatsapp-cloud-api', reference: data.messages?.[0]?.id || null };
 }
 
+async function sendWhatsAppEvolution(message, { fetchImpl, env }) {
+  const apiUrl = String(env.WHATSAPP_API_URL || '').trim().replace(/\/$/, '');
+  const apiKey = String(env.WHATSAPP_API_KEY || '').trim();
+  const instance = String(env.WHATSAPP_INSTANCE || env.EVOLUTION_INSTANCE || '').trim();
+  if (!apiUrl || !apiKey || !instance) {
+    throw new AutomationError('Evolution API não configurada.', { code: 'EVOLUTION_NOT_CONFIGURED', retryable: false });
+  }
+  let endpoint;
+  try {
+    const parsed = new URL(apiUrl);
+    if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') throw new Error('insecure');
+    endpoint = `${parsed.toString().replace(/\/$/, '')}/message/sendText/${encodeURIComponent(instance)}`;
+  } catch {
+    throw new AutomationError('URL da Evolution API inválida.', { code: 'EVOLUTION_URL_INVALID', retryable: false });
+  }
+  const to = whatsappNumber(message.contact_phone);
+  if (to.length < 12 || to.length > 15) throw new AutomationError('Telefone do contato inválido para WhatsApp.', { code: 'CONTACT_PHONE_INVALID', retryable: false });
+  const response = await fetchImpl(endpoint, {
+    method: 'POST',
+    signal: AbortSignal.timeout(15_000),
+    headers: { apikey: apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ number: to, text: message.body }),
+  });
+  const responseBody = await response.text();
+  if (!response.ok) throw providerError(`Evolution API respondeu HTTP ${response.status}.`, { code: `EVOLUTION_HTTP_${response.status}`, status: response.status, responseBody });
+  let data = {};
+  try { data = JSON.parse(responseBody); } catch { /* provider returned an empty success body */ }
+  return { provider: 'evolution-api', reference: data.key?.id || data.messageId || data.id || null, instance, remoteNumber: to };
+}
+
 export async function deliverSiteMessage(client, event, { fetchImpl = globalThis.fetch, env = process.env } = {}) {
   const payload = parsePayload(event.payload);
   if (!payload.messageId) throw new AutomationError('Evento de mensagem sem messageId.', { code: 'SITE_MESSAGE_ID_MISSING', retryable: false });
@@ -117,6 +166,10 @@ export async function deliverSiteMessage(client, event, { fetchImpl = globalThis
       : await sendWhatsApp(message,{fetchImpl,env});
     await client.query(`UPDATE public.site_messages SET delivery_status='sent',delivery_provider=$2,provider_reference=$3,
       delivery_error=NULL,sent_at=NOW() WHERE id=$1`, [message.id,delivered.provider,delivered.reference]);
+    if (delivered.provider === 'evolution-api') {
+      await client.query(`UPDATE public.site_conversations SET provider_instance=$2,external_thread_key=$3,updated_at=NOW() WHERE id=$1`,
+        [message.conversation_id,delivered.instance,delivered.remoteNumber]);
+    }
     return { channel:message.delivery_channel,...delivered };
   } catch (error) {
     await client.query(`UPDATE public.site_messages SET delivery_error=$2 WHERE id=$1`, [message.id,String(error.message || error).slice(0,1000)]);
