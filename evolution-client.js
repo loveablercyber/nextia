@@ -44,7 +44,7 @@ export function normalizeEvolutionStatus(data) {
 }
 
 export function evolutionQr(data) {
-  return data?.base64 || data?.qrcode?.base64 || data?.qrCode || data?.code || null;
+  return data?.base64 || data?.qrcode?.base64 || data?.qrCode || null;
 }
 
 export function normalizeWhatsAppNumber(value) {
@@ -74,7 +74,18 @@ export async function evolutionRequest(instance,path,{method='GET',body,fetchImp
 }
 
 export const getEvolutionStatus = (instance,options) => evolutionRequest(instance,'/instance/connectionState/{instance}',options);
-export const getEvolutionQr = (instance,options) => evolutionRequest(instance,'/instance/connect/{instance}',options);
+export async function getEvolutionQr(instance,options={}) {
+  const attempts=Math.min(5,Math.max(1,Number(options.qrAttempts)||4));
+  const requestedDelay=Number(options.qrDelayMs);
+  const delayMs=Math.min(5000,Math.max(0,Number.isFinite(requestedDelay)?requestedDelay:750));
+  let data={};
+  for(let attempt=1;attempt<=attempts;attempt+=1){
+    data=await evolutionRequest(instance,'/instance/connect/{instance}',options);
+    if(evolutionQr(data) || attempt===attempts)return data;
+    await new Promise(resolve=>setTimeout(resolve,delayMs));
+  }
+  return data;
+}
 export const restartEvolution = (instance,options) => evolutionRequest(instance,'/instance/restart/{instance}',{...options,method:'POST'});
 export const logoutEvolution = (instance,options) => evolutionRequest(instance,'/instance/logout/{instance}',{...options,method:'DELETE'});
 export const getEvolutionWebhook = (instance,options) => evolutionRequest(instance,'/webhook/find/{instance}',options);

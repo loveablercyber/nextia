@@ -144,6 +144,7 @@ async function route(req,url,client,session,readJson){
         data=await configureEvolutionWebhook(instance,`${appUrl}/api/webhooks/evolution`);await client.query('UPDATE public.whatsapp_instances SET webhook_configured=TRUE,updated_at=NOW() WHERE id=$1',[instance.id]);
       }else if(action==='test'){
         if(!instance.enabled)fail('Ative a instância antes do teste.',409,'WHATSAPP_INSTANCE_DISABLED');
+        if(instance.connection_status!=='connected')fail('Conecte a instância pelo QR Code e verifique o status antes do teste.',409,'WHATSAPP_INSTANCE_NOT_CONNECTED');
         data=(await sendEvolutionText(instance,{number:body.phone,text:clean(body.message,2000)||'Mensagem de teste da Nextia.'})).data;
       }else fail('Ação da instância inválida.');
       const saved=await syncInstanceStatus(client,instance,data);await audit(client,session.id,`whatsapp.instance.${action}`,'whatsapp_instance',instance.id,{});

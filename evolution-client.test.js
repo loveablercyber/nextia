@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe,expect,it,vi } from 'vitest';
 import {
-  configureEvolutionWebhook,evolutionConfig,getEvolutionStatus,normalizeEvolutionStatus,
+  configureEvolutionWebhook,evolutionConfig,evolutionQr,getEvolutionQr,getEvolutionStatus,normalizeEvolutionStatus,
   normalizeWhatsAppNumber,sendEvolutionText,
 } from './evolution-client.js';
 
@@ -41,5 +41,17 @@ describe('Evolution API client',()=>{
     const request=fetchImpl.mock.calls[0][1];
     expect(JSON.parse(request.body)).toMatchObject({webhook:{enabled:true,url:'https://painel.example.com/api/webhooks/evolution',byEvents:false}});
     expect(request.body).not.toContain('super-secret');
+  });
+
+  it('waits for the QR image instead of treating its textual code as base64',async()=>{
+    const fetchImpl=vi.fn()
+      .mockResolvedValueOnce(provider({code:'raw-qr-payload'}))
+      .mockResolvedValueOnce(provider({qrcode:{base64:'data:image/png;base64,IMAGE'}}));
+
+    const result=await getEvolutionQr(instance,{fetchImpl,env,qrAttempts:2,qrDelayMs:0});
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(evolutionQr({code:'raw-qr-payload'})).toBeNull();
+    expect(evolutionQr(result)).toBe('data:image/png;base64,IMAGE');
   });
 });
