@@ -63,4 +63,23 @@ describe('Evolution WhatsApp webhook',()=>{
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({received:true,ignored:true});
   });
+
+  it('preserves QR state when Evolution emits connecting after the QR image',async()=>{
+    const calls=[];
+    const client={query:vi.fn(async(sql,params)=>{
+      calls.push({sql:String(sql),params});
+      if(String(sql).includes('INSERT INTO public.provider_webhook_events'))return {rows:[{id:'webhook-connecting'}],rowCount:1};
+      return {rows:[],rowCount:1};
+    })};
+    const res=response();
+    const json=(target,status,body)=>target.json(status,body);
+    await handleEvolutionWebhook({headers:{'x-webhook-secret':'forward-secret'}},res,{
+      client,json,readJson:async()=>({event:'connection.update',instance:'nextia',data:{state:'connecting'}}),env:{EVOLUTION_WEBHOOK_SECRET:'forward-secret'},
+    });
+
+    const update=calls.find(call=>call.sql.includes("$2='connecting' AND qr_code_data IS NOT NULL"));
+    expect(update?.params).toEqual(['nextia','connecting']);
+    expect(update?.sql).toContain("THEN 'qrcode'");
+    expect(res.status).toBe(200);
+  });
 });

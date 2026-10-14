@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe,expect,it } from 'vitest';
-import { importRow,parseCsv } from './whatsapp-management-api.js';
+import { importRow,parseCsv,publicInstance } from './whatsapp-management-api.js';
 
 describe('WhatsApp contact CSV import',()=>{
   it('parses quoted values and semicolon separated Brazilian exports',()=>{
@@ -21,5 +21,17 @@ describe('WhatsApp contact CSV import',()=>{
     expect(()=>parseCsv('nome;telefone\n"Ana;5514996405496')).toThrow(/aspas não encerradas/i);
     const large=['nome;telefone',...Array.from({length:5001},(_,i)=>`Pessoa ${i};5514996405496`)].join('\n');
     expect(()=>parseCsv(large)).toThrow(/5.000 contatos/i);
+  });
+});
+
+describe('WhatsApp instance QR serialization',()=>{
+  it('keeps a pending QR visible while Evolution reports connecting',()=>{
+    const instance=publicInstance({connection_status:'connecting',qr_code_data:'data:image/png;base64,QR'});
+    expect(instance.qr_code_data).toBe('data:image/png;base64,QR');
+  });
+
+  it('does not expose a stale QR after the instance connects',()=>{
+    const instance=publicInstance({connection_status:'connected',qr_code_data:'data:image/png;base64,STALE'});
+    expect(instance.qr_code_data).toBeNull();
   });
 });

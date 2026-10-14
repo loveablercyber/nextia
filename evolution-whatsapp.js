@@ -160,8 +160,9 @@ export async function handleEvolutionWebhook(req,res,{client,json,readJson,env=p
         last_activity_at=NOW(),last_error=NULL,updated_at=NOW() WHERE instance_name=$1`,[instance,String(qr)]);
     }else if(type==='CONNECTION_UPDATE'){
       const status=webhookConnectionStatus(payload);
-      if(status)await client.query(`UPDATE public.whatsapp_instances SET connection_status=$2,
-        qr_code_data=CASE WHEN $2='connected' THEN NULL ELSE qr_code_data END,
+      if(status)await client.query(`UPDATE public.whatsapp_instances SET
+        connection_status=CASE WHEN $2='connecting' AND qr_code_data IS NOT NULL THEN 'qrcode' ELSE $2 END,
+        qr_code_data=CASE WHEN $2 IN ('connected','disconnected') THEN NULL ELSE qr_code_data END,
         last_connected_at=CASE WHEN $2='connected' THEN NOW() ELSE last_connected_at END,
         last_activity_at=NOW(),last_error=NULL,updated_at=NOW() WHERE instance_name=$1`,[instance,status]);
     }
