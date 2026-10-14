@@ -37,7 +37,8 @@ async function getInstance(client,id){
 async function syncInstanceStatus(client,instance,data,error=null){
   const status=error?'error':normalizeEvolutionStatus(data);
   const qr=evolutionQr(data);
-  const result=await client.query(`UPDATE public.whatsapp_instances SET connection_status=$2,qr_code_data=$3,
+  const result=await client.query(`UPDATE public.whatsapp_instances SET connection_status=$2,
+      qr_code_data=CASE WHEN $2='connected' THEN NULL WHEN $3::text IS NOT NULL THEN $3 ELSE qr_code_data END,
       last_connected_at=CASE WHEN $2='connected' THEN NOW() ELSE last_connected_at END,last_activity_at=NOW(),last_error=$4,updated_at=NOW()
     WHERE id=$1 RETURNING *`,[instance.id,status,status==='connected'?null:qr,error?String(error.message||error).slice(0,1000):null]);
   return result.rows[0];

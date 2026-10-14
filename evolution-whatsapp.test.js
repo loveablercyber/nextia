@@ -44,4 +44,23 @@ describe('Evolution WhatsApp webhook',()=>{
     expect(res.status).toBe(401);
     expect(client.query).not.toHaveBeenCalled();
   });
+
+  it('stores the QR image received asynchronously from Evolution',async()=>{
+    const calls=[];
+    const client={query:vi.fn(async(sql,params)=>{
+      calls.push({sql:String(sql),params});
+      if(String(sql).includes('INSERT INTO public.provider_webhook_events'))return {rows:[{id:'webhook-qr'}],rowCount:1};
+      return {rows:[],rowCount:1};
+    })};
+    const res=response();
+    const json=(target,status,body)=>target.json(status,body);
+    await handleEvolutionWebhook({headers:{'x-webhook-secret':'forward-secret'}},res,{
+      client,json,readJson:async()=>({event:'qrcode.updated',instance:'nextia',data:{qrcode:{base64:'data:image/png;base64,QR'}}}),env:{EVOLUTION_WEBHOOK_SECRET:'forward-secret'},
+    });
+
+    const update=calls.find(call=>call.sql.includes("connection_status='qrcode'"));
+    expect(update?.params).toEqual(['nextia','data:image/png;base64,QR']);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({received:true,ignored:true});
+  });
 });

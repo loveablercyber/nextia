@@ -2,7 +2,7 @@ import { useCallback,useEffect,useState } from 'react';
 import { Bot,BookOpen,CheckCircle2,Database,Link2,LoaderCircle,MessageSquare,Pause,Play,RefreshCw,Send,ShieldCheck,Upload,Users } from 'lucide-react';
 import { automationApi } from './api';
 
-type Instance={id:string;label:string;instance_name:string;enabled:boolean;connection_status:string;webhook_configured:boolean;last_activity_at?:string;last_error?:string};
+type Instance={id:string;label:string;instance_name:string;enabled:boolean;connection_status:string;webhook_configured:boolean;qr_code_data?:string;last_activity_at?:string;last_error?:string};
 type BotSettings={instance_id:string;enabled:boolean;assistant_name:string;business_name:string;personality_mode:string;system_prompt:string;welcome_message:string;after_hours_message:string;handoff_message:string;closing_message:string;site_content_enabled:boolean;crm_context_enabled:boolean;support_context_enabled:boolean;allow_new_contacts:boolean;allow_existing_contacts:boolean;human_transfer_enabled:boolean;auto_resume_enabled:boolean;human_timeout_minutes:number;context_limit:number;max_auto_messages:number;max_response_tokens:number;pause_keywords:string[];resume_keywords:string[];opt_out_keywords:string[]};
 type Overview={instances:Instance[];settings:BotSettings[];metrics:{contacts:number;marketable_contacts:number;open_conversations:number;pending_handoffs:number;messages_today:number};campaigns:{total:number;running:number;scheduled:number}};
 type Conversation={id:string;status:string;ai_enabled:boolean;contact_name:string;phone:string;last_message_preview?:string;last_message_at:string;message_count:number;instance_label:string};
@@ -43,7 +43,7 @@ export default function AdminWhatsAppPage(){
 }
 
 function ConnectionTab({instance,metrics,campaigns,reload,notify}:{instance:Instance;metrics:Overview['metrics'];campaigns:Overview['campaigns'];reload:()=>Promise<void>;notify:(s:string)=>void}){
-  const[busy,setBusy]=useState('');const[phone,setPhone]=useState('');const[qr,setQr]=useState('');
+  const[busy,setBusy]=useState('');const[phone,setPhone]=useState('');const[qr,setQr]=useState(instance.qr_code_data||'');useEffect(()=>{if(instance.qr_code_data)setQr(instance.qr_code_data);else if(instance.connection_status==='connected')setQr('')},[instance.connection_status,instance.qr_code_data]);
   const refreshStatus=async()=>{setBusy('status');try{await api(`/api/admin/whatsapp/instances/${instance.id}/status`);notify('Status da instância atualizado.');await reload()}finally{setBusy('')}};
   const toggleInstance=async()=>{setBusy('enabled');try{await api(`/api/admin/whatsapp/instances/${instance.id}`,{method:'PATCH',body:JSON.stringify({label:instance.label,enabled:!instance.enabled})});notify(instance.enabled?'Instância pausada.':'Instância ativada.');await reload()}finally{setBusy('')}};
   const action=async(name:string)=>{setBusy(name);try{const body:nameofAction={action:name};if(name==='test'){body.phone=phone;body.message='Mensagem de teste da Nextia.'}const result=await api<{provider?:Record<string,unknown>}>('/api/admin/whatsapp/instances/'+instance.id+'/action',{method:'POST',body:JSON.stringify(body)});const provider=result.provider||{};const qrImage=qrFromProvider(provider);setQr(qrImage);notify(name==='configure_webhook'?'Webhook próprio configurado.':name==='qr'&&!qrImage?'A Evolution ainda está processando o QR Code. Aguarde alguns segundos e tente novamente.':'Ação concluída.');await reload()}finally{setBusy('')}};

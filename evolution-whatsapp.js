@@ -16,6 +16,22 @@ function eventName(payload) {
   return String(payload?.event || payload?.type || '').trim().toUpperCase().replace(/[.-]/g,'_');
 }
 
+function webhookQr(payload) {
+  return payload?.data?.qrcode?.base64
+    || payload?.data?.base64
+    || payload?.qrcode?.base64
+    || payload?.base64
+    || null;
+}
+
+function webhookConnectionStatus(payload) {
+  const raw=String(payload?.data?.state || payload?.data?.status || payload?.state || payload?.status || '').toLowerCase();
+  if(['open','connected','online','ready'].includes(raw))return'connected';
+  if(['connecting','starting','reconnecting'].includes(raw))return'connecting';
+  if(['close','closed','disconnected','offline','logged_out'].includes(raw))return'disconnected';
+  return null;
+}
+
 export function parseEvolutionMessage(payload) {
   if (eventName(payload) !== 'MESSAGES_UPSERT') return null;
   const data = payload?.data || {};
@@ -138,6 +154,17 @@ export async function handleEvolutionWebhook(req,res,{client,json,readJson,env=p
       return json(res,200,{received:true,duplicate:true});
     }
     const webhookId = recorded.rows[0].id;
+    if(type==='QRCODE_UPDATED'){
+      const qr=webhookQr(payload);
+      if(qr)await client.query(`UPDATE public.whatsapp_instances SET connection_status='qrcode',qr_code_data=$2,
+        last_activity_at=NOW(),last_error=NULL,updated_at=NOW() WHERE instance_name=$1`,[instance,String(qr)]);
+    }else if(type==='CONNECTION_UPDATE'){
+      const status=webhookConnectionStatus(payload);
+      if(status)await client.query(`UPDATE public.whatsapp_instances SET connection_status=$2,
+        qr_code_data=CASE WHEN $2='connected' THEN NULL ELSE qr_code_data END,
+        last_connected_at=CASE WHEN $2='connected' THEN NOW() ELSE last_connected_at END,
+        last_activity_at=NOW(),last_error=NULL,updated_at=NOW() WHERE instance_name=$1`,[instance,status]);
+    }
     if (!parsed) {
       await client.query(`UPDATE public.provider_webhook_events SET status='ignored',processed_at=NOW(),error_message=$2 WHERE id=$1`,
         [webhookId,type==='MESSAGES_UPSERT'?'Mensagem sem texto, própria ou de grupo.':'Evento não utilizado pela caixa de mensagens.']);
