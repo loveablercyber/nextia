@@ -5,8 +5,31 @@ export async function automationApi<T>(path: string, init?: RequestInit): Promis
     ...init,
     headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Falha na operação.');
+
+  const raw = await response.text();
+  let data: unknown = {};
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      if (response.ok) {
+        throw new Error(`A API retornou uma resposta inválida (HTTP ${response.status}).`);
+      }
+    }
+  }
+
+  if (!response.ok) {
+    const apiError = data && typeof data === 'object' && 'error' in data
+      ? String((data as { error?: unknown }).error || '')
+      : '';
+    if (apiError) throw new Error(apiError);
+
+    const proxyError = response.status >= 500
+      ? `O servidor ou proxy não conseguiu concluir a operação (HTTP ${response.status}). Consulte os logs do serviço Nextia.`
+      : `Falha na operação (HTTP ${response.status}).`;
+    throw new Error(proxyError);
+  }
+
   return data as T;
 }
 
