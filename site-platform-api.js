@@ -110,7 +110,10 @@ export async function handleSitePlatformApi(req, res, url, deps) {
     await ensureSitePlatformSchema(client);
 
     if (url.pathname === '/api/webhooks/evolution' && req.method === 'POST') {
-      return handleEvolutionWebhook(req,res,{client,json,readJson,env:process.env});
+      // Keep the PostgreSQL client alive until the asynchronous webhook has
+      // finished. Returning the promise directly would run `finally` first,
+      // close the client and crash on the webhook's first database query.
+      return await handleEvolutionWebhook(req,res,{client,json,readJson,env:process.env});
     }
 
     const publicContactMatch = url.pathname.match(/^\/api\/public\/sites\/([0-9a-f-]{36})\/contact$/i);
