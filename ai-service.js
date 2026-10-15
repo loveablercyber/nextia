@@ -40,15 +40,24 @@ function normalizeStructuredValue(value, schema, { booleanFallback } = {}) {
 }
 
 function normalizePurposeResult(value, purpose) {
-  if (purpose !== 'whatsapp_sales_reply' || !value || typeof value !== 'object' || Array.isArray(value)) return value;
+  if (!['whatsapp_sales_reply', 'support_reply_draft'].includes(purpose) || !value || typeof value !== 'object' || Array.isArray(value)) return value;
   const result = { ...value };
   if (typeof result.reply !== 'string' || !result.reply.trim()) {
     const alias = [result.message,result.response,result.answer,result.text].find(item=>typeof item==='string'&&item.trim());
     if (alias) result.reply=alias.trim();
   }
-  if (result.handoff === undefined) result.handoff=false;
-  if (typeof result.intent !== 'string' || !result.intent.trim()) result.intent='general';
-  if (result.confidence === undefined || result.confidence === null || result.confidence === '') result.confidence=0.5;
+  if (purpose === 'whatsapp_sales_reply') {
+    if (result.handoff === undefined) result.handoff=false;
+    if (typeof result.intent !== 'string' || !result.intent.trim()) result.intent='general';
+    if (result.confidence === undefined || result.confidence === null || result.confidence === '') result.confidence=0.5;
+  }
+  if (purpose === 'support_reply_draft') {
+    if (typeof result.category !== 'string' || !result.category.trim()) result.category='geral';
+    if (!['baixa','normal','alta','urgente'].includes(result.priority)) result.priority='normal';
+    if (typeof result.summary !== 'string' || !result.summary.trim()) result.summary=typeof result.reply==='string'?result.reply.slice(0,240):'Revisão do chamado necessária.';
+    if (typeof result.requires_human !== 'boolean') result.requires_human=true;
+    if (result.confidence === undefined || result.confidence === null || result.confidence === '') result.confidence=0.5;
+  }
   return result;
 }
 

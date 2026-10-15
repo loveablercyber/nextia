@@ -19,6 +19,7 @@ import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-ap
 import { handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { AIService } from './ai-service.js';
+import { AutomationError } from './automation-core.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
 import {
@@ -3961,6 +3962,11 @@ async function handleSupportApi(req, res, url) {
     }
 
     return json(res, 404, { error: 'API route not found' });
+  } catch (error) {
+    if (error instanceof AutomationError) {
+      return json(res, error.status || 400, { error: error.message, code: error.code });
+    }
+    throw error;
   } finally {
     await client.end();
   }

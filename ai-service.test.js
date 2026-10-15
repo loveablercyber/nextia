@@ -53,4 +53,12 @@ describe('AI structured output', () => {
     expect(result).toEqual({message:'Olá! Como posso ajudar?',reply:'Olá! Como posso ajudar?',handoff:false,intent:'general',confidence:0.9});
     expect(()=>validateStructuredValue(result,whatsappSchema)).not.toThrow();
   });
+
+  it('normalizes an incomplete support draft with safe human-review defaults',()=>{
+    const supportSchema={type:'object',required:['reply','category','priority','summary','requires_human'],properties:{reply:{type:'string'},category:{type:'string'},priority:{type:'string',enum:['baixa','normal','alta','urgente']},summary:{type:'string'},requires_human:{type:'boolean'},confidence:{type:'number'}}};
+    const normalized=normalizePurposeResult({answer:'Vamos verificar o ocorrido e precisamos do horário aproximado da falha.',priority:'desconhecida'},'support_reply_draft');
+    const result=normalizeStructuredValue(normalized,supportSchema);
+    expect(result).toEqual({answer:'Vamos verificar o ocorrido e precisamos do horário aproximado da falha.',reply:'Vamos verificar o ocorrido e precisamos do horário aproximado da falha.',category:'geral',priority:'normal',summary:'Vamos verificar o ocorrido e precisamos do horário aproximado da falha.',requires_human:true,confidence:0.5});
+    expect(()=>validateStructuredValue(result,supportSchema)).not.toThrow();
+  });
 });
