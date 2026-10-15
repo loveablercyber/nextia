@@ -53,6 +53,30 @@ describe('Evolution WhatsApp webhook',()=>{
     expect(eventInsert.params[4]).not.toContain('must-not-be-persisted');
   });
 
+  it('uses the predicate of the partial message id index when storing a managed conversation',async()=>{
+    const calls=[];
+    const client={query:vi.fn(async(sql,params)=>{
+      const statement=String(sql);calls.push({sql:statement,params});
+      if(statement.includes('INSERT INTO public.provider_webhook_events'))return {rows:[{id:'webhook-managed'}],rowCount:1};
+      if(statement.includes('FROM public.whatsapp_instances i LEFT JOIN'))return {rows:[{id:'instance-1',organization_id:null,bot_enabled:true,allow_new_contacts:true,crm_context_enabled:false,opt_out_keywords:[]}],rowCount:1};
+      if(statement.includes('SELECT * FROM public.whatsapp_contacts'))return {rows:[],rowCount:0};
+      if(statement.includes('INSERT INTO public.whatsapp_contacts'))return {rows:[{id:'contact-1',name:'Ana',crm_lead_id:null}],rowCount:1};
+      if(statement.includes('INSERT INTO public.whatsapp_conversations'))return {rows:[{id:'conversation-1'}],rowCount:1};
+      if(statement.includes('INSERT INTO public.whatsapp_messages'))return {rows:[{id:'message-1'}],rowCount:1};
+      return {rows:[],rowCount:1};
+    })};
+    const res=response();
+    const json=(target,status,body)=>target.json(status,body);
+    await handleEvolutionWebhook({headers:{'x-webhook-secret':'forward-secret'}},res,{
+      client,json,readJson:async()=>payload,env:{EVOLUTION_WEBHOOK_SECRET:'forward-secret'},
+    });
+
+    const messageInsert=calls.find(call=>call.sql.includes('INSERT INTO public.whatsapp_messages'));
+    expect(messageInsert?.sql).toContain('ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({received:true,managedRouted:true,siteRouted:false});
+  });
+
   it('rejects an unauthenticated forwarding request before writing to the database',async()=>{
     const client={query:vi.fn()};
     const res=response();

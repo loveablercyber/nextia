@@ -130,7 +130,8 @@ async function routeManagedConversation(client,parsed,instanceName) {
     last_message_at=NOW(),last_message_preview=EXCLUDED.last_message_preview,updated_at=NOW() RETURNING *`,
   [integration.id,contact.id,parsed.phone,integration.bot_enabled?'ai':'waiting',integration.bot_enabled===true,parsed.body.slice(0,300)])).rows[0];
   const message=(await client.query(`INSERT INTO public.whatsapp_messages(conversation_id,provider_message_id,direction,sender_type,body,payload,delivery_status)
-    VALUES($1,$2,'inbound','contact',$3,$4,'received') ON CONFLICT(provider_message_id) DO NOTHING RETURNING *`,
+    VALUES($1,$2,'inbound','contact',$3,$4,'received')
+    ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING RETURNING *`,
   [conversation.id,parsed.eventId,parsed.body,JSON.stringify({instance:instanceName})])).rows[0];
   if(!message)return{integration,conversation,routed:true,duplicate:true};
 
