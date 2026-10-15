@@ -12,6 +12,21 @@ function normalizePhone(value) {
   return digits;
 }
 
+function phoneFromJid(value) {
+  const candidate = String(value || '').trim();
+  if (!candidate || candidate.endsWith('@lid')) return '';
+  if (candidate.includes('@') && !candidate.endsWith('@s.whatsapp.net') && !candidate.endsWith('@c.us')) return '';
+  const phone = normalizePhone(candidate);
+  return /^55\d{10,11}$/.test(phone) ? phone : '';
+}
+
+function messagePhone(data,key,remoteJid) {
+  const candidates = String(remoteJid).endsWith('@lid')
+    ? [key.remoteJidAlt,data.remoteJidAlt,data.senderPn,key.participantAlt,data.participantAlt]
+    : [remoteJid,key.remoteJidAlt,data.remoteJidAlt,data.senderPn,key.participantAlt,data.participantAlt];
+  return candidates.map(phoneFromJid).find(Boolean) || '';
+}
+
 function eventName(payload) {
   return String(payload?.event || payload?.type || '').trim().toUpperCase().replace(/[.-]/g,'_');
 }
@@ -51,9 +66,9 @@ export function parseEvolutionMessage(payload) {
     || message.templateButtonReplyMessage?.selectedDisplayText
     || message.templateButtonReplyMessage?.selectedId
     || '';
-  const phone = normalizePhone(remoteJid);
+  const phone = messagePhone(data,key,remoteJid);
   const body = String(text).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').trim().slice(0,4000);
-  if (!key.id || phone.length < 12 || phone.length > 15 || !body) return null;
+  if (!key.id || !phone || !body) return null;
   return {
     eventId:String(key.id).slice(0,255),
     instance:String(payload.instance || '').trim().slice(0,120),

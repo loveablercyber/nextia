@@ -16,6 +16,23 @@ describe('Evolution WhatsApp webhook',()=>{
     expect(parseEvolutionMessage({...payload,data:{...payload.data,key:{...payload.data.key,fromMe:true}}})).toBeNull();
   });
 
+  it('uses the alternate phone JID when Baileys identifies the sender by LID',()=>{
+    const lidPayload={...payload,data:{...payload.data,key:{
+      ...payload.data.key,
+      remoteJid:'123456789012345@lid',
+      remoteJidAlt:'5511999999999@s.whatsapp.net',
+    }}};
+    expect(parseEvolutionMessage(lidPayload)).toMatchObject({phone:'5511999999999'});
+  });
+
+  it('does not treat an unresolved LID as a phone number',()=>{
+    const lidPayload={...payload,data:{...payload.data,key:{
+      ...payload.data.key,
+      remoteJid:'123456789012345@lid',
+    }}};
+    expect(parseEvolutionMessage(lidPayload)).toBeNull();
+  });
+
   it('routes an inbound reply to the established site conversation idempotently',async()=>{
     const calls=[];
     const client={query:vi.fn(async(sql,params)=>{
