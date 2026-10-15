@@ -127,6 +127,8 @@ async function routeManagedConversation(client,parsed,instanceName) {
   }
   const conversation=(await client.query(`INSERT INTO public.whatsapp_conversations(instance_id,contact_id,external_thread_key,status,ai_enabled,last_message_at,last_message_preview)
     VALUES($1,$2,$3,$4,$5,NOW(),$6) ON CONFLICT(instance_id,external_thread_key) DO UPDATE SET contact_id=EXCLUDED.contact_id,
+    status=CASE WHEN whatsapp_conversations.status='human' THEN whatsapp_conversations.status ELSE EXCLUDED.status END,
+    ai_enabled=CASE WHEN whatsapp_conversations.status='human' THEN whatsapp_conversations.ai_enabled ELSE EXCLUDED.ai_enabled END,
     last_message_at=NOW(),last_message_preview=EXCLUDED.last_message_preview,updated_at=NOW() RETURNING *`,
   [integration.id,contact.id,parsed.phone,integration.bot_enabled?'ai':'waiting',integration.bot_enabled===true,parsed.body.slice(0,300)])).rows[0];
   const message=(await client.query(`INSERT INTO public.whatsapp_messages(conversation_id,provider_message_id,direction,sender_type,body,payload,delivery_status)

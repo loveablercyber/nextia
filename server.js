@@ -5019,6 +5019,18 @@ createServer(async (req, res) => {
 }).listen(port, () => {
   console.log(`Nextia server listening on port ${port}`);
   if (process.env.DATABASE_URL) {
+    if (process.env.AUTOMATION_WORKER_ENABLED !== 'false') {
+      const worker = new AutomationWorker(dbClient, {
+        intervalMs: process.env.AUTOMATION_POLL_INTERVAL_MS,
+        batchSize: process.env.AUTOMATION_BATCH_SIZE,
+        maxAttempts: process.env.AUTOMATION_MAX_ATTEMPTS,
+      });
+      worker.start();
+      const stopWorker = () => worker.stop();
+      process.once('SIGTERM', stopWorker);
+      process.once('SIGINT', stopWorker);
+      console.log('[Automation] Worker PostgreSQL iniciado.');
+    }
     (async () => {
       try {
         const client = dbClient();
@@ -5031,18 +5043,6 @@ createServer(async (req, res) => {
         await ensureAcquisitionSchema(client);
         await client.end();
         console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
-        if (process.env.AUTOMATION_WORKER_ENABLED !== 'false') {
-          const worker = new AutomationWorker(dbClient, {
-            intervalMs: process.env.AUTOMATION_POLL_INTERVAL_MS,
-            batchSize: process.env.AUTOMATION_BATCH_SIZE,
-            maxAttempts: process.env.AUTOMATION_MAX_ATTEMPTS,
-          });
-          worker.start();
-          const stopWorker = () => worker.stop();
-          process.once('SIGTERM', stopWorker);
-          process.once('SIGINT', stopWorker);
-          console.log('[Automation] Worker PostgreSQL iniciado.');
-        }
       } catch (err) {
         console.error('[Startup Schema Warning]', err.message || err);
       }

@@ -13,7 +13,8 @@ describe('WhatsApp AI service safeguards',()=>{
     })};
     const fetchImpl=vi.fn();
     const result=await processWhatsAppInbound(client,{payload:{messageId:'11111111-1111-4111-8111-111111111111'}},{fetchImpl});
-    expect(result).toEqual({skipped:'bot_disabled_or_human'});
+    expect(result).toEqual({skipped:'instance_disabled'});
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("'ai.skipped'"),expect.arrayContaining([expect.stringContaining('instance_disabled')]));
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

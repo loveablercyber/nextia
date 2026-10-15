@@ -72,7 +72,10 @@ describe('Evolution WhatsApp webhook',()=>{
     });
 
     const messageInsert=calls.find(call=>call.sql.includes('INSERT INTO public.whatsapp_messages'));
+    const conversationUpsert=calls.find(call=>call.sql.includes('INSERT INTO public.whatsapp_conversations'));
     expect(messageInsert?.sql).toContain('ON CONFLICT(provider_message_id) WHERE provider_message_id IS NOT NULL DO NOTHING');
+    expect(conversationUpsert?.sql).toContain("status=CASE WHEN whatsapp_conversations.status='human'");
+    expect(conversationUpsert?.sql).toContain("ai_enabled=CASE WHEN whatsapp_conversations.status='human'");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({received:true,managedRouted:true,siteRouted:false});
   });

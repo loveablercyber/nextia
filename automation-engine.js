@@ -111,8 +111,6 @@ export class AutomationEngine {
   }
 
   async processBatch(limit = 10) {
-    await this.enqueueDueSchedules();
-    await processWhatsAppCampaigns(this.client,{fetchImpl:this.fetchImpl});
     const events = await this.claimEvents(limit);
     const summary = { claimed: events.length, completed: 0, retried: 0, deadLettered: 0 };
     for (const event of events) {
@@ -121,6 +119,10 @@ export class AutomationEngine {
       else if (outcome === 'retry') summary.retried += 1;
       else summary.deadLettered += 1;
     }
+    // A fila transacional tem prioridade. Falhas em agendamentos ou campanhas
+    // não podem impedir respostas de WhatsApp e outras ações já enfileiradas.
+    await this.enqueueDueSchedules();
+    await processWhatsAppCampaigns(this.client,{fetchImpl:this.fetchImpl});
     return summary;
   }
 

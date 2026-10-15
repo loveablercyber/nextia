@@ -92,7 +92,7 @@ export function importRow(row,mapping){
 }
 
 async function overview(client){
-  const [instances,settings,metrics,campaigns,lastWebhook,lastMessageLog]=await Promise.all([
+  const [instances,settings,metrics,campaigns,lastWebhook,lastMessageLog,lastQueueEvent,lastAiRun,aiSetting]=await Promise.all([
     client.query(`SELECT * FROM public.whatsapp_instances ORDER BY created_at`),
     client.query(`SELECT s.* FROM public.whatsapp_bot_settings s JOIN public.whatsapp_instances i ON i.id=s.instance_id ORDER BY i.created_at`),
     client.query(`SELECT
@@ -106,8 +106,13 @@ async function overview(client){
       FROM public.provider_webhook_events WHERE provider='evolution' ORDER BY created_at DESC LIMIT 1`),
     client.query(`SELECT event_type,status,error_code,error_message,created_at
       FROM public.whatsapp_message_logs ORDER BY created_at DESC LIMIT 1`),
+    client.query(`SELECT status,attempts,last_error,created_at,available_at,processed_at,dead_lettered_at
+      FROM public.outbox_events WHERE event_type='whatsapp.message_received' ORDER BY created_at DESC LIMIT 1`),
+    client.query(`SELECT status,error_code,error_message,created_at,completed_at
+      FROM public.ai_runs WHERE entity_type='whatsapp_message' ORDER BY created_at DESC LIMIT 1`),
+    client.query(`SELECT value FROM public.automation_settings WHERE key='whatsapp.ai_enabled'`),
   ]);
-  return{instances:instances.rows.map(publicInstance),settings:settings.rows,metrics:metrics.rows[0],campaigns:campaigns.rows[0],webhookDiagnostics:{lastEvent:lastWebhook.rows[0]||null,lastMessageLog:lastMessageLog.rows[0]||null}};
+  return{instances:instances.rows.map(publicInstance),settings:settings.rows,metrics:metrics.rows[0],campaigns:campaigns.rows[0],webhookDiagnostics:{lastEvent:lastWebhook.rows[0]||null,lastMessageLog:lastMessageLog.rows[0]||null,lastQueueEvent:lastQueueEvent.rows[0]||null,lastAiRun:lastAiRun.rows[0]||null,aiEnabled:aiSetting.rows[0]?.value===true}};
 }
 
 export async function handleWhatsAppManagementApi(req,res,url,deps){
@@ -193,6 +198,9 @@ async function route(req,url,client,session,readJson){
       Array.isArray(b.optOutKeywords)?b.optOutKeywords.map(x=>clean(x,80)).filter(Boolean):['sair','parar'],session.id]);
     await client.query(`INSERT INTO public.automation_settings(key,value,description) VALUES('whatsapp.ai_enabled',$1,'Kill switch independente da IA do WhatsApp')
       ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`,[JSON.stringify(b.enabled===true)]);
+    await client.query(`UPDATE public.whatsapp_conversations SET
+      status=CASE WHEN $2::boolean THEN 'ai' ELSE 'waiting' END,ai_enabled=$2,updated_at=NOW()
+      WHERE instance_id=$1 AND status IN ('ai','waiting')`,[settingsMatch[1],b.enabled===true]);
     await audit(client,session.id,'whatsapp.bot_settings.updated','whatsapp_instance',settingsMatch[1],{enabled:b.enabled===true});return{body:{settings:updated.rows[0]}};
   }
 

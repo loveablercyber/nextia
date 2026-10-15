@@ -66,7 +66,12 @@ async function sendAndRecord(client,row,reply,{senderType='ai',aiRunId=null}={})
 export async function processWhatsAppInbound(client,event,{fetchImpl=globalThis.fetch}={}){
   const payload=payloadObject(event.payload);if(!payload.messageId)throw new AutomationError('Evento do WhatsApp sem messageId.',{code:'WHATSAPP_MESSAGE_ID_MISSING',retryable:false});
   const row=await contextForMessage(client,payload.messageId);if(!row)throw new AutomationError('Mensagem recebida não encontrada.',{code:'WHATSAPP_MESSAGE_NOT_FOUND',retryable:false});
-  if(!row.enabled||!row.bot_enabled||!row.ai_enabled||row.conversation_status==='human')return{skipped:'bot_disabled_or_human'};
+  if(!row.enabled||!row.bot_enabled||!row.ai_enabled||row.conversation_status==='human'){
+    const reason=!row.enabled?'instance_disabled':!row.bot_enabled?'bot_disabled':row.conversation_status==='human'?'human_takeover':'conversation_ai_disabled';
+    await client.query(`INSERT INTO public.whatsapp_message_logs(instance_id,conversation_id,message_id,event_type,status,details)
+      VALUES($1,$2,$3,'ai.skipped','warning',$4)`,[row.instance_id,row.conversation_id,row.message_id,JSON.stringify({reason})]);
+    return{skipped:reason};
+  }
   if(payload.optedOut||row.opt_out_at){
     const reply='Tudo certo. Você não receberá mais mensagens de marketing. Ainda pode falar conosco quando precisar de atendimento.';
     await sendAndRecord(client,row,reply,{senderType:'system'});return{optedOut:true};
