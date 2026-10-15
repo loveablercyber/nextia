@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
@@ -24,7 +24,6 @@ interface Candidate { id:string; name:string; eligible:boolean; score:number; re
 
 export default function AdminSupportPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [filteredTickets, setFilteredTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -72,17 +71,10 @@ export default function AdminSupportPage() {
     fetchTickets();
   }, []);
 
-  useEffect(() => {
-    let result = tickets;
-
-    // Filter by status
-    if (statusFilter !== 'todos') {
-      result = result.filter((t) => t.status === statusFilter);
-    }
-
-    // Filter by search term
-    if (searchTerm.trim() !== '') {
-      const term = searchTerm.toLowerCase();
+  const filteredTickets = useMemo(() => {
+    let result = statusFilter === 'todos' ? tickets : tickets.filter((ticket) => ticket.status === statusFilter);
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
       result = result.filter(
         (t) =>
           t.name.toLowerCase().includes(term) ||
@@ -93,7 +85,7 @@ export default function AdminSupportPage() {
       );
     }
 
-    setFilteredTickets(result);
+    return result;
   }, [tickets, statusFilter, searchTerm]);
 
   const handleUpdateStatus = async (ticketId: string, newStatus: SupportTicket['status']) => {

@@ -18,6 +18,7 @@ import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } f
 import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-api.js';
 import { handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
 import { AutomationWorker } from './automation-engine.js';
+import { AIService } from './ai-service.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
 import {
@@ -2378,6 +2379,7 @@ const supportApiMethods = new Map([
   ['/api/support/get-ticket', 'GET'],
   ['/api/support/reply-ticket', 'POST'],
   ['/api/admin/list-support-tickets', 'GET'],
+  ['/api/admin/support-ticket/ai-suggestion', 'POST'],
   ['/api/admin/update-ticket-status', 'POST'],
   ['/api/admin/assign-support-ticket', 'POST'],
   ['/api/admin/ticket-assignment-options', 'GET'],
@@ -2403,6 +2405,7 @@ const supportApiMethods = new Map([
   ['/api/admin/backup/logs', 'GET'],
   ['/api/admin/users', 'GET'],
   ['/api/admin/update-user', 'POST'],
+  ['/api/admin/update-user-password', 'POST'],
   ['/api/admin/delete-item', 'POST'],
 ]);
 
@@ -2748,6 +2751,63 @@ async function handleSupportApi(req, res, url) {
          ORDER BY created_at DESC`,
       ), client.query(`SELECT id, name, email FROM public.profiles WHERE role = 'technician' ORDER BY name`)]);
       return json(res, 200, { tickets: result.rows, technicians: technicians.rows });
+    }
+
+    if (url.pathname === '/api/admin/support-ticket/ai-suggestion') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+
+      const body = await readJson(req);
+      const ticketId = String(body.ticketId || '');
+      if (!UUID_PATTERN.test(ticketId)) return json(res, 400, { error: 'Chamado inválido.' });
+
+      const ticket = (await client.query(
+        `SELECT id, name, company, subject, message, status, priority, service_slug,
+                service_category, service_mode, created_at
+         FROM public.support_tickets WHERE id = $1`,
+        [ticketId],
+      )).rows[0];
+      if (!ticket) return json(res, 404, { error: 'Chamado não encontrado.' });
+
+      const messages = (await client.query(
+        `SELECT sender_role, sender_name, message, created_at
+         FROM public.ticket_messages
+         WHERE ticket_id = $1
+         ORDER BY created_at DESC
+         LIMIT 20`,
+        [ticketId],
+      )).rows.reverse();
+
+      const generated = await new AIService(client).generate({
+        purpose: 'support_reply_draft',
+        contextOverride: {
+          ticket: {
+            customerName: ticket.name,
+            company: ticket.company,
+            subject: ticket.subject,
+            initialMessage: ticket.message,
+            status: ticket.status,
+            priority: ticket.priority,
+            service: ticket.service_slug,
+            category: ticket.service_category,
+            serviceMode: ticket.service_mode,
+            createdAt: ticket.created_at,
+          },
+          conversation: messages,
+          instruction: 'Prepare uma resposta de suporte para revisão humana. Não afirme que uma ação foi executada.',
+        },
+        entityType: 'support_ticket',
+        entityId: ticketId,
+        maxTokens: 700,
+      });
+
+      await client.query(
+        `INSERT INTO public.audit_log(actor_user_id, action, entity_type, entity_id, metadata)
+         VALUES($1, 'support.ai_suggestion.generated', 'support_ticket', $2, $3)`,
+        [sessionProfile.id, ticketId, JSON.stringify({ aiRunId: generated.aiRunId })],
+      );
+      return json(res, 200, { suggestion: generated.result, aiRunId: generated.aiRunId });
     }
 
     if (url.pathname === '/api/admin/update-ticket-status') {
@@ -3097,6 +3157,29 @@ async function handleSupportApi(req, res, url) {
         }
         throw error;
       }
+    }
+
+    if (url.pathname === '/api/admin/update-user-password') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
+      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+
+      const body = await readJson(req);
+      const targetUserId = String(body.targetUserId || '');
+      const password = String(body.password || '');
+      if (!UUID_PATTERN.test(targetUserId)) return json(res, 400, { error: 'Usuário inválido.' });
+      if (password.length < 6) return json(res, 400, { error: 'A nova senha deve conter ao menos 6 caracteres.' });
+      if (password.length > 128) return json(res, 400, { error: 'A nova senha deve conter no máximo 128 caracteres.' });
+
+      const result = await client.query(
+        `UPDATE public.local_auth_users
+         SET password_hash = $1, updated_at = NOW()
+         WHERE id = $2
+         RETURNING id`,
+        [hashPassword(password), targetUserId],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Usuário não encontrado ou sem acesso por senha local.' });
+      return json(res, 200, { status: 'success' });
     }
 
     if (url.pathname === '/api/admin/delete-item') {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { 
   Zap, MessageCircle, Send, CheckCircle2, Clock, 
-  ArrowLeft, AlertTriangle, User, ShieldAlert 
+  ArrowLeft, AlertTriangle, User, ShieldAlert, Sparkles
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +29,15 @@ interface Message {
   sender_name: string;
 }
 
+interface SupportAiSuggestion {
+  reply: string;
+  category: string;
+  priority: 'baixa' | 'normal' | 'alta' | 'urgente';
+  summary: string;
+  requires_human: boolean;
+  confidence?: number;
+}
+
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -41,6 +50,9 @@ export default function TicketDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [generatingSuggestion, setGeneratingSuggestion] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<SupportAiSuggestion | null>(null);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
 
   const fetchTicket = useCallback(async () => {
     try {
@@ -113,6 +125,28 @@ export default function TicketDetailPage() {
       alert(err.message || 'Erro ao enviar mensagem.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const generateAiSuggestion = async () => {
+    if (!id || user?.role !== 'admin') return;
+    setGeneratingSuggestion(true);
+    setAssistantError(null);
+    try {
+      const response = await fetch('/api/admin/support-ticket/ai-suggestion', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: id })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível gerar a sugestão da IA.');
+      setAiSuggestion(data.suggestion);
+      setReplyText(data.suggestion.reply);
+    } catch (err) {
+      setAssistantError(err instanceof Error ? err.message : 'Não foi possível gerar a sugestão da IA.');
+    } finally {
+      setGeneratingSuggestion(false);
     }
   };
 
@@ -297,20 +331,51 @@ export default function TicketDetailPage() {
 
               {/* Reply form */}
               {ticket.status !== 'fechado' ? (
-                <form onSubmit={handleReplySubmit} className="border-t border-gray-100 pt-4 flex gap-3">
-                  <input
-                    type="text"
-                    required
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Digite sua resposta..."
-                    disabled={sending}
-                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] focus:border-transparent text-sm disabled:opacity-50"
-                  />
-                  <Button type="submit" variant="gradient" disabled={sending} loading={sending}>
-                    <Send className="w-4 h-4" />
-                    <span className="hidden sm:inline">Responder</span>
-                  </Button>
+                <form onSubmit={handleReplySubmit} className="border-t border-gray-100 pt-4 space-y-3">
+                  {user?.role === 'admin' && (
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="flex items-center gap-2 text-sm font-bold text-violet-950">
+                            <Sparkles className="h-4 w-4" /> Assistente de suporte
+                          </p>
+                          <p className="mt-1 text-xs text-violet-700">Gera um rascunho com base no chamado. Revise antes de enviar.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void generateAiSuggestion()}
+                          disabled={generatingSuggestion}
+                          className="min-h-10 rounded-xl bg-violet-700 px-4 text-xs font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {generatingSuggestion ? 'Analisando…' : 'Sugerir resposta com IA'}
+                        </button>
+                      </div>
+                      {aiSuggestion && (
+                        <div className="mt-3 grid gap-2 text-xs text-violet-900 sm:grid-cols-3">
+                          <span><b>Categoria:</b> {aiSuggestion.category}</span>
+                          <span><b>Prioridade:</b> {aiSuggestion.priority}</span>
+                          <span><b>Revisão humana:</b> {aiSuggestion.requires_human ? 'obrigatória' : 'recomendada'}</span>
+                          <p className="sm:col-span-3"><b>Resumo:</b> {aiSuggestion.summary}</p>
+                        </div>
+                      )}
+                      {assistantError && <p role="alert" className="mt-3 text-xs font-semibold text-red-700">{assistantError}</p>}
+                    </div>
+                  )}
+                  <div className="flex items-end gap-3">
+                    <textarea
+                      required
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Digite sua resposta..."
+                      disabled={sending}
+                      rows={3}
+                      className="min-h-20 flex-1 resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#5B4FE9] disabled:opacity-50"
+                    />
+                    <Button type="submit" variant="gradient" disabled={sending} loading={sending}>
+                      <Send className="w-4 h-4" />
+                      <span className="hidden sm:inline">Responder</span>
+                    </Button>
+                  </div>
                 </form>
               ) : (
                 <div className="border-t border-gray-100 pt-4 text-center py-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">

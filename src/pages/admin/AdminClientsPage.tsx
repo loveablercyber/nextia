@@ -162,7 +162,7 @@ export default function AdminClientsPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch('/api/admin/update-user', {
+      const response = await fetch('/api/admin/update-user-password', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -170,10 +170,6 @@ export default function AdminClientsPage() {
         },
         body: JSON.stringify({
           targetUserId: selectedProfile.id,
-          name: selectedProfile.name,
-          company: selectedProfile.company,
-          phone: selectedProfile.phone,
-          role: selectedProfile.role,
           password: newPassword
         })
       });
@@ -504,6 +500,9 @@ export default function AdminClientsPage() {
                 <input
                   type="password"
                   required
+                  minLength={6}
+                  maxLength={128}
+                  autoComplete="new-password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="••••••••"
@@ -516,6 +515,9 @@ export default function AdminClientsPage() {
                 <input
                   type="password"
                   required
+                  minLength={6}
+                  maxLength={128}
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
