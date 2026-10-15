@@ -3144,7 +3144,10 @@ async function handleSupportApi(req, res, url) {
         }
         if (password) {
           await client.query(
-            `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+            `UPDATE public.local_auth_users
+             SET password_hash = $1, must_change_password = FALSE,
+                 temporary_password_expires_at = NULL, updated_at = NOW()
+             WHERE id = $2`,
             [hashPassword(password), targetUserId],
           );
         }
@@ -3173,7 +3176,8 @@ async function handleSupportApi(req, res, url) {
 
       const result = await client.query(
         `UPDATE public.local_auth_users
-         SET password_hash = $1, updated_at = NOW()
+         SET password_hash = $1, must_change_password = FALSE,
+             temporary_password_expires_at = NULL, updated_at = NOW()
          WHERE id = $2
          RETURNING id`,
         [hashPassword(password), targetUserId],
@@ -4834,7 +4838,10 @@ async function handleAuth(req, res, pathname) {
 
       await client.query('BEGIN');
       await client.query(
-        `UPDATE public.local_auth_users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+        `UPDATE public.local_auth_users
+         SET password_hash = $1, must_change_password = FALSE,
+             temporary_password_expires_at = NULL, updated_at = NOW()
+         WHERE id = $2`,
         [newHash, userId],
       );
       await client.query(`DELETE FROM public.password_reset_tokens WHERE token = $1`, [token]);

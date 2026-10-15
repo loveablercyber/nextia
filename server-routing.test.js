@@ -29,4 +29,15 @@ describe('server CRM dependency wiring', () => {
     expect(migration).toContain("'support_reply_draft'");
     expect(migration).toContain('"requires_human"');
   });
+
+  it('turns every explicitly defined password into a permanent password', () => {
+    const source = readFileSync('server.js', 'utf8');
+    const passwordUpdates = source.match(/SET password_hash = \$1,[\s\S]{0,160}?WHERE id = \$2/g) || [];
+
+    expect(passwordUpdates.length).toBeGreaterThanOrEqual(4);
+    for (const update of passwordUpdates) {
+      expect(update).toContain('must_change_password');
+      expect(update).toMatch(/temporary_password_expires_at\s*=\s*NULL/);
+    }
+  });
 });
