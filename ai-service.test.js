@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeStructuredValue, validateStructuredValue } from './ai-service.js';
+import { normalizePurposeResult, normalizeStructuredValue, validateStructuredValue } from './ai-service.js';
 
 describe('AI structured output', () => {
   const schema = {
@@ -44,5 +44,13 @@ describe('AI structured output', () => {
       expect(error).toMatchObject({ code: 'AI_SCHEMA_INVALID', retryable: true });
       expect(error).toBeInstanceOf(Error);
     }
+  });
+
+  it('normalizes common WhatsApp response aliases without losing the generated answer',()=>{
+    const whatsappSchema={type:'object',required:['reply','handoff','intent','confidence'],properties:{reply:{type:'string'},handoff:{type:'boolean'},intent:{type:'string'},confidence:{type:'number'}}};
+    const aliased=normalizePurposeResult({message:'Olá! Como posso ajudar?',confidence:'0.9'},'whatsapp_sales_reply');
+    const result=normalizeStructuredValue(aliased,whatsappSchema);
+    expect(result).toEqual({message:'Olá! Como posso ajudar?',reply:'Olá! Como posso ajudar?',handoff:false,intent:'general',confidence:0.9});
+    expect(()=>validateStructuredValue(result,whatsappSchema)).not.toThrow();
   });
 });
