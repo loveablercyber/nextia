@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { hasPermission } from '../config/permissions';
 
 interface Ticket {
   id: string;
@@ -43,6 +44,7 @@ export default function TicketDetailPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const { user } = useAuth();
+  const canManageSupport = hasPermission(user, 'support.manage');
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,7 +119,7 @@ export default function TicketDetailPage() {
       if (ticket) {
         setTicket({ 
           ...ticket, 
-          status: user?.role === 'admin' ? 'respondido' : 'aberto' 
+          status: canManageSupport ? 'respondido' : 'aberto'
         });
       }
     } catch (err: any) {
@@ -129,7 +131,7 @@ export default function TicketDetailPage() {
   };
 
   const generateAiSuggestion = async () => {
-    if (!id || user?.role !== 'admin') return;
+    if (!id || !canManageSupport) return;
     setGeneratingSuggestion(true);
     setAssistantError(null);
     try {
@@ -255,7 +257,7 @@ export default function TicketDetailPage() {
         {/* Back navigation */}
         <div className="mb-6">
           <Link
-            to={user?.role === 'admin' ? '/admin/suporte' : user ? '/painel' : '/'}
+            to={canManageSupport ? '/admin/suporte' : user ? '/painel' : '/'}
             className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -330,9 +332,9 @@ export default function TicketDetailPage() {
               </div>
 
               {/* Reply form */}
-              {ticket.status !== 'fechado' ? (
+              {ticket.status !== 'fechado' && (canManageSupport || Boolean(token) || user?.id === ticket.user_id) ? (
                 <form onSubmit={handleReplySubmit} className="border-t border-gray-100 pt-4 space-y-3">
-                  {user?.role === 'admin' && (
+                  {canManageSupport && (
                     <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -380,7 +382,7 @@ export default function TicketDetailPage() {
               ) : (
                 <div className="border-t border-gray-100 pt-4 text-center py-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                   <p className="text-sm text-gray-500 font-semibold">
-                    Este chamado foi finalizado e marcado como resolvido.
+                    {ticket.status === 'fechado' ? 'Este chamado foi finalizado e marcado como resolvido.' : 'Você possui acesso somente para consulta deste chamado.'}
                   </p>
                 </div>
               )}

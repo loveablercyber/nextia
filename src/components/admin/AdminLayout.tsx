@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, MessageSquare, CreditCard,
   Zap, Menu, ChevronRight, Bell, ExternalLink,
-  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings, Workflow, Bot, ShieldCheck, HeartHandshake, BookOpen
+  FileText, Briefcase, HelpCircle, UserCog, Database, DollarSign, FolderOpen, BarChart3, ChevronDown, Settings, Workflow, Bot, ShieldCheck, HeartHandshake, BookOpen, KeyRound
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { hasPermission, roleLabel, type PermissionKey } from '../../config/permissions';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ interface NavGroup {
     icon: React.ElementType;
     label: string;
     exact?: boolean;
+    permission?: PermissionKey | 'admin.full';
   }[];
 }
 
@@ -48,6 +50,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/admin/clientes', icon: Users, label: 'Gerenciar Clientes' },
       { to: '/admin/usuarios/novo', icon: UserCog, label: 'Cadastrar Usuário' },
+      { to: '/admin/permissoes', icon: KeyRound, label: 'Permissões de Usuários' },
       { to: '/admin/projetos', icon: Briefcase, label: 'Gerenciar Projetos' },
       { to: '/admin/solicitacoes', icon: MessageSquare, label: 'Solicitações' },
     ],
@@ -86,13 +89,13 @@ const navGroups: NavGroup[] = [
   {
     title: 'Suporte',
     items: [
-      { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets' },
+      { to: '/admin/suporte', icon: HelpCircle, label: 'Suporte / Tickets', permission: 'support.view' },
     ],
   },
   {
     title: 'Financeiro',
     items: [
-      { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas' },
+      { to: '/admin/pagamentos', icon: CreditCard, label: 'Financeiro / Faturas', permission: 'finance.view' },
     ],
   },
   {
@@ -126,6 +129,12 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasPermission(user, item.permission || 'admin.full')),
+    }))
+    .filter((group) => group.items.length > 0);
 
   // Track collapsed state for groups
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -153,7 +162,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </div>
         <span className="text-xl font-black text-white">Nextia</span>
         <span className="ml-auto text-[10px] font-bold text-white bg-pink-600 px-2 py-0.5 rounded-full">
-          Admin
+          {user ? roleLabel(user.role) : 'Equipe'}
         </span>
       </div>
 
@@ -172,7 +181,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
       {/* Grouped Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-        {navGroups.map((group, idx) => {
+        {visibleNavGroups.map((group, idx) => {
           const isCollapsed = group.title ? Boolean(collapsedGroups[group.title]) : false;
           return (
             <div key={group.title || idx} className="space-y-1">
@@ -313,7 +322,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             {/* Admin Tag */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-800 border border-gray-700 text-xs font-bold text-gray-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Modo Administrador
+              Modo {user ? roleLabel(user.role) : 'Equipe'}
             </div>
           </div>
         </header>

@@ -1,12 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { hasPermission, userHome, type PermissionKey } from '../../config/permissions';
+import type { UserRole } from '../../types/auth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requireRole?: 'client' | 'admin' | 'partner' | 'technician';
+  requireRole?: UserRole;
+  requirePermission?: PermissionKey | 'admin.full';
 }
 
-export default function ProtectedRoute({ children, requireRole }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requireRole, requirePermission }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -30,7 +33,11 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
   }
 
   if (requireRole && user.role !== requireRole && user.role !== 'admin') {
-    return <Navigate to={user.role === 'partner' ? '/parceiro' : user.role === 'technician' ? '/tecnico' : '/painel'} replace />;
+    return <Navigate to={userHome(user)} replace />;
+  }
+
+  if (requirePermission && !hasPermission(user, requirePermission)) {
+    return <Navigate to={userHome(user)} replace />;
   }
 
   return <>{children}</>;

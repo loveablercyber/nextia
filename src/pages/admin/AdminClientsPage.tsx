@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import Button from '../../components/ui/Button';
+import { roleLabel } from '../../config/permissions';
 
 export default function AdminClientsPage() {
   useEffect(() => {
@@ -332,7 +333,7 @@ export default function AdminClientsPage() {
                                 ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {p.role === 'admin' ? 'Admin' : p.role === 'partner' ? 'Parceiro' : p.role === 'technician' ? 'Técnico' : 'Cliente'}
+                          {roleLabel(p.role)}
                         </span>
                       </td>
                       <td className="py-4 text-right space-x-1">
@@ -455,6 +456,8 @@ export default function AdminClientsPage() {
                   <option value="client">Cliente</option>
                   <option value="partner" disabled>Parceiro (gerencie na área de parceiros)</option>
                   <option value="technician">Técnico</option>
+                  <option value="financial">Financeiro</option>
+                  <option value="support">Suporte</option>
                   <option value="admin">Administrador (Acesso Total)</option>
                 </select>
               </div>

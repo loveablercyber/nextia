@@ -22,6 +22,7 @@ import { AIService } from './ai-service.js';
 import { AutomationError } from './automation-core.js';
 import { buildSitemapXml, injectSeoIntoHtml, isKnownPublicSeoPath, isPrivateSeoPath, resolveSeoEntry, resolveSeoRedirect } from './seo-routing.js';
 import { ensureContentSchema, getPublishedContentSeoEntries, getPublishedContentSeoEntry, handleContentApi, isContentApiPath } from './content-management.js';
+import { PERMISSION_CATALOG, PERMISSION_KEYS, defaultPermissions, effectivePermissions, hasPermission } from './permissions.js';
 import {
   ensureCustomerSuccessSchema,
   handleCustomerSuccessApi,
@@ -513,6 +514,7 @@ async function deleteBackupObject(backup) {
 }
 
 function mapProfile(row) {
+  const storedRole = ['admin', 'technician', 'financial', 'support'].includes(row.role) ? row.role : (row.is_partner ? 'partner' : 'client');
   return {
     id: row.id,
     email: row.email || '',
@@ -520,7 +522,8 @@ function mapProfile(row) {
     company: row.company || '',
     phone: row.phone || '',
     avatarInitials: row.avatar_initials || 'NX',
-    role: row.role === 'admin' ? 'admin' : (row.role === 'technician' ? 'technician' : (row.is_partner ? 'partner' : 'client')),
+    role: storedRole,
+    permissions: effectivePermissions(storedRole, row.permission_overrides),
     createdAt: row.created_at || new Date().toISOString(),
     lastLogin: row.last_login_at || row.created_at || new Date().toISOString(),
     mustChangePassword: row.must_change_password === true,
@@ -577,7 +580,9 @@ async function getUserById(userId) {
     const result = await client.query(
       `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, p.last_login_at,
               COALESCE(a.must_change_password,FALSE) must_change_password,
-              EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
+              EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner,
+              COALESCE((SELECT jsonb_object_agg(up.permission_key, up.granted)
+                        FROM public.user_permissions up WHERE up.user_id = p.id), '{}'::jsonb) AS permission_overrides
        FROM public.profiles p
        LEFT JOIN public.local_auth_users a ON a.id=p.id
        WHERE p.id = $1`,
@@ -600,12 +605,16 @@ async function getSessionProfile(req, client) {
   const payload = verifyToken(requestToken(req));
   if (!payload?.sub) return null;
   const result = await client.query(
-    `SELECT id, email, name, phone, role
-     FROM public.profiles
-     WHERE id = $1`,
+    `SELECT p.id, p.email, p.name, p.phone, p.role,
+            COALESCE((SELECT jsonb_object_agg(up.permission_key, up.granted)
+                      FROM public.user_permissions up WHERE up.user_id = p.id), '{}'::jsonb) AS permission_overrides
+     FROM public.profiles p
+     WHERE p.id = $1`,
     [payload.sub],
   );
-  return result.rows[0] || null;
+  const profile = result.rows[0];
+  if (!profile) return null;
+  return { ...profile, permissions: effectivePermissions(profile.role, profile.permission_overrides) };
 }
 
 async function ensureSupportSchema(client) {
@@ -2405,6 +2414,8 @@ const supportApiMethods = new Map([
   ['/api/admin/backup/delete', 'POST'],
   ['/api/admin/backup/logs', 'GET'],
   ['/api/admin/users', 'GET'],
+  ['/api/admin/permissions/users', 'GET'],
+  ['/api/admin/permissions/users/update', 'POST'],
   ['/api/admin/update-user', 'POST'],
   ['/api/admin/update-user-password', 'POST'],
   ['/api/admin/delete-item', 'POST'],
@@ -2494,10 +2505,14 @@ async function handleSupportApi(req, res, url) {
     if (url.pathname === '/api/admin/users/create') {
       const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);
       const name=String(body.name||'').trim(),email=String(body.email||'').trim().toLowerCase(),password=String(body.password||''),role=String(body.role||'client');
-      if(!name||!/^\S+@\S+\.\S+$/.test(email)||password.length<6||!['client','partner','technician','admin'].includes(role))return json(res,400,{error:'Informe nome, e-mail válido, perfil e senha com ao menos 6 caracteres.'});
+      if(!name||!/^\S+@\S+\.\S+$/.test(email)||password.length<6||!['client','partner','technician','admin','financial','support'].includes(role))return json(res,400,{error:'Informe nome, e-mail válido, perfil e senha com ao menos 6 caracteres.'});
       const id=randomUUID(),initials=name.split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();await client.query('BEGIN');try{
         await client.query(`INSERT INTO public.profiles(id,email,name,company,phone,role,avatar_initials) VALUES($1,$2,$3,$4,$5,$6,$7)`,[id,email,name,String(body.company||'').trim(),String(body.phone||'').trim(),role==='partner'?'client':role,initials]);
         await client.query(`INSERT INTO public.local_auth_users(id,password_hash) VALUES($1,$2)`,[id,hashPassword(password)]);
+        if(role==='financial'||role==='support'){
+          const requested=Array.isArray(body.permissions)?body.permissions.filter((key)=>PERMISSION_KEYS.includes(key)):defaultPermissions(role);
+          for(const key of PERMISSION_KEYS) await client.query(`INSERT INTO public.user_permissions(user_id,permission_key,granted,updated_by) VALUES($1,$2,$3,$4)`,[id,key,requested.includes(key),sessionProfile.id]);
+        }
         if(role==='partner'){await ensurePartnerSchema(client);const referral=`${name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20)||'partner'}-${Math.random().toString(36).slice(2,6)}`;await client.query(`INSERT INTO public.partner_profiles(user_id,referral_code,cpf_cnpj,status) VALUES($1,$2,$3,$4)`,[id,referral,String(body.cpfCnpj||''),body.partnerStatus==='ativo'?'ativo':'pendente']);}
         await client.query('COMMIT');return json(res,201,{status:'success',user:{id,name,email,role}});
       }catch(error){await client.query('ROLLBACK');if(String(error.message||'').includes('duplicate'))return json(res,409,{error:'Este e-mail já está cadastrado.'});throw error;}
@@ -2515,7 +2530,7 @@ async function handleSupportApi(req, res, url) {
     }
 
     if (url.pathname === '/api/admin/support-ticket/delete') {
-      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});const body=await readJson(req);const result=await client.query(`DELETE FROM public.support_tickets WHERE id=$1 RETURNING id`,[body.ticketId]);if(!result.rows[0])return json(res,404,{error:'Ticket não encontrado.'});return json(res,200,{status:'success'});
+      const sessionProfile=await getSessionProfile(req,client);if(!hasPermission(sessionProfile,'support.manage'))return json(res,sessionProfile?403:401,{error:'Permissão para gerenciar suporte necessária.'});const body=await readJson(req);const result=await client.query(`DELETE FROM public.support_tickets WHERE id=$1 RETURNING id`,[body.ticketId]);if(!result.rows[0])return json(res,404,{error:'Ticket não encontrado.'});return json(res,200,{status:'success'});
     }
 
     if (url.pathname === '/api/technician/profile') {
@@ -2741,7 +2756,7 @@ async function handleSupportApi(req, res, url) {
     if (url.pathname === '/api/admin/list-support-tickets') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuario nao autenticado.' });
-      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+      if (!hasPermission(sessionProfile, 'support.view')) return json(res, 403, { error: 'Permissão de suporte necessária.' });
 
       const [result, technicians] = await Promise.all([client.query(
         `SELECT id, name, email, phone, company, subject, message, status,
@@ -2757,7 +2772,7 @@ async function handleSupportApi(req, res, url) {
     if (url.pathname === '/api/admin/support-ticket/ai-suggestion') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
-      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+      if (!hasPermission(sessionProfile, 'support.manage')) return json(res, 403, { error: 'Permissão para gerenciar suporte necessária.' });
 
       const body = await readJson(req);
       const ticketId = String(body.ticketId || '');
@@ -2814,7 +2829,7 @@ async function handleSupportApi(req, res, url) {
     if (url.pathname === '/api/admin/update-ticket-status') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuario nao autenticado.' });
-      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+      if (!hasPermission(sessionProfile, 'support.manage')) return json(res, 403, { error: 'Permissão para gerenciar suporte necessária.' });
 
       const body = await readJson(req);
       const validStatuses = new Set(['aberto', 'respondido', 'fechado']);
@@ -2835,7 +2850,7 @@ async function handleSupportApi(req, res, url) {
 
     if (url.pathname === '/api/admin/assign-support-ticket') {
       const sessionProfile = await getSessionProfile(req, client);
-      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      if (!hasPermission(sessionProfile, 'support.manage')) return json(res, sessionProfile ? 403 : 401, { error: 'Permissão para gerenciar suporte necessária.' });
       const body = await readJson(req);
       const technicianId = body.technicianId || null;
       if (technicianId) {
@@ -2854,7 +2869,7 @@ async function handleSupportApi(req, res, url) {
     }
 
     if (url.pathname === '/api/admin/ticket-assignment-options') {
-      const sessionProfile=await getSessionProfile(req,client);if(sessionProfile?.role!=='admin')return json(res,sessionProfile?403:401,{error:'Acesso exclusivo para administradores.'});
+      const sessionProfile=await getSessionProfile(req,client);if(!hasPermission(sessionProfile,'support.view'))return json(res,sessionProfile?403:401,{error:'Permissão de suporte necessária.'});
       const ticket=(await client.query(`SELECT id,service_slug,service_mode,service_city,service_state,required_specialty FROM public.support_tickets WHERE id=$1`,[url.searchParams.get('ticketId')])).rows[0];
       if(!ticket)return json(res,404,{error:'Chamado não encontrado.'});
       const candidates=await rankTechnicians(client,{serviceSlug:ticket.service_slug,mode:ticket.service_mode||'FLEXIBLE',city:ticket.service_city,state:ticket.service_state,requiredSpecialty:ticket.required_specialty});
@@ -3007,7 +3022,7 @@ async function handleSupportApi(req, res, url) {
       }
       const guestAuthorized = guestToken && secureTextEqual(guestToken, ticket.guest_token);
       const sessionAuthorized = sessionProfile
-        && (sessionProfile.role === 'admin' || sessionProfile.id === ticket.user_id);
+        && (hasPermission(sessionProfile, 'support.view') || sessionProfile.id === ticket.user_id);
       if (!guestAuthorized && !sessionAuthorized) {
         return json(res, 403, { error: 'Acesso negado a este chamado.' });
       }
@@ -3047,7 +3062,7 @@ async function handleSupportApi(req, res, url) {
       let senderName = ticket.name;
       let linkUserId = null;
 
-      if (!guestAuthorized && sessionProfile?.role === 'admin') {
+      if (!guestAuthorized && hasPermission(sessionProfile, 'support.manage')) {
         senderRole = 'admin';
         senderName = sessionProfile.name || sessionProfile.email;
       } else if (!guestAuthorized && sessionProfile
@@ -3086,16 +3101,75 @@ async function handleSupportApi(req, res, url) {
       }
     }
 
+    if (url.pathname === '/api/admin/permissions/users') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const result = await client.query(`
+        SELECT p.id, p.name, p.email, p.role,
+               COALESCE((SELECT jsonb_object_agg(up.permission_key, up.granted)
+                         FROM public.user_permissions up WHERE up.user_id = p.id), '{}'::jsonb) AS permission_overrides
+        FROM public.profiles p
+        WHERE p.role IN ('admin', 'financial', 'support')
+        ORDER BY CASE p.role WHEN 'admin' THEN 1 WHEN 'financial' THEN 2 ELSE 3 END, p.name, p.email
+      `);
+      return json(res, 200, {
+        catalog: PERMISSION_CATALOG,
+        users: result.rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          role: row.role,
+          permissions: effectivePermissions(row.role, row.permission_overrides),
+        })),
+      });
+    }
+
+    if (url.pathname === '/api/admin/permissions/users/update') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (sessionProfile?.role !== 'admin') return json(res, sessionProfile ? 403 : 401, { error: 'Acesso exclusivo para administradores.' });
+      const body = await readJson(req);
+      const userId = String(body.userId || '');
+      const permissions = Array.isArray(body.permissions) ? [...new Set(body.permissions.map(String))] : [];
+      if (!UUID_PATTERN.test(userId) || permissions.some((key) => !PERMISSION_KEYS.includes(key))) {
+        return json(res, 400, { error: 'Usuário ou permissões inválidos.' });
+      }
+      const target = (await client.query(`SELECT id, role FROM public.profiles WHERE id=$1`, [userId])).rows[0];
+      if (!target) return json(res, 404, { error: 'Usuário não encontrado.' });
+      if (!['financial', 'support'].includes(target.role)) return json(res, 409, { error: 'Somente usuários Financeiro ou Suporte possuem permissões editáveis.' });
+      await client.query('BEGIN');
+      try {
+        for (const key of PERMISSION_KEYS) {
+          await client.query(
+            `INSERT INTO public.user_permissions(user_id,permission_key,granted,updated_by,updated_at)
+             VALUES($1,$2,$3,$4,NOW())
+             ON CONFLICT(user_id,permission_key) DO UPDATE SET granted=EXCLUDED.granted,updated_by=EXCLUDED.updated_by,updated_at=NOW()`,
+            [userId, key, permissions.includes(key), sessionProfile.id],
+          );
+        }
+        await client.query(
+          `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+           VALUES($1,'user.permissions.updated','profile',$2,$3)`,
+          [sessionProfile.id, userId, JSON.stringify({ permissions })],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      }
+      return json(res, 200, { status: 'success', permissions });
+    }
+
     if (url.pathname === '/api/admin/users') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
-      if (sessionProfile.role !== 'admin') return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+      if (sessionProfile.role !== 'admin' && !hasPermission(sessionProfile, 'finance.view')) return json(res, 403, { error: 'Permissão insuficiente.' });
+      if (sessionProfile.role !== 'admin') return json(res, 200, { users: [] });
 
       await ensurePartnerSchema(client);
       const result = await client.query(`
         SELECT p.id, p.email, p.name, p.company, p.phone, p.avatar_initials, p.created_at,
                CASE
-                 WHEN p.role IN ('admin', 'technician') THEN p.role
+                 WHEN p.role IN ('admin', 'technician', 'financial', 'support') THEN p.role
                  WHEN pp.id IS NOT NULL THEN 'partner'
                  ELSE 'client'
                END AS role,
@@ -3122,19 +3196,21 @@ async function handleSupportApi(req, res, url) {
       if (!targetUserId || !name || !email) {
         return json(res, 400, { error: 'Usuário, nome e e-mail são obrigatórios.' });
       }
-      if (!['client', 'admin', 'partner', 'technician'].includes(role)) {
+      if (!['client', 'admin', 'partner', 'technician', 'financial', 'support'].includes(role)) {
         return json(res, 400, { error: 'Perfil de acesso inválido.' });
       }
       if (password && password.length < 6) {
         return json(res, 400, { error: 'A nova senha deve conter ao menos 6 caracteres.' });
       }
+      const existingUser = (await client.query('SELECT role FROM public.profiles WHERE id=$1', [targetUserId])).rows[0];
+      if (!existingUser) return json(res, 404, { error: 'Usuário não encontrado.' });
 
       await client.query('BEGIN');
       try {
         const result = await client.query(
           `UPDATE public.profiles
            SET name = $1, email = $2, company = $3, phone = $4,
-               role = CASE WHEN $5 IN ('admin', 'technician') THEN $5 ELSE 'client' END
+               role = CASE WHEN $5 IN ('admin', 'technician', 'financial', 'support') THEN $5 ELSE 'client' END
            WHERE id = $6
            RETURNING id, email, name, company, phone, role, avatar_initials, created_at`,
           [name, email, String(body.company || '').trim(), String(body.phone || '').trim(), role, targetUserId],
@@ -3142,6 +3218,18 @@ async function handleSupportApi(req, res, url) {
         if (!result.rows[0]) {
           await client.query('ROLLBACK');
           return json(res, 404, { error: 'Usuário não encontrado.' });
+        }
+        if (existingUser.role !== result.rows[0].role) {
+          await client.query('DELETE FROM public.user_permissions WHERE user_id=$1', [targetUserId]);
+          if (role === 'financial' || role === 'support') {
+            const defaults = defaultPermissions(role);
+            for (const key of PERMISSION_KEYS) {
+              await client.query(
+                `INSERT INTO public.user_permissions(user_id,permission_key,granted,updated_by) VALUES($1,$2,$3,$4)`,
+                [targetUserId, key, defaults.includes(key), sessionProfile.id],
+              );
+            }
+          }
         }
         if (password) {
           await client.query(
@@ -4529,7 +4617,9 @@ async function handleAuth(req, res, pathname) {
          SET name = $1, email = $2, phone = $3, company = $4, avatar_initials = $5
          WHERE id = $6
          RETURNING id, email, name, company, phone, role, avatar_initials, created_at,
-                   EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = public.profiles.id) as is_partner`,
+                   EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = public.profiles.id) as is_partner,
+                   COALESCE((SELECT jsonb_object_agg(up.permission_key,up.granted)
+                             FROM public.user_permissions up WHERE up.user_id=public.profiles.id),'{}'::jsonb) AS permission_overrides`,
         [name, email, phone, company, avatarInitials, payload.sub],
       );
 
@@ -4609,7 +4699,9 @@ async function handleAuth(req, res, pathname) {
       const result = await client.query(
         `SELECT p.id, p.email, p.name, p.company, p.phone, p.role, p.avatar_initials, p.created_at, a.password_hash,
                 a.must_change_password,a.temporary_password_expires_at,
-                EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner
+                EXISTS(SELECT 1 FROM public.partner_profiles WHERE user_id = p.id) as is_partner,
+                COALESCE((SELECT jsonb_object_agg(up.permission_key,up.granted)
+                          FROM public.user_permissions up WHERE up.user_id=p.id),'{}'::jsonb) AS permission_overrides
          FROM public.local_auth_users a
          JOIN public.profiles p ON p.id = a.id
          WHERE lower(p.email) = lower($1)`,

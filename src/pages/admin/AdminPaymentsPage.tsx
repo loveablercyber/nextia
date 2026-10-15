@@ -4,9 +4,13 @@ import {
 } from 'lucide-react';
 import { useAdmin } from '../../context/AdminContext';
 import Button from '../../components/ui/Button';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../config/permissions';
 
 export default function AdminPaymentsPage() {
   const { projects, loading, createInvoice, refreshData } = useAdmin();
+  const { user } = useAuth();
+  const canManageFinance = hasPermission(user, 'finance.manage');
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
@@ -103,10 +107,10 @@ export default function AdminPaymentsPage() {
             Visualize cobranças emitidas e envie novas faturas para os clientes.
           </p>
         </div>
-        <Button variant="gradient" size="sm" onClick={() => setModalOpen(true)}>
+        {canManageFinance && <Button variant="gradient" size="sm" onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4" />
           Emitir Nova Cobrança
-        </Button>
+        </Button>}
       </div>
 
       {/* Invoice list */}
@@ -139,7 +143,7 @@ export default function AdminPaymentsPage() {
                   </td>
                   <td className="py-4">{getStatusBadge(p.status)}</td>
                   <td className="py-4 text-right">
-                    <Button
+                    {canManageFinance && <Button
                       variant="secondary"
                       size="sm"
                       onClick={() => handleDeletePayment(p.id, p.description)}
@@ -147,7 +151,7 @@ export default function AdminPaymentsPage() {
                       className="hover:bg-red-50 hover:text-red-600 hover:border-red-100 px-2 py-1"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                    </Button>
+                    </Button>}
                   </td>
                 </tr>
               ))}
@@ -157,7 +161,7 @@ export default function AdminPaymentsPage() {
       </div>
 
       {/* Invoice Emitter Modal */}
-      {modalOpen && (
+      {modalOpen && canManageFinance && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-xl overflow-hidden animate-fade-in">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">

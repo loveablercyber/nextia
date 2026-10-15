@@ -89,6 +89,7 @@ const AdminTechnicianDetailPage = lazy(() => import('./pages/admin/AdminTechnici
 const AdminTechnicalAnalyticsPage = lazy(() => import('./pages/admin/AdminTechnicalAnalyticsPage'));
 const AdminTechnicianGovernancePage = lazy(() => import('./pages/admin/AdminTechnicianGovernancePage'));
 const AdminUserCreatePage = lazy(() => import('./pages/admin/AdminUserCreatePage'));
+const AdminPermissionsPage = lazy(() => import('./pages/admin/AdminPermissionsPage'));
 const AdminTechnicalServicesPage = lazy(() => import('./pages/admin/AdminTechnicalServicesPage'));
 const AdminCustomerSuccessPage = lazy(() => import('./pages/admin/AdminCustomerSuccessPage'));
 const AdminContentPage = lazy(() => import('./pages/admin/AdminContentPage'));
@@ -209,16 +210,22 @@ function DashboardContainer({ children, title }: { children: React.ReactNode; ti
   );
 }
 
-function AdminContainer({ children, title }: { children: React.ReactNode; title?: string }) {
+function AdminContainer({ children, title, permission = 'admin.full', withAdminData = true }: {
+  children: React.ReactNode;
+  title?: string;
+  permission?: 'admin.full' | 'finance.view' | 'finance.manage' | 'support.view' | 'support.manage';
+  withAdminData?: boolean;
+}) {
+  const content = (
+    <AdminLayout title={title}>
+      <Suspense fallback={<div className="p-8 text-center text-gray-500">Carregando...</div>}>
+        {children}
+      </Suspense>
+    </AdminLayout>
+  );
   return (
-    <ProtectedRoute requireRole="admin">
-      <AdminProvider>
-        <AdminLayout title={title}>
-          <Suspense fallback={<div className="p-8 text-center text-gray-500">Carregando...</div>}>
-            {children}
-          </Suspense>
-        </AdminLayout>
-      </AdminProvider>
+    <ProtectedRoute requirePermission={permission}>
+      {withAdminData ? <AdminProvider>{content}</AdminProvider> : content}
     </ProtectedRoute>
   );
 }
@@ -459,7 +466,7 @@ function AppRoutes() {
       <Route
         path="/admin/pagamentos"
         element={
-          <AdminContainer title="Controle de Pagamentos">
+          <AdminContainer title="Controle de Pagamentos" permission="finance.view">
             <AdminPaymentsPage />
           </AdminContainer>
         }
@@ -487,6 +494,7 @@ function AppRoutes() {
       <Route path="/admin/tecnicos/:userId/governanca" element={<AdminContainer title="Governança"><AdminTechnicianGovernancePage /></AdminContainer>}/>
       <Route path="/admin/indicadores-tecnicos" element={<AdminContainer title="Indicadores Técnicos"><AdminTechnicalAnalyticsPage /></AdminContainer>}/>
       <Route path="/admin/usuarios/novo" element={<AdminContainer title="Cadastrar Usuário"><AdminUserCreatePage /></AdminContainer>}/>
+      <Route path="/admin/permissoes" element={<AdminContainer title="Permissões de Usuários" withAdminData={false}><AdminPermissionsPage /></AdminContainer>}/>
       <Route path="/admin/servicos-tecnicos" element={<AdminContainer title="Serviços Técnicos"><AdminTechnicalServicesPage /></AdminContainer>}/>
       <Route path="/admin/automacoes" element={<AdminContainer title="Automações"><AdminAutomationsPage /></AdminContainer>}/>
       <Route path="/admin/automacoes/execucoes" element={<AdminContainer title="Execuções de automação"><AdminAutomationRunsPage /></AdminContainer>}/>
@@ -554,7 +562,7 @@ function AppRoutes() {
       <Route
         path="/admin/suporte"
         element={
-          <AdminContainer title="Gestão de Suporte / Tickets">
+          <AdminContainer title="Gestão de Suporte / Tickets" permission="support.view" withAdminData={false}>
             <AdminSupportPage />
           </AdminContainer>
         }

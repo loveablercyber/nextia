@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle, Trash2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../config/permissions';
 
 interface SupportTicket {
   id: string;
@@ -23,6 +25,8 @@ interface Technician { id: string; name: string; email: string; }
 interface Candidate { id:string; name:string; eligible:boolean; score:number; reasons:string[]; failures:string[]; active_tickets:number; max_simultaneous_tickets:number; }
 
 export default function AdminSupportPage() {
+  const { user } = useAuth();
+  const canManageSupport = hasPermission(user, 'support.manage');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +246,7 @@ export default function AdminSupportPage() {
                         <ChevronRight className="w-3 h-3" />
                       </Button>
                     </Link>
-                    <button onClick={() => handleDeleteTicket(t)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-600" title="Remover ticket"><Trash2 className="h-3.5 w-3.5"/>Remover</button>
+                    {canManageSupport && <button onClick={() => handleDeleteTicket(t)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-600" title="Remover ticket"><Trash2 className="h-3.5 w-3.5"/>Remover</button>}
                   </div>
                 </div>
 
@@ -262,7 +266,7 @@ export default function AdminSupportPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  {canManageSupport && <div className="flex items-center gap-2">
                     <select value={t.priority || 'normal'} onChange={(e) => assignTicket(t.id, t.assigned_technician_id || '', e.target.value)} className="min-h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs" aria-label="Prioridade"><option value="baixa">Baixa</option><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select>
                     <select value={t.assigned_technician_id || ''} onChange={(e) => assignTicket(t.id, e.target.value, t.priority || 'normal')} className="min-h-9 max-w-44 rounded-lg border border-gray-200 bg-white px-2 text-xs" aria-label="Técnico responsável"><option value="">Sem técnico</option>{technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.name || technician.email}</option>)}</select><button onClick={()=>loadRecommendations(t.id)} className="min-h-9 rounded-lg border border-[#1677FF] px-3 text-xs font-bold text-[#1677FF]">Ver recomendação</button>
                     {recommendations[t.id]&&<div className="mt-3 w-full space-y-2">{recommendations[t.id].map((candidate,index)=><div key={candidate.id} className={`rounded-lg border p-3 text-xs ${candidate.eligible?'border-green-200 bg-green-50':'border-slate-200 bg-slate-50'}`}><div className="flex justify-between"><b>{index===0&&candidate.eligible?'Recomendado: ':''}{candidate.name}</b><span className="font-black">Score {candidate.score}</span></div><p className="mt-1 text-green-700">{candidate.reasons.join(' · ')}</p>{candidate.failures.length>0&&<p className="mt-1 text-red-600">Inelegível: {candidate.failures.join(' · ')}</p>}<p className="mt-1 text-slate-500">Carga: {candidate.active_tickets}/{candidate.max_simultaneous_tickets}</p></div>)}</div>}
@@ -276,7 +280,7 @@ export default function AdminSupportPage() {
                       <option value="respondido">Respondido</option>
                       <option value="fechado">Fechado</option>
                     </select>
-                  </div>
+                  </div>}
                 </div>
               </div>
             ))}

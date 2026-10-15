@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { hasPermission } from './permissions.js';
 
 const CLIENT_VISIBILITIES = new Set(['client', 'both']);
 const ALL_VISIBILITIES = new Set(['internal', 'client', 'both']);
@@ -218,6 +219,7 @@ function bodyText(value, max = 5000) {
 
 export async function handleProjectOperationsApi(req, res, url, { client, session, json, readJson }) {
   const isAdmin = session.role === 'admin';
+  const canViewFinance = hasPermission(session, 'finance.view');
 
   if (url.pathname === '/api/app/project/workspace' && req.method === 'GET') {
     const project = await projectScope(client, url.searchParams.get('projectId'), session, false);
@@ -356,7 +358,7 @@ export async function handleProjectOperationsApi(req, res, url, { client, sessio
   }
 
   if (url.pathname === '/api/admin/app/projects' && req.method === 'GET') {
-    if (!isAdmin) return json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+    if (!canViewFinance) return json(res, 403, { error: 'Permissão financeira necessária.' });
     const values = [];
     const where = [];
     const add = (sql, value) => { values.push(value); where.push(sql.replace('?', `$${values.length}`)); };

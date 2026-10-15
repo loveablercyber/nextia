@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { userHome } from '../config/permissions';
 
 export default function LoginPage() {
   useEffect(() => {
@@ -33,12 +34,8 @@ export default function LoginPage() {
       setError(res.error);
     } else {
       let targetPath = from;
-      if ((from === '/painel' || from === '') && res.user?.role === 'admin') {
-        targetPath = '/admin';
-      } else if ((from === '/painel' || from === '') && res.user?.role === 'partner') {
-        targetPath = '/parceiro';
-      } else if ((from === '/painel' || from === '') && res.user?.role === 'technician') {
-        targetPath = '/tecnico';
+      if ((from === '/painel' || from === '') && res.user) {
+        targetPath = userHome(res.user);
       }
       navigate(targetPath, { replace: true });
     }

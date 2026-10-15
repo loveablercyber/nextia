@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createSlidingWindowLimiter, fetchWithTimeout, requestIp } from './operational-guards.js';
 import { ensureCrmSchema } from './crm-api.js';
+import { hasPermission } from './permissions.js';
 import {
   ensureProjectOperationsSchema,
   fileChecksum,
@@ -413,13 +414,13 @@ async function loadProjects(client, userId = null) {
   }));
 }
 
-function requireAdmin(session, json, res) {
+function requireAdmin(session, json, res, permission = 'admin.full') {
   if (!session) {
     json(res, 401, { error: 'Usuário não autenticado.' });
     return false;
   }
-  if (session.role !== 'admin') {
-    json(res, 403, { error: 'Acesso exclusivo para administradores.' });
+  if (permission === 'admin.full' ? session.role !== 'admin' : !hasPermission(session, permission)) {
+    json(res, 403, { error: 'Você não possui permissão para esta operação.' });
     return false;
   }
   return true;
@@ -1075,7 +1076,8 @@ export async function handleAppApi(req, res, url, dependencies) {
     if (url.pathname === '/api/notifications' && req.method === 'POST') {
       const body = await readJson(req);
       const target = String(body.targetUserId || session.id);
-      if (target !== session.id && target !== 'admins' && session.role !== 'admin') {
+      if (target !== session.id && target !== 'admins' && session.role !== 'admin'
+          && !hasPermission(session, 'finance.manage')) {
         return json(res, 403, { error: 'Destino de notificação não permitido.' });
       }
       const values = [String(body.title || '').trim(), String(body.message || '').trim(), body.type || 'info'];
@@ -1109,7 +1111,12 @@ export async function handleAppApi(req, res, url, dependencies) {
     }
 
     if (url.pathname.startsWith('/api/admin/app/')) {
-      if (!requireAdmin(session, json, res)) return;
+      const requiredPermission = url.pathname === '/api/admin/app/data' && req.method === 'GET'
+        ? 'finance.view'
+        : ((url.pathname === '/api/admin/app/invoice' || url.pathname === '/api/admin/app/payment/delete') && req.method === 'POST'
+          ? 'finance.manage'
+          : 'admin.full');
+      if (!requireAdmin(session, json, res, requiredPermission)) return;
 
       if (url.pathname === '/api/admin/app/engagements' && req.method === 'GET') {
         const { page, limit, offset } = pagination(url);
@@ -1181,7 +1188,7 @@ export async function handleAppApi(req, res, url, dependencies) {
           loadProjects(client),
           client.query('SELECT * FROM public.quotes ORDER BY created_at DESC'),
         ]);
-        return json(res, 200, { projects, quotes: quotes.rows });
+        return json(res, 200, { projects, quotes: session.role === 'admin' ? quotes.rows : [] });
       }
 
       const body = await readJson(req);
