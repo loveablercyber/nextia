@@ -91,8 +91,11 @@ export const logoutEvolution = (instance,options) => evolutionRequest(instance,'
 export const getEvolutionWebhook = (instance,options) => evolutionRequest(instance,'/webhook/find/{instance}',options);
 
 export function configureEvolutionWebhook(instance,webhookUrl,options={}) {
+  const env=options.env || process.env;
+  const webhookSecret=envValue(instance?.webhook_secret_env || 'EVOLUTION_WEBHOOK_SECRET',env);
+  if(!webhookSecret)throw new AutomationError('Segredo do webhook da Evolution não configurado.',{code:'EVOLUTION_WEBHOOK_SECRET_REQUIRED',status:503});
   return evolutionRequest(instance,'/webhook/set/{instance}',{...options,method:'POST',body:{webhook:{
-    enabled:true,url:webhookUrl,byEvents:false,base64:false,
+    enabled:true,url:webhookUrl,byEvents:false,base64:false,headers:{'x-webhook-secret':webhookSecret},
     events:['MESSAGES_UPSERT','MESSAGES_UPDATE','CONNECTION_UPDATE','QRCODE_UPDATED','SEND_MESSAGE'],
   }}});
 }

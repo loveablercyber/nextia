@@ -51,6 +51,18 @@ export function publicInstance(row){
   return {...row,qr_code_data:qrVisible?row.qr_code_data:null,api_url_env:row.api_url_env,api_key_env:row.api_key_env,webhook_secret_env:row.webhook_secret_env};
 }
 
+export function publicEvolutionWebhook(data){
+  if(!data||typeof data!=='object'||Array.isArray(data))return data;
+  const copy=structuredClone(data);
+  for(const target of [copy,copy.webhook]){
+    if(!target||typeof target!=='object'||Array.isArray(target))continue;
+    const configured=Boolean(target.headers&&typeof target.headers==='object'&&Object.keys(target.headers).length);
+    delete target.headers;delete target.apikey;delete target.apiKey;delete target.token;delete target.secret;
+    target.headersConfigured=configured;
+  }
+  return copy;
+}
+
 export function parseCsv(source){
   const text=String(source||'').replace(/^\uFEFF/,'');
   if(!text.trim())fail('O arquivo CSV está vazio.');
@@ -80,7 +92,7 @@ export function importRow(row,mapping){
 }
 
 async function overview(client){
-  const [instances,settings,metrics,campaigns]=await Promise.all([
+  const [instances,settings,metrics,campaigns,lastWebhook,lastMessageLog]=await Promise.all([
     client.query(`SELECT * FROM public.whatsapp_instances ORDER BY created_at`),
     client.query(`SELECT s.* FROM public.whatsapp_bot_settings s JOIN public.whatsapp_instances i ON i.id=s.instance_id ORDER BY i.created_at`),
     client.query(`SELECT
@@ -90,8 +102,12 @@ async function overview(client){
       (SELECT COUNT(*)::int FROM public.whatsapp_handoffs WHERE status='pending') pending_handoffs,
       (SELECT COUNT(*)::int FROM public.whatsapp_messages WHERE created_at>=CURRENT_DATE) messages_today`),
     client.query(`SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE status='running')::int running,COUNT(*) FILTER(WHERE status='scheduled')::int scheduled FROM public.whatsapp_campaigns`),
+    client.query(`SELECT event_type,status,error_message,resource_id,created_at,processed_at
+      FROM public.provider_webhook_events WHERE provider='evolution' ORDER BY created_at DESC LIMIT 1`),
+    client.query(`SELECT event_type,status,error_code,error_message,created_at
+      FROM public.whatsapp_message_logs ORDER BY created_at DESC LIMIT 1`),
   ]);
-  return{instances:instances.rows.map(publicInstance),settings:settings.rows,metrics:metrics.rows[0],campaigns:campaigns.rows[0]};
+  return{instances:instances.rows.map(publicInstance),settings:settings.rows,metrics:metrics.rows[0],campaigns:campaigns.rows[0],webhookDiagnostics:{lastEvent:lastWebhook.rows[0]||null,lastMessageLog:lastMessageLog.rows[0]||null}};
 }
 
 export async function handleWhatsAppManagementApi(req,res,url,deps){
@@ -135,7 +151,7 @@ async function route(req,url,client,session,readJson){
       await audit(client,session.id,'whatsapp.instance.updated','whatsapp_instance',instance.id,{enabled:body.enabled===true});return{body:{instance:publicInstance(updated.rows[0])}};
     }
     if(instanceMatch[2]==='status'&&req.method==='GET'){
-      try{const[data,webhook]=await Promise.all([getEvolutionStatus(instance),getEvolutionWebhook(instance).catch(()=>null)]);const saved=await syncInstanceStatus(client,instance,data);return{body:{instance:publicInstance(saved),provider:{status:normalizeEvolutionStatus(data),webhook}}};}
+      try{const[data,webhook]=await Promise.all([getEvolutionStatus(instance),getEvolutionWebhook(instance).catch(()=>null)]);const saved=await syncInstanceStatus(client,instance,data);return{body:{instance:publicInstance(saved),provider:{status:normalizeEvolutionStatus(data),webhook:publicEvolutionWebhook(webhook)}}};}
       catch(error){const saved=await syncInstanceStatus(client,instance,{},error);return{status:error.status||503,body:{error:error.message,code:error.code,instance:publicInstance(saved)}};}
     }
     if(instanceMatch[2]==='action'&&req.method==='POST'){
@@ -152,7 +168,7 @@ async function route(req,url,client,session,readJson){
         data=(await sendEvolutionText(instance,{number:body.phone,text:clean(body.message,2000)||'Mensagem de teste da Nextia.'})).data;
       }else fail('Ação da instância inválida.');
       const saved=await syncInstanceStatus(client,instance,data);await audit(client,session.id,`whatsapp.instance.${action}`,'whatsapp_instance',instance.id,{});
-      return{body:{instance:publicInstance(saved),provider:data}};
+      return{body:{instance:publicInstance(saved),provider:action==='configure_webhook'?publicEvolutionWebhook(data):data}};
     }
   }
 

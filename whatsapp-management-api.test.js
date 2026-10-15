@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe,expect,it } from 'vitest';
-import { importRow,parseCsv,publicInstance } from './whatsapp-management-api.js';
+import { importRow,parseCsv,publicEvolutionWebhook,publicInstance } from './whatsapp-management-api.js';
 
 describe('WhatsApp contact CSV import',()=>{
   it('parses quoted values and semicolon separated Brazilian exports',()=>{
@@ -33,5 +33,14 @@ describe('WhatsApp instance QR serialization',()=>{
   it('does not expose a stale QR after the instance connects',()=>{
     const instance=publicInstance({connection_status:'connected',qr_code_data:'data:image/png;base64,STALE'});
     expect(instance.qr_code_data).toBeNull();
+  });
+});
+
+describe('Evolution webhook serialization',()=>{
+  it('reports signed configuration without exposing the secret header',()=>{
+    const provider=publicEvolutionWebhook({enabled:true,url:'https://nextia.dev.br/api/webhooks/evolution',headers:{'x-webhook-secret':'secret-value'}});
+    expect(provider).toMatchObject({enabled:true,headersConfigured:true});
+    expect(provider).not.toHaveProperty('headers');
+    expect(JSON.stringify(provider)).not.toContain('secret-value');
   });
 });

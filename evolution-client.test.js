@@ -5,8 +5,8 @@ import {
   normalizeWhatsAppNumber,sendEvolutionText,
 } from './evolution-client.js';
 
-const instance={instance_name:'nextia',api_url_env:'EVO_URL',api_key_env:'EVO_KEY'};
-const env={EVO_URL:'https://evo.example.com/',EVO_KEY:'super-secret'};
+const instance={instance_name:'nextia',api_url_env:'EVO_URL',api_key_env:'EVO_KEY',webhook_secret_env:'EVO_WEBHOOK_SECRET'};
+const env={EVO_URL:'https://evo.example.com/',EVO_KEY:'super-secret',EVO_WEBHOOK_SECRET:'webhook-secret'};
 
 function provider(data,status=200){return{ok:status>=200&&status<300,status,text:async()=>JSON.stringify(data)}}
 
@@ -39,8 +39,19 @@ describe('Evolution API client',()=>{
     const fetchImpl=vi.fn().mockResolvedValue(provider({ok:true}));
     await configureEvolutionWebhook(instance,'https://painel.example.com/api/webhooks/evolution',{fetchImpl,env});
     const request=fetchImpl.mock.calls[0][1];
-    expect(JSON.parse(request.body)).toMatchObject({webhook:{enabled:true,url:'https://painel.example.com/api/webhooks/evolution',byEvents:false}});
+    expect(JSON.parse(request.body)).toMatchObject({webhook:{
+      enabled:true,
+      url:'https://painel.example.com/api/webhooks/evolution',
+      byEvents:false,
+      headers:{'x-webhook-secret':'webhook-secret'},
+    }});
     expect(request.body).not.toContain('super-secret');
+  });
+
+  it('refuses to configure an unsigned webhook',async()=>{
+    expect(()=>configureEvolutionWebhook(instance,'https://painel.example.com/api/webhooks/evolution',{
+      fetchImpl:vi.fn(),env:{EVO_URL:'https://evo.example.com/',EVO_KEY:'super-secret'},
+    })).toThrow(expect.objectContaining({code:'EVOLUTION_WEBHOOK_SECRET_REQUIRED'}));
   });
 
   it('waits for the QR image instead of treating its textual code as base64',async()=>{

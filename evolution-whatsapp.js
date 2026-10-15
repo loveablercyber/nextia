@@ -85,6 +85,15 @@ function authorized(req, payload, env) {
   return Boolean(env.WHATSAPP_API_KEY && safeEqual(apiKey,env.WHATSAPP_API_KEY));
 }
 
+function logRejectedWebhook(req,payload) {
+  console.warn('[EVOLUTION_WEBHOOK_REJECTED]',{
+    event:eventName(payload)||'UNKNOWN',
+    instance:String(payload?.instance||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,120)||'unknown',
+    hasWebhookSecret:Boolean(req.headers['x-webhook-secret']),
+    hasApiKey:Boolean(req.headers.apikey||req.headers['x-api-key']||payload?.apikey),
+  });
+}
+
 function redactedPayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
   const copy = structuredClone(payload);
@@ -148,7 +157,10 @@ export async function handleEvolutionWebhook(req,res,{client,json,readJson,env=p
   let payload;
   try { payload = await readJson(req); }
   catch { return json(res,400,{error:'Payload inválido.',code:'EVOLUTION_PAYLOAD_INVALID'}); }
-  if (!authorized(req,payload,env)) return json(res,401,{error:'Webhook não autorizado.',code:'EVOLUTION_WEBHOOK_UNAUTHORIZED'});
+  if (!authorized(req,payload,env)) {
+    logRejectedWebhook(req,payload);
+    return json(res,401,{error:'Webhook não autorizado.',code:'EVOLUTION_WEBHOOK_UNAUTHORIZED'});
+  }
 
   const cleanPayload = redactedPayload(payload);
   const payloadJson = JSON.stringify(cleanPayload);

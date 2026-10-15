@@ -57,9 +57,12 @@ describe('Evolution WhatsApp webhook',()=>{
     const client={query:vi.fn()};
     const res=response();
     const json=(target,status,body)=>target.json(status,body);
+    const warning=vi.spyOn(console,'warn').mockImplementation(()=>{});
     await handleEvolutionWebhook({headers:{}},res,{client,json,readJson:async()=>payload,env:{EVOLUTION_WEBHOOK_SECRET:'secret'}});
     expect(res.status).toBe(401);
     expect(client.query).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith('[EVOLUTION_WEBHOOK_REJECTED]',expect.objectContaining({event:'MESSAGES_UPSERT',instance:'nextia',hasWebhookSecret:false}));
+    warning.mockRestore();
   });
 
   it('stores the QR image received asynchronously from Evolution',async()=>{
