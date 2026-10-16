@@ -723,6 +723,119 @@ function addonDisplayName(code) {
   return code.replace(/^opt-/, '').split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 }
 
+function isWithinSupportBusinessHours(settings, now = new Date()) {
+  if (!settings.business_hours_only) return true;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: settings.timezone || 'America/Sao_Paulo',
+    weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (value.weekday === 'Sat' || value.weekday === 'Sun') return false;
+  const current = `${value.hour}:${value.minute}`;
+  const start = String(settings.business_hours_start || '08:00').slice(0, 5);
+  const end = String(settings.business_hours_end || '18:00').slice(0, 5);
+  return current >= start && current < end;
+}
+
+async function recordSupportAiDecision(client, ticketId, decision, metadata = {}) {
+  await client.query(
+    `UPDATE public.support_tickets SET ai_last_decision=$2,ai_last_decision_at=NOW() WHERE id=$1`,
+    [ticketId, decision],
+  );
+  await client.query(
+    `INSERT INTO public.audit_log(action,entity_type,entity_id,metadata)
+     VALUES('support.ai_auto_reply.decision','support_ticket',$1,$2)`,
+    [ticketId, JSON.stringify({ decision, ...metadata })],
+  ).catch(() => undefined);
+}
+
+async function tryAutomaticSupportReply(client, ticketId) {
+  try {
+    const settings = (await client.query(`SELECT * FROM public.support_ai_settings WHERE singleton=TRUE`)).rows[0];
+    if (!settings || settings.mode !== 'auto') return { status: 'disabled' };
+    const ticket = (await client.query(
+      `SELECT id,name,company,subject,message,status,priority,service_slug,service_category,service_mode,
+              created_at,ai_paused,ai_auto_reply_count
+       FROM public.support_tickets WHERE id=$1`,
+      [ticketId],
+    )).rows[0];
+    if (!ticket || ticket.status === 'fechado' || ticket.ai_paused) return { status: 'paused' };
+    if (Number(ticket.ai_auto_reply_count) >= Number(settings.max_auto_replies)) {
+      await recordSupportAiDecision(client, ticketId, 'max_replies_reached');
+      return { status: 'max_replies_reached' };
+    }
+    if (!isWithinSupportBusinessHours(settings)) {
+      await recordSupportAiDecision(client, ticketId, 'outside_business_hours');
+      return { status: 'outside_business_hours' };
+    }
+    const messages = (await client.query(
+      `SELECT sender_role,sender_name,message,created_at FROM public.ticket_messages
+       WHERE ticket_id=$1 ORDER BY created_at DESC LIMIT 20`,
+      [ticketId],
+    )).rows.reverse();
+    if (messages.at(-1)?.sender_role !== 'client') return { status: 'not_client_message' };
+    const generated = await new AIService(client).generate({
+      purpose: 'support_reply_draft',
+      contextOverride: {
+        ticket: { customerName: ticket.name, company: ticket.company, subject: ticket.subject, initialMessage: ticket.message,
+          status: ticket.status, priority: ticket.priority, service: ticket.service_slug, category: ticket.service_category,
+          serviceMode: ticket.service_mode, createdAt: ticket.created_at },
+        conversation: messages,
+        instruction: 'Responda diretamente ao cliente somente com informação segura. Quando houver risco, falta de dados ou necessidade de ação humana, marque requires_human como true.',
+      },
+      entityType: 'support_ticket', entityId: ticketId, maxTokens: 700,
+    });
+    const result = generated.result;
+    const confidence = Number(result.confidence || 0);
+    if (result.requires_human === true || confidence < Number(settings.confidence_threshold)) {
+      const decision = result.requires_human === true ? 'human_review_required' : 'low_confidence';
+      await recordSupportAiDecision(client, ticketId, decision, { confidence, aiRunId: generated.aiRunId });
+      return { status: decision };
+    }
+    await client.query('BEGIN');
+    try {
+      const locked = (await client.query(
+        `SELECT status,ai_paused,ai_auto_reply_count FROM public.support_tickets WHERE id=$1 FOR UPDATE`,
+        [ticketId],
+      )).rows[0];
+      const latest = (await client.query(
+        `SELECT sender_role FROM public.ticket_messages WHERE ticket_id=$1 ORDER BY created_at DESC LIMIT 1`,
+        [ticketId],
+      )).rows[0];
+      if (!locked || locked.status === 'fechado' || locked.ai_paused || latest?.sender_role !== 'client'
+          || Number(locked.ai_auto_reply_count) >= Number(settings.max_auto_replies)) {
+        await client.query('ROLLBACK');
+        return { status: 'state_changed' };
+      }
+      const message = (await client.query(
+        `INSERT INTO public.ticket_messages(id,ticket_id,sender_role,message,sender_name)
+         VALUES($1,$2,'admin',$3,'Nia · IA de Suporte')
+         RETURNING id,sender_role,message,created_at,sender_name`,
+        [randomUUID(), ticketId, String(result.reply).trim()],
+      )).rows[0];
+      await client.query(
+        `UPDATE public.support_tickets SET status='respondido',resolved_at=NULL,
+         ai_auto_reply_count=ai_auto_reply_count+1,ai_last_decision='replied',ai_last_decision_at=NOW() WHERE id=$1`,
+        [ticketId],
+      );
+      await client.query(
+        `INSERT INTO public.audit_log(action,entity_type,entity_id,metadata)
+         VALUES('support.ai_auto_reply.sent','support_ticket',$1,$2)`,
+        [ticketId, JSON.stringify({ confidence, aiRunId: generated.aiRunId })],
+      );
+      await client.query('COMMIT');
+      return { status: 'replied', message };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('[SUPPORT_AI_AUTO_REPLY]', ticketId, error);
+    await recordSupportAiDecision(client, ticketId, `error:${error.code || 'unknown'}`).catch(() => undefined);
+    return { status: 'error' };
+  }
+}
+
 async function calculateCommercialSelection(client, { serviceSlug, planId, templateId, addonCodes = [], domain }) {
   const normalizedServiceSlug = String(serviceSlug || '').trim();
   if (!normalizedServiceSlug) throw httpError(400, 'Serviço obrigatório.', 'SERVICE_REQUIRED');
@@ -1016,6 +1129,15 @@ async function handleCatalogApi(req, res, url) {
         await client.query('ROLLBACK');
         throw error;
       }
+      const autoReply = senderRole === 'client'
+        ? await tryAutomaticSupportReply(client, ticket.id)
+        : { status: 'not_client_message' };
+      return json(res, 200, {
+        status: 'success',
+        message: savedMessage,
+        autoReply: autoReply.message || null,
+        autoReplyStatus: autoReply.status,
+      });
     }
 
     if (url.pathname.startsWith('/api/commerce/store-drafts/') && req.method === 'GET') {
@@ -2389,6 +2511,9 @@ const supportApiMethods = new Map([
   ['/api/support/get-ticket', 'GET'],
   ['/api/support/reply-ticket', 'POST'],
   ['/api/admin/list-support-tickets', 'GET'],
+  ['/api/admin/support-ai/settings', 'GET'],
+  ['/api/admin/support-ai/settings/update', 'POST'],
+  ['/api/admin/support-ticket/ai-pause', 'POST'],
   ['/api/admin/support-ticket/ai-suggestion', 'POST'],
   ['/api/admin/update-ticket-status', 'POST'],
   ['/api/admin/assign-support-ticket', 'POST'],
@@ -2662,7 +2787,8 @@ async function handleSupportApi(req, res, url) {
         if(technicianId){await client.query(`INSERT INTO public.ticket_assignment_history(ticket_id,new_technician_id,source,score,reason) VALUES($1,$2,'AUTOMATIC',$3,$4)`,[ticketId,technicianId,assignment.score,assignment.reasons.join(', ')]);await client.query(`INSERT INTO public.technician_notifications(technician_id,ticket_id,type,title,message) VALUES($1,$2,'NEW_TICKET','Novo atendimento',$3)`,[technicianId,ticketId,subject]);}
         await client.query('COMMIT');
       } catch (error) { await client.query('ROLLBACK'); throw error; }
-      return json(res, 201, { ticketId, trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin' });
+      const autoReply = await tryAutomaticSupportReply(client, ticketId);
+      return json(res, 201, { ticketId, trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin', autoReplyStatus: autoReply.status });
     }
 
     if (url.pathname === '/api/support/create-ticket') {
@@ -2723,7 +2849,8 @@ async function handleSupportApi(req, res, url) {
         console.error('Failed to send support ticket email:', emailError);
       }
 
-      return json(res, 200, { status: 'success', ticketId, guestToken, trackingLink });
+      const autoReply = await tryAutomaticSupportReply(client, ticketId);
+      return json(res, 200, { status: 'success', ticketId, guestToken, trackingLink, autoReplyStatus: autoReply.status });
     }
 
     if (url.pathname === '/api/support/list-tickets') {
@@ -2753,6 +2880,64 @@ async function handleSupportApi(req, res, url) {
       }
     }
 
+    if (url.pathname === '/api/admin/support-ai/settings') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!hasPermission(sessionProfile, 'support.view')) return json(res, sessionProfile ? 403 : 401, { error: 'Permissão de suporte necessária.' });
+      const [settings, globalAi] = await Promise.all([
+        client.query(`SELECT mode,confidence_threshold,max_auto_replies,business_hours_only,
+          business_hours_start,business_hours_end,timezone,updated_at FROM public.support_ai_settings WHERE singleton=TRUE`),
+        client.query(`SELECT value FROM public.automation_settings WHERE key='ai.enabled'`),
+      ]);
+      return json(res, 200, { settings: settings.rows[0], globalAiEnabled: globalAi.rows[0]?.value === true });
+    }
+
+    if (url.pathname === '/api/admin/support-ai/settings/update') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!hasPermission(sessionProfile, 'support.manage')) return json(res, sessionProfile ? 403 : 401, { error: 'Permissão para gerenciar suporte necessária.' });
+      const body = await readJson(req);
+      const mode = String(body.mode || 'draft');
+      const confidence = Number(body.confidenceThreshold);
+      const maxReplies = Number(body.maxAutoReplies);
+      const start = String(body.businessHoursStart || '08:00');
+      const end = String(body.businessHoursEnd || '18:00');
+      if (!['off','draft','auto'].includes(mode)) return json(res, 400, { error: 'Modo de IA inválido.' });
+      if (!Number.isFinite(confidence) || confidence < 0.5 || confidence > 1) return json(res, 400, { error: 'A confiança mínima deve ficar entre 50% e 100%.' });
+      if (!Number.isInteger(maxReplies) || maxReplies < 1 || maxReplies > 20) return json(res, 400, { error: 'O limite deve ficar entre 1 e 20 respostas.' });
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end) || start >= end) return json(res, 400, { error: 'Horário de atendimento inválido.' });
+      const result = await client.query(
+        `UPDATE public.support_ai_settings SET mode=$1,confidence_threshold=$2,max_auto_replies=$3,
+         business_hours_only=$4,business_hours_start=$5,business_hours_end=$6,timezone='America/Sao_Paulo',
+         updated_by=$7,updated_at=NOW() WHERE singleton=TRUE RETURNING *`,
+        [mode, confidence, maxReplies, body.businessHoursOnly === true, start, end, sessionProfile.id],
+      );
+      await client.query(
+        `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+         VALUES($1,'support.ai_settings.updated','support_ai_settings','singleton',$2)`,
+        [sessionProfile.id, JSON.stringify({ mode, confidence, maxReplies, businessHoursOnly: body.businessHoursOnly === true, start, end })],
+      );
+      return json(res, 200, { settings: result.rows[0] });
+    }
+
+    if (url.pathname === '/api/admin/support-ticket/ai-pause') {
+      const sessionProfile = await getSessionProfile(req, client);
+      if (!hasPermission(sessionProfile, 'support.manage')) return json(res, sessionProfile ? 403 : 401, { error: 'Permissão para gerenciar suporte necessária.' });
+      const body = await readJson(req);
+      const ticketId = String(body.ticketId || '');
+      if (!UUID_PATTERN.test(ticketId)) return json(res, 400, { error: 'Chamado inválido.' });
+      const result = await client.query(
+        `UPDATE public.support_tickets SET ai_paused=$2,ai_last_decision=$3,ai_last_decision_at=NOW()
+         WHERE id=$1 RETURNING id,ai_paused,ai_auto_reply_count,ai_last_decision`,
+        [ticketId, body.paused === true, body.paused === true ? 'manually_paused' : 'manually_resumed'],
+      );
+      if (!result.rows[0]) return json(res, 404, { error: 'Chamado não encontrado.' });
+      await client.query(
+        `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+         VALUES($1,'support.ai_ticket_pause.changed','support_ticket',$2,$3)`,
+        [sessionProfile.id, ticketId, JSON.stringify({ paused: body.paused === true })],
+      );
+      return json(res, 200, { ticket: result.rows[0] });
+    }
+
     if (url.pathname === '/api/admin/list-support-tickets') {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuario nao autenticado.' });
@@ -2762,7 +2947,8 @@ async function handleSupportApi(req, res, url) {
         `SELECT id, name, email, phone, company, subject, message, status,
                 created_at, resolved_at, user_id, assigned_technician_id, priority,
                 technical_notes, started_at,service_slug,service_category,service_mode,service_city,service_state,
-                assignment_status,assignment_score,assignment_reason,assignment_source
+                assignment_status,assignment_score,assignment_reason,assignment_source,
+                ai_paused,ai_auto_reply_count,ai_last_decision,ai_last_decision_at
          FROM public.support_tickets
          ORDER BY created_at DESC`,
       ), client.query(`SELECT id, name, email FROM public.profiles WHERE role = 'technician' ORDER BY name`)]);
@@ -2773,6 +2959,8 @@ async function handleSupportApi(req, res, url) {
       const sessionProfile = await getSessionProfile(req, client);
       if (!sessionProfile) return json(res, 401, { error: 'Usuário não autenticado.' });
       if (!hasPermission(sessionProfile, 'support.manage')) return json(res, 403, { error: 'Permissão para gerenciar suporte necessária.' });
+      const supportAi = (await client.query(`SELECT mode FROM public.support_ai_settings WHERE singleton=TRUE`)).rows[0];
+      if (!supportAi || supportAi.mode === 'off') return json(res, 409, { error: 'A IA do suporte está desativada nas configurações de suporte.' });
 
       const body = await readJson(req);
       const ticketId = String(body.ticketId || '');
@@ -3075,6 +3263,7 @@ async function handleSupportApi(req, res, url) {
       }
 
       const newStatus = senderRole === 'admin' ? 'respondido' : 'aberto';
+      let savedMessage;
       await client.query('BEGIN');
       try {
         if (linkUserId) {
@@ -3087,6 +3276,7 @@ async function handleSupportApi(req, res, url) {
            RETURNING id, sender_role, message, created_at, sender_name`,
           [randomUUID(), ticket.id, senderRole, message, senderName],
         );
+        savedMessage = messageResult.rows[0];
         await client.query(
           `UPDATE public.support_tickets
            SET status = $1, resolved_at = NULL
@@ -3094,7 +3284,6 @@ async function handleSupportApi(req, res, url) {
           [newStatus, ticket.id],
         );
         await client.query('COMMIT');
-        return json(res, 200, { status: 'success', message: messageResult.rows[0] });
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;

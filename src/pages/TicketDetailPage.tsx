@@ -112,14 +112,14 @@ export default function TicketDetailPage() {
       }
 
       const data = await response.json();
-      setMessages(prev => [...prev, data.message]);
+      setMessages(prev => [...prev, data.message, ...(data.autoReply ? [data.autoReply] : [])]);
       setReplyText('');
       
       // Update ticket status locally to reflect changes
       if (ticket) {
         setTicket({ 
           ...ticket, 
-          status: canManageSupport ? 'respondido' : 'aberto'
+          status: canManageSupport || data.autoReply ? 'respondido' : 'aberto'
         });
       }
     } catch (err: any) {

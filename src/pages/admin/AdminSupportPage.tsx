@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle, Trash2 } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle2, ChevronRight, Search, AlertCircle, Trash2, Bot, Save, PauseCircle, PlayCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { hasPermission } from '../../config/permissions';
@@ -19,10 +19,14 @@ interface SupportTicket {
   user_id?: string;
   assigned_technician_id?: string;
   priority?: string;
+  ai_paused?: boolean;
+  ai_auto_reply_count?: number;
+  ai_last_decision?: string;
 }
 
 interface Technician { id: string; name: string; email: string; }
 interface Candidate { id:string; name:string; eligible:boolean; score:number; reasons:string[]; failures:string[]; active_tickets:number; max_simultaneous_tickets:number; }
+interface SupportAiSettings { mode:'off'|'draft'|'auto'; confidence_threshold:number|string; max_auto_replies:number; business_hours_only:boolean; business_hours_start:string; business_hours_end:string; timezone:string; }
 
 export default function AdminSupportPage() {
   const { user } = useAuth();
@@ -32,6 +36,10 @@ export default function AdminSupportPage() {
   const [error, setError] = useState<string | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [recommendations,setRecommendations]=useState<Record<string,Candidate[]>>({});
+  const [aiSettings,setAiSettings]=useState<SupportAiSettings|null>(null);
+  const [globalAiEnabled,setGlobalAiEnabled]=useState(false);
+  const [savingAi,setSavingAi]=useState(false);
+  const [notice,setNotice]=useState('');
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,10 +50,10 @@ export default function AdminSupportPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/list-support-tickets', {
-        credentials: 'include',
-        cache: 'no-store'
-      });
+      const [response, settingsResponse] = await Promise.all([
+        fetch('/api/admin/list-support-tickets', { credentials: 'include', cache: 'no-store' }),
+        fetch('/api/admin/support-ai/settings', { credentials: 'include', cache: 'no-store' }),
+      ]);
 
       if (!response.ok) {
         const errData = await response.json();
@@ -55,6 +63,11 @@ export default function AdminSupportPage() {
       const data = await response.json();
       setTickets(data.tickets);
       setTechnicians(data.technicians || []);
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json();
+        setAiSettings(settingsData.settings);
+        setGlobalAiEnabled(settingsData.globalAiEnabled === true);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Ocorreu um erro ao carregar os chamados.');
@@ -130,6 +143,21 @@ export default function AdminSupportPage() {
     setTickets((current) => current.filter((item) => item.id !== ticket.id));
   };
 
+  const saveAiSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!aiSettings) return;
+    setSavingAi(true);setError(null);setNotice('');
+    try {
+      const response=await fetch('/api/admin/support-ai/settings/update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:aiSettings.mode,confidenceThreshold:Number(aiSettings.confidence_threshold),maxAutoReplies:Number(aiSettings.max_auto_replies),businessHoursOnly:aiSettings.business_hours_only,businessHoursStart:String(aiSettings.business_hours_start).slice(0,5),businessHoursEnd:String(aiSettings.business_hours_end).slice(0,5)})});
+      const data=await response.json();if(!response.ok)throw new Error(data.error||'Falha ao salvar configurações.');setAiSettings(data.settings);setNotice('Configuração da IA de suporte salva.');
+    }catch(requestError){setError(requestError instanceof Error?requestError.message:'Falha ao salvar configurações.')}finally{setSavingAi(false)}
+  };
+
+  const toggleTicketAi = async (ticket: SupportTicket) => {
+    const response=await fetch('/api/admin/support-ticket/ai-pause',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticketId:ticket.id,paused:!ticket.ai_paused})});
+    const data=await response.json();if(!response.ok){setError(data.error||'Falha ao alterar a IA do chamado.');return}setTickets(current=>current.map(item=>item.id===ticket.id?{...item,...data.ticket}:item));
+  };
+
   const getStatusBadge = (status: SupportTicket['status']) => {
     switch (status) {
       case 'aberto':
@@ -170,6 +198,25 @@ export default function AdminSupportPage() {
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
+      )}
+      {notice && <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">{notice}</p>}
+
+      {aiSettings && (
+        <form onSubmit={saveAiSettings} className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5">
+            <div className="flex gap-3"><span className="rounded-2xl bg-violet-100 p-3 text-violet-700"><Bot className="h-6 w-6" /></span><div><h3 className="font-black text-slate-950">IA no atendimento de suporte</h3><p className="mt-1 max-w-2xl text-sm text-slate-600">Controle respostas automáticas e rascunhos. Chamados de risco, baixa confiança ou que pedem revisão humana nunca recebem resposta automática.</p></div></div>
+            <span className={`rounded-full px-3 py-1.5 text-xs font-black ${globalAiEnabled?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'}`}>IA global: {globalAiEnabled?'ligada':'desligada'}</span>
+          </div>
+          {!globalAiEnabled && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><b>Atenção:</b> ative primeiro “IA” em Automações → Controles globais. Esta configuração sozinha não ignora o bloqueio global.</p>}
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label className="text-sm font-bold text-slate-800">Modo<select disabled={!canManageSupport} value={aiSettings.mode} onChange={event=>setAiSettings({...aiSettings,mode:event.target.value as SupportAiSettings['mode']})} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal"><option value="off">Desativada</option><option value="draft">Somente rascunho</option><option value="auto">Resposta automática</option></select></label>
+            <label className="text-sm font-bold text-slate-800">Confiança mínima<select disabled={!canManageSupport} value={Number(aiSettings.confidence_threshold)} onChange={event=>setAiSettings({...aiSettings,confidence_threshold:Number(event.target.value)})} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal"><option value={0.5}>50%</option><option value={0.65}>65%</option><option value={0.75}>75% (recomendado)</option><option value={0.85}>85%</option><option value={0.95}>95%</option></select></label>
+            <label className="text-sm font-bold text-slate-800">Máximo por chamado<input disabled={!canManageSupport} type="number" min={1} max={20} value={aiSettings.max_auto_replies} onChange={event=>setAiSettings({...aiSettings,max_auto_replies:Number(event.target.value)})} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal" /></label>
+            <label className="flex items-center gap-3 self-end rounded-xl border border-slate-200 p-3 text-sm font-bold text-slate-800"><input disabled={!canManageSupport} type="checkbox" checked={aiSettings.business_hours_only} onChange={event=>setAiSettings({...aiSettings,business_hours_only:event.target.checked})} className="h-4 w-4" />Somente em horário comercial</label>
+          </div>
+          {aiSettings.business_hours_only && <div className="mt-4 flex flex-wrap gap-4"><label className="text-sm font-bold text-slate-800">Início<input disabled={!canManageSupport} type="time" value={String(aiSettings.business_hours_start).slice(0,5)} onChange={event=>setAiSettings({...aiSettings,business_hours_start:event.target.value})} className="ml-2 rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label><label className="text-sm font-bold text-slate-800">Fim<input disabled={!canManageSupport} type="time" value={String(aiSettings.business_hours_end).slice(0,5)} onChange={event=>setAiSettings({...aiSettings,business_hours_end:event.target.value})} className="ml-2 rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label><span className="self-center text-xs text-slate-500">Segunda a sexta · America/Sao_Paulo</span></div>}
+          {canManageSupport && <div className="mt-5 flex justify-end"><button disabled={savingAi} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-violet-700 px-5 font-black text-white disabled:opacity-60"><Save className="h-4 w-4" />{savingAi?'Salvando...':'Salvar configuração'}</button></div>}
+        </form>
       )}
 
       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
@@ -240,12 +287,14 @@ export default function AdminSupportPage() {
 
                   <div className="flex items-center gap-3">
                     {getStatusBadge(t.status)}
+                    {t.ai_paused && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-800">IA pausada</span>}
                     <Link to={`/suporte/ticket/${t.id}`}>
                       <Button variant="secondary" size="sm">
                         Abrir Chat
                         <ChevronRight className="w-3 h-3" />
                       </Button>
                     </Link>
+                    {canManageSupport && aiSettings?.mode==='auto' && <button type="button" onClick={()=>void toggleTicketAi(t)} className={`inline-flex min-h-9 items-center gap-1 rounded-lg border px-3 text-xs font-bold ${t.ai_paused?'border-emerald-200 text-emerald-700':'border-amber-200 text-amber-700'}`} title={t.ai_paused?'Retomar respostas automáticas':'Pausar respostas automáticas'}>{t.ai_paused?<PlayCircle className="h-3.5 w-3.5"/>:<PauseCircle className="h-3.5 w-3.5"/>}{t.ai_paused?'Retomar IA':'Pausar IA'}</button>}
                     {canManageSupport && <button onClick={() => handleDeleteTicket(t)} className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-red-200 px-3 text-xs font-bold text-red-600" title="Remover ticket"><Trash2 className="h-3.5 w-3.5"/>Remover</button>}
                   </div>
                 </div>
@@ -259,6 +308,7 @@ export default function AdminSupportPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-[10px] text-gray-400">
                   <div className="space-x-4">
                     <span>Aberto em: {new Date(t.created_at).toLocaleString('pt-BR')}</span>
+                    <span>Respostas da IA: {t.ai_auto_reply_count || 0}{t.ai_last_decision ? ` · ${t.ai_last_decision}` : ''}</span>
                     {t.resolved_at && (
                       <span className="text-green-600 font-semibold">
                         Fechado em: {new Date(t.resolved_at).toLocaleDateString('pt-BR')}
