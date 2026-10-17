@@ -45,6 +45,7 @@ export default function CheckoutPage() {
   const plans = useCommercialPlans();
 
   const draftId = params.get('draft');
+  const demoProjectKey = params.get('demo');
   const funnelSessionKey = params.get('funnel');
   const funnelAccessToken = funnelSessionKey ? sessionStorage.getItem(`nextia.funnel.token.${funnelSessionKey}`) : null;
   const linkedQuoteId = params.get('quote');
@@ -201,6 +202,7 @@ export default function CheckoutPage() {
         draftId: selection.kind === 'draft' ? selection.id : undefined,
         addonCodes: selection.kind === 'draft' ? undefined : (params.get('options') || '').split(',').map((code) => code.trim()).filter(Boolean),
         domain: isDigital && domain.trim() ? { name: domain.trim(), mode: domainMode } : undefined,
+        demoProjectKey: demoProjectKey || undefined,
         funnelSessionKey: funnelSessionKey || undefined,
         funnelAccessToken: funnelAccessToken || undefined,
       }),
@@ -250,7 +252,7 @@ export default function CheckoutPage() {
     };
     // createPreview is intentionally driven by primitive commercial selections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domain, domainMode, draft?.id, funnelAccessToken, funnelSessionKey, isDigital, linkedQuoteId, selection?.id, selection?.kind]);
+  }, [demoProjectKey, domain, domainMode, draft?.id, funnelAccessToken, funnelSessionKey, isDigital, linkedQuoteId, selection?.id, selection?.kind]);
 
   if (loadingDraft) {
     return (

@@ -1239,25 +1239,33 @@ async function handleCatalogApi(req, res, url) {
           domain,
         });
         let acquisitionFunnel = null;
-        if (body.funnelSessionKey || body.funnelAccessToken) {
-          if (!UUID_PATTERN.test(String(body.funnelSessionKey || ''))) {
+        if (body.demoProjectKey || body.funnelSessionKey || body.funnelAccessToken) {
+          const ownedDemoCheckout = Boolean(body.demoProjectKey);
+          const lookupKey = String(ownedDemoCheckout ? body.demoProjectKey : body.funnelSessionKey || '');
+          if (!UUID_PATTERN.test(lookupKey)) {
             throw httpError(401, 'Sessão de campanha inválida.', 'INVALID_FUNNEL_SESSION');
+          }
+          if (ownedDemoCheckout && !sessionProfile) {
+            throw httpError(401, 'Faça login para contratar sua demonstração.', 'AUTH_REQUIRED');
           }
           const funnelResult = await client.query(
             `SELECT s.id,s.public_key,s.user_id,s.access_token_hash,s.selected_amount_cents,s.selected_addons,s.expires_at,
-                    c.service_slug,p.owner_user_id,p.segment_slug,p.template_slug,p.business_name
+                    c.service_slug,p.owner_user_id,p.share_key,p.demo_status,p.expires_at AS demo_expires_at,
+                    p.segment_slug,p.template_slug,p.business_name
              FROM public.acquisition_funnel_sessions s
              JOIN public.acquisition_campaigns c ON c.id=s.campaign_id
              JOIN public.acquisition_preview_projects p ON p.session_id=s.id
-             WHERE s.public_key=$1 AND s.expires_at>NOW()`,
-            [body.funnelSessionKey],
+             WHERE ${ownedDemoCheckout
+               ? "p.share_key=$1 AND p.owner_user_id=$2 AND p.demo_status='active' AND p.expires_at>NOW()"
+               : 's.public_key=$1 AND s.expires_at>NOW()'}`,
+            ownedDemoCheckout ? [lookupKey, sessionProfile.id] : [lookupKey],
           );
           const funnel = funnelResult.rows[0];
           const presentedHash = body.funnelAccessToken ? createHash('sha256').update(String(body.funnelAccessToken)).digest('hex') : '';
           const ownsDemo = Boolean(funnel && sessionProfile?.id
             && (funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id));
           const tokenMatches = Boolean(funnel && presentedHash && secureTextEqual(funnel.access_token_hash, presentedHash));
-          if (!funnel || (!ownsDemo && !tokenMatches)) {
+          if (!funnel || (ownedDemoCheckout ? !ownsDemo : (!ownsDemo && !tokenMatches))) {
             throw httpError(401, 'Sessão de campanha inválida ou expirada.', 'INVALID_FUNNEL_SESSION');
           }
           if (ownsDemo && funnel.user_id !== sessionProfile.id) {

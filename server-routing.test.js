@@ -43,9 +43,15 @@ describe('server CRM dependency wiring', () => {
 
   it('authorizes an owned demo at checkout even when a legacy funnel user link is missing', () => {
     const source = readFileSync('server.js', 'utf8');
+    const acquisition = readFileSync('acquisition-api.js', 'utf8');
+    const checkout = readFileSync('src/pages/CheckoutPage.tsx', 'utf8');
 
-    expect(source).toContain('c.service_slug,p.owner_user_id,p.segment_slug');
+    expect(source).toContain('c.service_slug,p.owner_user_id,p.share_key,p.demo_status');
     expect(source).toContain('funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id');
     expect(source).toContain("UPDATE public.acquisition_funnel_sessions SET user_id=$2,updated_at=NOW() WHERE id=$1");
+    expect(source).toContain('body.demoProjectKey || body.funnelSessionKey || body.funnelAccessToken');
+    expect(source).toContain("p.share_key=$1 AND p.owner_user_id=$2 AND p.demo_status='active' AND p.expires_at>NOW()");
+    expect(acquisition).toContain('&demo=${demo.share_key}');
+    expect(checkout).toContain('demoProjectKey: demoProjectKey || undefined');
   });
 });

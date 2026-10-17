@@ -133,7 +133,7 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       }
       const availableAddons = (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons
         WHERE active=TRUE AND (service_slug IS NULL OR service_slug='sites-prontos') AND $1=ANY(eligible_segments) ORDER BY name`, [demo.segment_slug])).rows;
-      return json(res, 200, { demo: { ...demo, active: demo.demo_status === 'active' && new Date(demo.expires_at).getTime() > Date.now(), availableAddons, demoUrl: `/demonstracao/${demo.share_key}`, checkoutUrl: `/checkout?service=sites-prontos&plan=${encodeURIComponent(demo.selected_plan_id || '')}&funnel=${demo.session_key}` } });
+      return json(res, 200, { demo: { ...demo, active: demo.demo_status === 'active' && new Date(demo.expires_at).getTime() > Date.now(), availableAddons, demoUrl: `/demonstracao/${demo.share_key}`, checkoutUrl: `/checkout?service=sites-prontos&plan=${encodeURIComponent(demo.selected_plan_id || '')}&demo=${demo.share_key}` } });
     }
 
     if (url.pathname === '/api/acquisition/my-demo/configuration' && req.method === 'POST') {
