@@ -186,12 +186,22 @@ async function clientOverview(client, customerId, page, limit) {
   const events = await client.query(`SELECT e.* FROM public.subscription_events e JOIN public.commercial_plan_contracts c ON c.id=e.subscription_id WHERE c.user_id=$1 ORDER BY e.occurred_at DESC,e.id DESC LIMIT $2`, [customerId, limit]);
   const services = await client.query(`SELECT id,service_slug,service_name_snapshot,status,activated_at,completed_at,created_at FROM public.service_engagements WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]);
   const feedback = await client.query(`SELECT id,rating,comment,context,created_at FROM public.customer_feedback WHERE customer_id=$1 ORDER BY created_at DESC LIMIT $2`, [customerId, limit]);
+  const suggestions = await client.query(
+    `SELECT s.id,s.suggested_service_slug,s.suggestion_type,s.reason,s.priority,s.status,s.created_at,
+            cs.name AS suggested_service_name,cs.category,cs.price_cents,cs.price_label,cs.recurring
+     FROM public.expansion_suggestions s
+     JOIN public.commercial_services cs ON cs.slug=s.suggested_service_slug AND cs.active=TRUE
+     WHERE s.customer_id=$1 AND s.status IN ('suggested','reviewed')
+       AND (s.dismissed_until IS NULL OR s.dismissed_until<=NOW())
+     ORDER BY s.priority,s.created_at DESC LIMIT $2`,
+    [customerId, limit],
+  );
   const counts = await client.query(`SELECT
       (SELECT COUNT(*) FROM public.commercial_plan_contracts WHERE user_id=$1 AND status='active')::int active_subscriptions,
       (SELECT COUNT(*) FROM public.service_engagements WHERE user_id=$1 AND status NOT IN ('completed','cancelled','suspended'))::int active_services,
       (SELECT COUNT(*) FROM public.service_engagements WHERE user_id=$1)::int historical_services`, [customerId]);
   const facts = counts.rows[0] || {};
-  return { subscriptions: contracts.rows, subscriptionEvents: events.rows, services: services.rows, feedback: feedback.rows, customerState: deriveCustomerState({ activeSubscriptions: facts.active_subscriptions, activeServices: facts.active_services, historicalServices: facts.historical_services }), pagination: { page, limit } };
+  return { subscriptions: contracts.rows, subscriptionEvents: events.rows, services: services.rows, feedback: feedback.rows, suggestions: suggestions.rows, customerState: deriveCustomerState({ activeSubscriptions: facts.active_subscriptions, activeServices: facts.active_services, historicalServices: facts.historical_services }), pagination: { page, limit } };
 }
 
 async function adminOverview(client, page, limit) {
@@ -225,6 +235,23 @@ export async function handleCustomerSuccessRoute(req, res, url, { client, sessio
 
   if (url.pathname === '/api/customer-success/overview' && req.method === 'GET') return json(res, 200, await clientOverview(client, session.id, page, limit));
   if (url.pathname === '/api/admin/customer-success/overview' && req.method === 'GET') return json(res, 200, await adminOverview(client, page, limit));
+  if (url.pathname === '/api/customer-success/offers' && req.method === 'GET') {
+    const result = await client.query(
+      `SELECT id,title,description,badge,discount_label,service_slug,plan_id,addon_code,cta_path,starts_at,ends_at,priority
+       FROM public.client_portal_offers
+       WHERE active=TRUE AND starts_at<=NOW() AND (ends_at IS NULL OR ends_at>NOW())
+       ORDER BY priority,ends_at NULLS LAST,created_at DESC`,
+    );
+    return json(res, 200, { offers: result.rows });
+  }
+  if (url.pathname === '/api/admin/customer-success/offers' && req.method === 'GET') {
+    const result = await client.query(
+      `SELECT id,title,description,badge,discount_label,service_slug,plan_id,addon_code,cta_path,starts_at,ends_at,active,priority,created_at
+       FROM public.client_portal_offers ORDER BY active DESC,priority,created_at DESC LIMIT $1`,
+      [limit],
+    );
+    return json(res, 200, { offers: result.rows });
+  }
   if (url.pathname === '/api/admin/customer-success/customer' && req.method === 'GET') {
     const customerId = url.searchParams.get('customerId');
     if (!isUuid(customerId)) return json(res, 400, { error: 'Cliente inválido.' });
@@ -233,6 +260,51 @@ export async function handleCustomerSuccessRoute(req, res, url, { client, sessio
   }
 
   if (req.method !== 'GET' && !limitedMutation(`${session.id}:${url.pathname}`)) return json(res, 429, { error: 'Muitas solicitações. Aguarde um minuto.' });
+
+  if (url.pathname === '/api/admin/customer-success/offers' && req.method === 'POST') {
+    const body = await readJson(req);
+    const title = String(body.title || '').trim().slice(0, 160);
+    const description = String(body.description || '').trim().slice(0, 1000);
+    const badge = String(body.badge || 'Oferta para clientes').trim().slice(0, 80);
+    const discountLabel = String(body.discountLabel || '').trim().slice(0, 80) || null;
+    const ctaPath = String(body.ctaPath || '').trim();
+    const startsAt = body.startsAt ? new Date(body.startsAt) : new Date();
+    const endsAt = body.endsAt ? new Date(body.endsAt) : null;
+    if (!title || !description) return json(res, 400, { error: 'Título e descrição são obrigatórios.' });
+    if (!/^\/(?!\/)/.test(ctaPath)) return json(res, 400, { error: 'O destino deve ser uma rota interna iniciada por /.' });
+    if (Number.isNaN(startsAt.getTime()) || (endsAt && (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt))) return json(res, 400, { error: 'Período da campanha inválido.' });
+    const result = await client.query(
+      `INSERT INTO public.client_portal_offers
+        (title,description,badge,discount_label,service_slug,plan_id,addon_code,cta_path,starts_at,ends_at,active,priority,created_by)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [title, description, badge, discountLabel, String(body.serviceSlug || '').trim() || null,
+        String(body.planId || '').trim() || null, String(body.addonCode || '').trim() || null,
+        ctaPath, startsAt.toISOString(), endsAt?.toISOString() || null, body.active !== false,
+        Math.max(0, Math.min(1000, Number(body.priority) || 100)), session.id],
+    );
+    await client.query(
+      `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+       VALUES($1,'CLIENT_PORTAL_OFFER_CREATED','client_portal_offer',$2,$3)`,
+      [session.id, result.rows[0].id, JSON.stringify({ title, endsAt: endsAt?.toISOString() || null })],
+    );
+    return json(res, 201, { offer: result.rows[0] });
+  }
+
+  if (url.pathname === '/api/admin/customer-success/offers' && req.method === 'PATCH') {
+    const body = await readJson(req);
+    if (!isUuid(body.id) || typeof body.active !== 'boolean') return json(res, 400, { error: 'Campanha ou estado inválido.' });
+    const result = await client.query(
+      `UPDATE public.client_portal_offers SET active=$2,updated_at=NOW() WHERE id=$1 RETURNING *`,
+      [body.id, body.active],
+    );
+    if (!result.rows[0]) return json(res, 404, { error: 'Campanha não encontrada.' });
+    await client.query(
+      `INSERT INTO public.audit_log(actor_user_id,action,entity_type,entity_id,metadata)
+       VALUES($1,'CLIENT_PORTAL_OFFER_STATUS_CHANGED','client_portal_offer',$2,$3)`,
+      [session.id, body.id, JSON.stringify({ active: body.active })],
+    );
+    return json(res, 200, { offer: result.rows[0] });
+  }
 
   const cancelMatch = url.pathname.match(/^\/api\/customer-success\/subscriptions\/([^/]+)\/cancel$/);
   if (cancelMatch && req.method === 'POST') {

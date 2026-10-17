@@ -1129,15 +1129,6 @@ async function handleCatalogApi(req, res, url) {
         await client.query('ROLLBACK');
         throw error;
       }
-      const autoReply = senderRole === 'client'
-        ? await tryAutomaticSupportReply(client, ticket.id)
-        : { status: 'not_client_message' };
-      return json(res, 200, {
-        status: 'success',
-        message: savedMessage,
-        autoReply: autoReply.message || null,
-        autoReplyStatus: autoReply.status,
-      });
     }
 
     if (url.pathname.startsWith('/api/commerce/store-drafts/') && req.method === 'GET') {
@@ -2866,10 +2857,21 @@ async function handleSupportApi(req, res, url) {
           [sessionProfile.id, sessionProfile.email],
         );
         const result = await client.query(
-          `SELECT id, subject, status, created_at, resolved_at
-           FROM public.support_tickets
-           WHERE user_id = $1
-           ORDER BY created_at DESC`,
+          `SELECT t.id,t.subject,t.status,t.created_at,t.resolved_at,t.client_last_read_at,
+                  latest.latest_message_at,latest.latest_sender_role,
+                  COALESCE(latest.unread_messages,0)::int AS unread_messages
+           FROM public.support_tickets t
+           LEFT JOIN LATERAL (
+             SELECT MAX(m.created_at) AS latest_message_at,
+                    (ARRAY_AGG(m.sender_role ORDER BY m.created_at DESC))[1] AS latest_sender_role,
+                    COUNT(*) FILTER (
+                      WHERE m.sender_role IN ('admin','technician')
+                        AND m.created_at > COALESCE(t.client_last_read_at,t.created_at)
+                    ) AS unread_messages
+             FROM public.ticket_messages m WHERE m.ticket_id=t.id
+           ) latest ON TRUE
+           WHERE t.user_id = $1
+           ORDER BY COALESCE(latest.latest_message_at,t.created_at) DESC`,
           [sessionProfile.id],
         );
         await client.query('COMMIT');
@@ -3214,6 +3216,9 @@ async function handleSupportApi(req, res, url) {
       if (!guestAuthorized && !sessionAuthorized) {
         return json(res, 403, { error: 'Acesso negado a este chamado.' });
       }
+      if (!hasPermission(sessionProfile, 'support.manage')) {
+        await client.query('UPDATE public.support_tickets SET client_last_read_at=NOW() WHERE id=$1', [ticket.id]);
+      }
 
       const messagesResult = await client.query(
         `SELECT id, sender_role, message, created_at, sender_name
@@ -3279,15 +3284,25 @@ async function handleSupportApi(req, res, url) {
         savedMessage = messageResult.rows[0];
         await client.query(
           `UPDATE public.support_tickets
-           SET status = $1, resolved_at = NULL
+           SET status = $1, resolved_at = NULL,
+               client_last_read_at = CASE WHEN $3='client' THEN NOW() ELSE client_last_read_at END
            WHERE id = $2`,
-          [newStatus, ticket.id],
+          [newStatus, ticket.id, senderRole],
         );
         await client.query('COMMIT');
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
       }
+      const autoReply = senderRole === 'client'
+        ? await tryAutomaticSupportReply(client, ticket.id)
+        : { status: 'not_client_message' };
+      return json(res, 200, {
+        status: 'success',
+        message: savedMessage,
+        autoReply: autoReply.message || null,
+        autoReplyStatus: autoReply.status,
+      });
     }
 
     if (url.pathname === '/api/admin/permissions/users') {

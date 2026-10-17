@@ -243,6 +243,9 @@ ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS ai_paused BOOLEAN NO
 ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS ai_auto_reply_count INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS ai_last_decision TEXT;
 ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS ai_last_decision_at TIMESTAMPTZ;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS client_last_read_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS support_tickets_client_unread_idx
+  ON public.support_tickets(user_id, client_last_read_at, created_at DESC);
 
 ALTER TABLE public.ticket_messages DROP CONSTRAINT IF EXISTS ticket_messages_sender_role_check;
 ALTER TABLE public.ticket_messages ADD CONSTRAINT ticket_messages_sender_role_check

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams, Link } from 'react-router-dom';
 import { 
   Zap, MessageCircle, Send, CheckCircle2, Clock, 
   ArrowLeft, AlertTriangle, User, ShieldAlert, Sparkles
@@ -24,7 +24,7 @@ interface Ticket {
 
 interface Message {
   id: string;
-  sender_role: 'client' | 'admin';
+  sender_role: 'client' | 'admin' | 'technician';
   message: string;
   created_at: string;
   sender_name: string;
@@ -42,9 +42,11 @@ interface SupportAiSuggestion {
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const token = searchParams.get('token');
   const { user } = useAuth();
   const canManageSupport = hasPermission(user, 'support.manage');
+  const embeddedInClientPanel = location.pathname.startsWith('/painel/');
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -180,7 +182,7 @@ export default function TicketDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className={`${embeddedInClientPanel ? 'min-h-64' : 'min-h-screen bg-[#FAFAFA]'} flex items-center justify-center`}>
         <div className="text-center space-y-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5B4FE9] mx-auto" />
           <p className="text-sm text-gray-500 font-medium">Carregando detalhes do chamado...</p>
@@ -191,7 +193,7 @@ export default function TicketDetailPage() {
 
   if (error || !ticket) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+      <div className={`${embeddedInClientPanel ? 'min-h-64' : 'min-h-screen bg-[#FAFAFA]'} flex items-center justify-center p-4`}>
         <div className="max-w-md w-full bg-white rounded-3xl border border-gray-100 p-8 shadow-sm text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-8 h-8" />
@@ -229,8 +231,8 @@ export default function TicketDetailPage() {
   const isGuest = !user;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pt-24 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={embeddedInClientPanel ? 'pb-6' : 'min-h-screen bg-[#FAFAFA] pb-12 pt-24'}>
+      <div className={embeddedInClientPanel ? 'mx-auto max-w-7xl' : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'}>
         
         {/* Guest conversion banner */}
         {isGuest && (
@@ -257,7 +259,7 @@ export default function TicketDetailPage() {
         {/* Back navigation */}
         <div className="mb-6">
           <Link
-            to={canManageSupport ? '/admin/suporte' : user ? '/painel' : '/'}
+            to={canManageSupport ? '/admin/suporte' : user ? '/painel/suporte' : '/'}
             className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -291,26 +293,26 @@ export default function TicketDetailPage() {
               {/* Chat flow list */}
               <div className="space-y-6 flex-1 overflow-y-auto max-h-[500px] mb-6 pr-2">
                 {messages.map((msg) => {
-                  const isAdmin = msg.sender_role === 'admin';
+                  const isSupport = msg.sender_role === 'admin' || msg.sender_role === 'technician';
                   return (
                     <div
                       key={msg.id}
                       className={`flex gap-3 max-w-[85%] ${
-                        isAdmin ? 'mr-auto' : 'ml-auto flex-row-reverse'
+                        isSupport ? 'mr-auto' : 'ml-auto flex-row-reverse'
                       }`}
                     >
                       <div
                         className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
-                          isAdmin 
+                          isSupport
                             ? 'bg-pink-100 text-pink-600' 
                             : 'bg-indigo-100 text-indigo-600'
                         }`}
                       >
-                        {isAdmin ? 'AD' : <User className="w-3.5 h-3.5" />}
+                        {isSupport ? 'NX' : <User className="w-3.5 h-3.5" />}
                       </div>
                       <div className="space-y-1">
                         <div className={`flex items-center gap-2 text-[10px] text-gray-400 ${
-                          isAdmin ? '' : 'justify-end'
+                          isSupport ? '' : 'justify-end'
                         }`}>
                           <span className="font-semibold text-gray-600">{msg.sender_name}</span>
                           <span>•</span>
@@ -318,7 +320,7 @@ export default function TicketDetailPage() {
                         </div>
                         <div
                           className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                            isAdmin
+                            isSupport
                               ? 'bg-gray-100 text-gray-800 rounded-tl-none'
                               : 'bg-gradient-to-br from-[#5B4FE9] to-[#7c3aed] text-white rounded-tr-none'
                           }`}

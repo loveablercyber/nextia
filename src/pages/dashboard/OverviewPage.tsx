@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ExternalLink, AlertCircle,
-  CheckCircle2, ArrowUpRight, ShoppingBag
+  CheckCircle2, ArrowUpRight, ShoppingBag, MessageSquare, CreditCard, Sparkles
 } from 'lucide-react';
 import { useProject } from '../../context/ProjectContext';
 import { useServiceEngagements } from '../../context/ServiceEngagementContext';
@@ -35,6 +35,8 @@ interface ClientContract {
 }
 
 interface DemoSummary { business_name:string;expires_at:string;active:boolean;demoUrl:string;checkoutUrl:string;plan_name_snapshot:string;activation_amount_cents:number;monthly_amount_cents:number }
+interface SupportSummary { id:string;subject:string;status:string;unread_messages:number }
+interface CatalogService { slug:string;name:string;category:string;price_cents?:number|null;price_label?:string|null;recurring:boolean }
 
 const statusLabels: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: 'Criado', color: 'text-amber-800', bg: 'bg-amber-100' },
@@ -55,17 +57,23 @@ export default function OverviewPage() {
   const [contracts, setContracts] = useState<ClientContract[]>([]);
   const [loadingCommerce, setLoadingCommerce] = useState(true);
   const [demo, setDemo] = useState<DemoSummary | null>(null);
+  const [supportTickets, setSupportTickets] = useState<SupportSummary[]>([]);
+  const [catalogServices, setCatalogServices] = useState<CatalogService[]>([]);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/commerce/orders').then((r) => (r.ok ? r.json() : { orders: [] })),
       fetch('/api/commerce/plan-contracts').then((r) => (r.ok ? r.json() : { contracts: [] })),
       fetch('/api/acquisition/my-demo').then((r) => (r.ok ? r.json() : { demo: null })),
+      fetch('/api/support/list-tickets', { credentials: 'include' }).then((r) => (r.ok ? r.json() : { tickets: [] })),
+      fetch('/api/catalog/services').then((r) => (r.ok ? r.json() : { services: [] })),
     ])
-      .then(([ordersRes, contractsRes, demoRes]) => {
+      .then(([ordersRes, contractsRes, demoRes, supportRes, catalogRes]) => {
         if (Array.isArray(ordersRes.orders)) setOrders(ordersRes.orders);
         if (Array.isArray(contractsRes.contracts)) setContracts(contractsRes.contracts);
         setDemo(demoRes.demo || null);
+        if (Array.isArray(supportRes.tickets)) setSupportTickets(supportRes.tickets);
+        if (Array.isArray(catalogRes.services)) setCatalogServices(catalogRes.services);
       })
       .catch(() => {})
       .finally(() => setLoadingCommerce(false));
@@ -95,9 +103,25 @@ export default function OverviewPage() {
     return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+  const unreadSupport = supportTickets.reduce((total, ticket) => total + Number(ticket.unread_messages || 0), 0);
+  const pendingPayments = orders.filter((order) => order.status === 'payment_pending').length
+    + contracts.filter((contract) => ['activation_pending', 'subscription_pending', 'past_due', 'failed'].includes(contract.status)).length;
+  const ownedServiceSlugs = new Set(engagements.map((engagement) => engagement.service_slug));
+  const featuredOffer = catalogServices.find((service) => !ownedServiceSlugs.has(service.slug));
+  const attentionItems = Number(hasAwaitingAction) + Number(unreadSupport > 0) + Number(pendingPayments > 0);
+
   return (
     <div className="space-y-6">
       {user?.mustChangePassword && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-black text-amber-950">Proteja sua conta</h2><p className="mt-1 text-xs leading-5 text-amber-800">Você entrou com uma senha temporária. Altere-a agora para manter o acesso depois do prazo de segurança.</p><Link to="/painel/configuracoes" className="mt-3 inline-flex text-xs font-black text-amber-900 underline">Alterar minha senha</Link></section>}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="text-[10px] font-black uppercase tracking-[.18em] text-violet-600">Central de ações</span><h2 className="mt-1 text-xl font-black text-slate-950">{attentionItems > 0 ? `${attentionItems} assunto${attentionItems > 1 ? 's' : ''} precisa${attentionItems > 1 ? 'm' : ''} da sua atenção` : 'Tudo em dia por aqui'}</h2></div><Link to="/painel/ofertas" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-violet-700 px-4 text-xs font-black text-white"><Sparkles className="h-4 w-4" />Ofertas para minha empresa</Link></div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <Link to="/painel/suporte" className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${unreadSupport > 0 ? 'border-violet-200 bg-violet-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex items-center justify-between"><MessageSquare className={`h-5 w-5 ${unreadSupport > 0 ? 'text-violet-700' : 'text-slate-400'}`} /><span className="text-2xl font-black text-slate-950">{unreadSupport}</span></div><h3 className="mt-3 text-sm font-black text-slate-900">Respostas do suporte</h3><p className="mt-1 text-xs text-slate-500">{unreadSupport > 0 ? 'Há mensagens novas aguardando sua leitura.' : 'Nenhuma resposta nova.'}</p></Link>
+          <Link to="/painel/pagamentos" className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${pendingPayments > 0 ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex items-center justify-between"><CreditCard className={`h-5 w-5 ${pendingPayments > 0 ? 'text-amber-700' : 'text-slate-400'}`} /><span className="text-2xl font-black text-slate-950">{pendingPayments}</span></div><h3 className="mt-3 text-sm font-black text-slate-900">Cobranças pendentes</h3><p className="mt-1 text-xs text-slate-500">{pendingPayments > 0 ? 'Conclua o pagamento para evitar interrupções.' : 'Nenhuma cobrança aguardando pagamento.'}</p></Link>
+          <Link to={hasAwaitingAction && project?.status === 'aguardando-briefing' ? '/painel/briefing' : '/painel/servicos'} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${hasAwaitingAction ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-slate-50'}`}><div className="flex items-center justify-between"><AlertCircle className={`h-5 w-5 ${hasAwaitingAction ? 'text-blue-700' : 'text-slate-400'}`} /><span className="text-2xl font-black text-slate-950">{pendingActions.length}</span></div><h3 className="mt-3 text-sm font-black text-slate-900">Ações do projeto</h3><p className="mt-1 text-xs text-slate-500">{hasAwaitingAction ? 'Revise a etapa pendente para o projeto avançar.' : 'Nenhuma etapa bloqueada no momento.'}</p></Link>
+        </div>
+      </section>
+      {featuredOffer && <section className="overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-indigo-950 to-violet-900 p-6 text-white shadow-lg"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-center"><div><span className="inline-flex items-center gap-1.5 rounded-full bg-amber-300 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-amber-950"><Sparkles className="h-3.5 w-3.5" />Oportunidade para clientes</span><h2 className="mt-3 text-2xl font-black">Adicione {featuredOffer.name} à sua operação</h2><p className="mt-2 max-w-2xl text-sm text-indigo-100">Amplie o que sua empresa já utiliza com uma solução complementar do catálogo Nextia.</p><p className="mt-2 text-sm font-black text-white">{Number(featuredOffer.price_cents) > 0 ? `${formatCurrency(Number(featuredOffer.price_cents))}${featuredOffer.recurring ? '/mês' : ''}` : featuredOffer.price_label || 'Condição sob consulta'}</p></div><div className="flex shrink-0 flex-wrap gap-2"><Link to={`/painel/contratar?servico=${encodeURIComponent(featuredOffer.slug)}&origem=painel-cliente`} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-black text-indigo-950">Quero conhecer <ArrowRight className="h-4 w-4" /></Link><Link to="/painel/ofertas" className="inline-flex min-h-11 items-center rounded-xl border border-white/30 px-5 text-sm font-black text-white">Ver todas</Link></div></div></section>}
       {demo && <section className={`rounded-3xl border p-6 ${demo.active?'border-indigo-200 bg-gradient-to-br from-indigo-50 to-white':'border-gray-200 bg-gray-50'}`}><div className="flex flex-wrap items-start justify-between gap-4"><div><span className="text-[10px] font-black uppercase tracking-[.2em] text-indigo-600">Demonstração de 7 dias</span><h2 className="mt-2 text-xl font-black text-gray-950">{demo.business_name}</h2><p className="mt-1 text-xs text-gray-500">{demo.active?`Ativa até ${new Date(demo.expires_at).toLocaleDateString('pt-BR')}`:'Esta demonstração expirou'} · {demo.plan_name_snapshot}</p><p className="mt-2 text-xs font-semibold text-gray-700">{formatCurrency(demo.activation_amount_cents)} de ativação + {formatCurrency(demo.monthly_amount_cents)}/mês</p></div><div className="flex flex-wrap gap-2"><a href={demo.demoUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-xs font-black text-indigo-700">Abrir demonstração</a><Link to="/painel/demonstracao" className="rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white">Plano, domínio e pagamento</Link></div></div></section>}
       <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-bold text-gray-950">Seus projetos e serviços</h2><p className="mt-1 text-xs text-gray-400">{engagements.length} serviço(s) contratado(s) · {pendingActions.length} ação(ões) pendente(s) no projeto aberto</p></div><Link to="/painel/servicos" className="text-xs font-bold text-[#5B4FE9]">Ver todos →</Link></div>

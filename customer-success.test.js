@@ -65,7 +65,7 @@ describe('Etapa 10 ownership and RBAC', () => {
     const output = recorder();
     await handleCustomerSuccessRoute({ method: 'GET' }, {}, new URL('https://test/api/customer-success/overview'), { client, session: clientSession, json: output.json, readJson: vi.fn() });
     expect(output.calls[0].status).toBe(200);
-    expect(client.query).toHaveBeenCalledTimes(5);
+    expect(client.query).toHaveBeenCalledTimes(6);
     for (const call of client.query.mock.calls) expect(call[1][0]).toBe(clientSession.id);
   });
 
@@ -83,7 +83,7 @@ describe('Etapa 10 ownership and RBAC', () => {
     await handleCustomerSuccessRoute({ method: 'GET' }, {}, new URL('https://test/api/customer-success/overview'), { client, session: clientSession, json: output.json, readJson: vi.fn() });
 
     expect(output.calls[0].status).toBe(200);
-    expect(client.query).toHaveBeenCalledTimes(5);
+    expect(client.query).toHaveBeenCalledTimes(6);
   });
 
   it('does not let a client request cancellation for another customer subscription', async () => {

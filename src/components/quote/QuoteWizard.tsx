@@ -9,9 +9,10 @@ import Step5_Timeline from './Step5_Timeline';
 import Step6_Contact from './Step6_Contact';
 import QuoteSummary from './QuoteSummary';
 import { useQuoteStore } from '../../hooks/useQuoteStore';
-import { calculateQuote } from '../../data/quoteCalculator';
+import { calculateQuote, type QuoteFormData } from '../../data/quoteCalculator';
 import type { ProjectType, SegmentType, UrgencyType, BudgetRange } from '../../data/quoteConfig';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const planPrefills = {
   start: { projectType: 'site-institucional' as const, pagesCount: 3, selectedFeatures: ['whatsapp', 'dominio-hospedagem', 'formularios'] },
@@ -20,10 +21,30 @@ const planPrefills = {
   custom: { projectType: 'personalizado' as const, pagesCount: 3, selectedFeatures: [] },
 };
 
+const serviceProjectTypes: Record<string, ProjectType> = {
+  sites: 'site-institucional',
+  'sites-prontos': 'site-institucional',
+  'landing-pages': 'landing-page',
+  'lojas-virtuais': 'loja-virtual',
+  sistemas: 'sistema-web',
+};
+
 export default function QuoteWizard() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const { user } = useAuth();
   const selectedPlan = searchParams.get('plan') as keyof typeof planPrefills | null;
-  const prefill = selectedPlan && planPrefills[selectedPlan] ? planPrefills[selectedPlan] : {};
+  const selectedService = searchParams.get('servico');
+  const selectedAddon = searchParams.get('addon');
+  const embeddedInClientPanel = location.pathname.startsWith('/painel/');
+  const prefill: Partial<QuoteFormData> = {
+    ...(selectedService ? {
+      projectType: serviceProjectTypes[selectedService] || 'personalizado',
+      notes: `Interesse no serviço: ${selectedService}${selectedAddon ? ` · recurso adicional: ${selectedAddon}` : ''}`,
+    } : {}),
+    ...(selectedPlan && planPrefills[selectedPlan] ? planPrefills[selectedPlan] : {}),
+    ...(user ? { name: user.name || '', email: user.email || '', whatsapp: user.phone || '', company: user.company || '' } : {}),
+  };
   const {
     formData,
     currentStep,
@@ -38,20 +59,20 @@ export default function QuoteWizard() {
     handleSubmit,
     reset,
     canProceed,
-  } = useQuoteStore(prefill, selectedPlan ? 2 : 1);
+  } = useQuoteStore(prefill, selectedPlan || selectedService ? 2 : 1);
 
   const isSummary = currentStep > totalSteps;
   const result = calculateQuote(formData);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAFAFA] to-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
+    <div className={embeddedInClientPanel ? '' : 'min-h-screen bg-gradient-to-b from-[#FAFAFA] to-white'}>
+      <div className={`mx-auto max-w-4xl ${embeddedInClientPanel ? 'pb-8' : 'px-4 pb-16 pt-28 sm:px-6 lg:px-8'}`}>
         {/* Header */}
         {!isSummary && (
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-[#eef2ff] border border-[#c7d2fe] rounded-full px-4 py-1.5 mb-3">
               <span className="w-2 h-2 rounded-full bg-[#5B4FE9] animate-pulse" />
-              <span className="text-[#5B4FE9] text-xs font-semibold">{selectedPlan ? `Plano ${selectedPlan === 'pro' ? 'Pro' : selectedPlan === 'business' ? 'Business' : selectedPlan === 'start' ? 'Start' : 'Personalizado'} pré-selecionado` : 'Orçamento automático gratuito'}</span>
+              <span className="text-[#5B4FE9] text-xs font-semibold">{selectedPlan ? `Plano ${selectedPlan === 'pro' ? 'Pro' : selectedPlan === 'business' ? 'Business' : selectedPlan === 'start' ? 'Start' : 'Personalizado'} pré-selecionado` : selectedService ? 'Serviço pré-selecionado para sua conta' : 'Orçamento automático gratuito'}</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-900">
               Monte seu orçamento em minutos

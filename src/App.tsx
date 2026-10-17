@@ -62,7 +62,7 @@ const PaymentsPage = lazy(() => import('./pages/dashboard/PaymentsPage'));
 const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage'));
 const ServicesPage = lazy(() => import('./pages/dashboard/ServicesPage'));
 const TechnicalOverviewPage = lazy(() => import('./pages/dashboard/TechnicalOverviewPage'));
-const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+const OffersPage = lazy(() => import('./pages/dashboard/OffersPage'));
 const CustomerSuccessPage = lazy(() => import('./pages/dashboard/CustomerSuccessPage'));
 const EquipmentPage = lazy(() => import('./pages/dashboard/EquipmentPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -409,6 +409,8 @@ function AppRoutes() {
           </DashboardContainer>
         }
       />
+      <Route path="/painel/ofertas" element={<DashboardContainer title="Ofertas e upgrades"><OffersPage /></DashboardContainer>} />
+      <Route path="/painel/contratar" element={<DashboardContainer title="Contratar serviço"><QuotePage /></DashboardContainer>} />
       <Route path="/painel/assinaturas" element={<DashboardContainer title="Assinaturas e pós-venda"><CustomerSuccessPage /></DashboardContainer>} />
       <Route path="/painel/demonstracao" element={<DashboardContainer title="Minha demonstração"><DemoProjectPage /></DashboardContainer>} />
       <Route path="/painel/site" element={<DashboardContainer title="Meu site"><SiteEditorPage /></DashboardContainer>} />
@@ -416,8 +418,8 @@ function AppRoutes() {
       <Route
         path="/painel/configuracoes"
         element={
-          <DashboardContainer title="Configurações de conta">
-            <SettingsPage />
+          <DashboardContainer title="Conta e segurança">
+            <ProfilePage />
           </DashboardContainer>
         }
       />
@@ -426,6 +428,14 @@ function AppRoutes() {
         element={
           <DashboardContainer title="Suporte / Tickets">
             <ClientSupportPage />
+          </DashboardContainer>
+        }
+      />
+      <Route
+        path="/painel/suporte/:id"
+        element={
+          <DashboardContainer title="Atendimento de suporte">
+            <TicketDetailPage />
           </DashboardContainer>
         }
       />
