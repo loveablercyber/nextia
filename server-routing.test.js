@@ -40,4 +40,12 @@ describe('server CRM dependency wiring', () => {
       expect(update).toMatch(/temporary_password_expires_at\s*=\s*NULL/);
     }
   });
+
+  it('authorizes an owned demo at checkout even when a legacy funnel user link is missing', () => {
+    const source = readFileSync('server.js', 'utf8');
+
+    expect(source).toContain('c.service_slug,p.owner_user_id,p.segment_slug');
+    expect(source).toContain('funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id');
+    expect(source).toContain("UPDATE public.acquisition_funnel_sessions SET user_id=$2,updated_at=NOW() WHERE id=$1");
+  });
 });

@@ -1245,7 +1245,7 @@ async function handleCatalogApi(req, res, url) {
           }
           const funnelResult = await client.query(
             `SELECT s.id,s.public_key,s.user_id,s.access_token_hash,s.selected_amount_cents,s.selected_addons,s.expires_at,
-                    c.service_slug,p.segment_slug,p.template_slug,p.business_name
+                    c.service_slug,p.owner_user_id,p.segment_slug,p.template_slug,p.business_name
              FROM public.acquisition_funnel_sessions s
              JOIN public.acquisition_campaigns c ON c.id=s.campaign_id
              JOIN public.acquisition_preview_projects p ON p.session_id=s.id
@@ -1254,10 +1254,17 @@ async function handleCatalogApi(req, res, url) {
           );
           const funnel = funnelResult.rows[0];
           const presentedHash = body.funnelAccessToken ? createHash('sha256').update(String(body.funnelAccessToken)).digest('hex') : '';
-          const ownsDemo = Boolean(funnel && sessionProfile?.id && funnel.user_id === sessionProfile.id);
+          const ownsDemo = Boolean(funnel && sessionProfile?.id
+            && (funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id));
           const tokenMatches = Boolean(funnel && presentedHash && secureTextEqual(funnel.access_token_hash, presentedHash));
           if (!funnel || (!ownsDemo && !tokenMatches)) {
             throw httpError(401, 'Sessão de campanha inválida ou expirada.', 'INVALID_FUNNEL_SESSION');
+          }
+          if (ownsDemo && funnel.user_id !== sessionProfile.id) {
+            await client.query(
+              'UPDATE public.acquisition_funnel_sessions SET user_id=$2,updated_at=NOW() WHERE id=$1',
+              [funnel.id, sessionProfile.id],
+            );
           }
           if (funnel.service_slug !== selection.service.slug || !Number.isInteger(Number(funnel.selected_amount_cents))) {
             throw httpError(409, 'Finalize a escolha de investimento antes do checkout.', 'FUNNEL_PRICING_REQUIRED');
