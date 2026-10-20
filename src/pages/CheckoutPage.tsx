@@ -333,6 +333,10 @@ export default function CheckoutPage() {
   };
 
   const currentFullUrl = `${location.pathname}${location.search}`;
+  const domainRegistrationItem = preview?.oneTimeItems.find((item) => item.code === 'domain-registration');
+  const domainRegistrationPrice = domainRegistrationItem
+    ? money.format(domainRegistrationItem.amountCents / 100)
+    : 'valor vigente no catálogo';
 
   return (
     <main className="min-h-screen bg-[#F4F8FC] px-5 pb-20 pt-28 sm:px-8">
@@ -419,7 +423,7 @@ export default function CheckoutPage() {
                   <legend className="sr-only">Forma de uso do domínio</legend>
                   <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'register' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
                     <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'register'} onChange={() => setDomainMode('register')} />
-                    Registrar domínio (+ {money.format(50)})
+                    Registrar domínio (+ {domainRegistrationPrice})
                   </label>
                   <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'connect' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
                     <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'connect'} onChange={() => setDomainMode('connect')} />

@@ -940,11 +940,20 @@ async function calculateCommercialSelection(client, { serviceSlug, planId, templ
     }
     const isRegister = domainMode === 'register';
     if (isRegister) {
+      const domainAddon = (await client.query(
+        `SELECT code, name, amount_cents, billing_cycle
+         FROM public.commercial_addons
+         WHERE code = 'domain-registration' AND active = TRUE
+         LIMIT 1`,
+      )).rows[0];
+      if (!domainAddon) {
+        throw httpError(409, 'O valor de registro de domínio não está configurado no catálogo comercial.', 'DOMAIN_PRICE_NOT_CONFIGURED');
+      }
       oneTimeItems.push({
-        code: 'domain-registration',
+        code: domainAddon.code,
         name: `Registro de domínio (${dName}) — 1 ano`,
-        amountCents: 5000, // R$ 50,00 AUTHORITATIVE FEE
-        billingCycle: 'one_time'
+        amountCents: Number(domainAddon.amount_cents),
+        billingCycle: domainAddon.billing_cycle
       });
     } else {
       oneTimeItems.push({
@@ -1316,7 +1325,12 @@ async function handleCatalogApi(req, res, url) {
                WHERE active=TRUE AND code=ANY($1) AND (service_slug IS NULL OR service_slug=$2)`,
               [funnelAddonCodes, selection.service.slug],
             );
+            const includedAddonCodes = new Set([
+              ...selection.oneTimeItems.map((item) => item.code),
+              ...selection.monthlyItems.map((item) => item.code),
+            ]);
             for (const addon of funnelAddons.rows) {
+              if (includedAddonCodes.has(addon.code)) continue;
               const item = { code: addon.code, name: addon.name, amountCents: Number(addon.amount_cents), billingCycle: addon.billing_cycle };
               if (addon.billing_cycle === 'monthly') {
                 selection.monthlyItems.push(item);
@@ -1336,7 +1350,7 @@ async function handleCatalogApi(req, res, url) {
           };
         }
         if (draft) {
-          const domainFee = domain?.mode === 'register' ? 5000 : 0;
+          const domainFee = selection.oneTimeItems.find((item) => item.code === 'domain-registration')?.amountCents || 0;
           const baseActivation = selection.oneTimeTotalCents - domainFee;
           const optionalActivation = Math.max(0, Number(draft.snapshot_activation_cents || 0) - baseActivation);
           const optionalMonthly = Math.max(0, Number(draft.snapshot_monthly_cents || 0) - selection.monthlyTotalCents);

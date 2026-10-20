@@ -54,10 +54,10 @@ describe('2. Capas dos Templates (Cover Images)', () => {
 });
 
 describe('3. Cálculo de Domínio e Opcionais', () => {
-  it('taxa oficial de registro de domínio é de R$ 50,00 (5000 centavos)', () => {
-    const domainRegisterFeeCents = 5000;
+  it('mantém o valor inicial do catálogo para registro e não cobra conexão de domínio', () => {
+    const initialCatalogDomainFeeCents = 5000;
     const domainConnectFeeCents = 0;
-    expect(domainRegisterFeeCents / 100).toBe(50);
+    expect(initialCatalogDomainFeeCents / 100).toBe(50);
     expect(domainConnectFeeCents).toBe(0);
   });
 

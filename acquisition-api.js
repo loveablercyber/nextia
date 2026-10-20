@@ -133,7 +133,9 @@ export async function handleAcquisitionApi(req, res, url, deps) {
       }
       const availableAddons = (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons
         WHERE active=TRUE AND (service_slug IS NULL OR service_slug='sites-prontos') AND $1=ANY(eligible_segments) ORDER BY name`, [demo.segment_slug])).rows;
-      return json(res, 200, { demo: { ...demo, active: demo.demo_status === 'active' && new Date(demo.expires_at).getTime() > Date.now(), availableAddons, demoUrl: `/demonstracao/${demo.share_key}`, checkoutUrl: `/checkout?service=sites-prontos&plan=${encodeURIComponent(demo.selected_plan_id || '')}&demo=${demo.share_key}` } });
+      const domainRegistration = (await client.query(`SELECT code,name,description,amount_cents,billing_cycle
+        FROM public.commercial_addons WHERE code='domain-registration' AND active=TRUE LIMIT 1`)).rows[0] || null;
+      return json(res, 200, { demo: { ...demo, active: demo.demo_status === 'active' && new Date(demo.expires_at).getTime() > Date.now(), availableAddons, domainRegistration, demoUrl: `/demonstracao/${demo.share_key}`, checkoutUrl: `/checkout?service=sites-prontos&plan=${encodeURIComponent(demo.selected_plan_id || '')}&demo=${demo.share_key}` } });
     }
 
     if (url.pathname === '/api/acquisition/my-demo/configuration' && req.method === 'POST') {
@@ -145,7 +147,7 @@ export async function handleAcquisitionApi(req, res, url, deps) {
         FROM public.acquisition_preview_projects p JOIN public.acquisition_funnel_sessions s ON s.id=p.session_id
         WHERE p.owner_user_id=$1 ORDER BY p.created_at DESC LIMIT 1 FOR UPDATE OF p,s`, [profile.id])).rows[0];
       if (!record) return json(res, 404, { error: 'Demonstração não encontrada.' });
-      if (record.demo_status !== 'active' || new Date(record.expires_at).getTime() <= Date.now()) return json(res, 410, { error: 'Esta demonstração expirou.', code: 'DEMO_EXPIRED' });
+      if (!['active', 'expired'].includes(record.demo_status)) return json(res, 409, { error: 'Esta demonstração não aceita novas configurações.', code: 'DEMO_NOT_CONFIGURABLE' });
       const plan = (await client.query('SELECT id,name,activation_amount_cents,monthly_amount_cents FROM public.commercial_plans WHERE id=$1 AND active=TRUE', [record.selected_plan_id])).rows[0];
       if (!plan) return json(res, 409, { error: 'Plano da demonstração indisponível.' });
       const addonRows = codes.length ? (await client.query(`SELECT code,name,description,amount_cents,billing_cycle FROM public.commercial_addons

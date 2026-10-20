@@ -208,7 +208,7 @@ export async function ensureAppSchema(client) {
 
       INSERT INTO public.commercial_addons (code, name, description, amount_cents, billing_cycle, active)
       VALUES ('domain-registration', 'Registro de domínio', 'Registro e delegação oficial de domínio por 1 ano (.com.br / .com)', 5000, 'one_time', true)
-      ON CONFLICT (code) DO UPDATE SET amount_cents = 5000, active = true;
+      ON CONFLICT (code) DO NOTHING;
 
       CREATE TABLE IF NOT EXISTS public.commercial_pricing_quotes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
