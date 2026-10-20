@@ -770,7 +770,7 @@ async function tryAutomaticSupportReply(client, ticketId) {
     }
     const messages = (await client.query(
       `SELECT sender_role,sender_name,message,created_at FROM public.ticket_messages
-       WHERE ticket_id=$1 ORDER BY created_at DESC LIMIT 20`,
+       WHERE ticket_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20`,
       [ticketId],
     )).rows.reverse();
     if (messages.at(-1)?.sender_role !== 'client') return { status: 'not_client_message' };
@@ -799,7 +799,7 @@ async function tryAutomaticSupportReply(client, ticketId) {
         [ticketId],
       )).rows[0];
       const latest = (await client.query(
-        `SELECT sender_role FROM public.ticket_messages WHERE ticket_id=$1 ORDER BY created_at DESC LIMIT 1`,
+        `SELECT sender_role FROM public.ticket_messages WHERE ticket_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1`,
         [ticketId],
       )).rows[0];
       if (!locked || locked.status === 'fechado' || locked.ai_paused || latest?.sender_role !== 'client'
@@ -834,6 +834,31 @@ async function tryAutomaticSupportReply(client, ticketId) {
     await recordSupportAiDecision(client, ticketId, `error:${error.code || 'unknown'}`).catch(() => undefined);
     return { status: 'error' };
   }
+}
+
+async function processPendingSupportAutoReplies(client, limit = 10) {
+  const settings = (await client.query(`SELECT mode FROM public.support_ai_settings WHERE singleton=TRUE`)).rows[0];
+  if (settings?.mode !== 'auto') return { processed: 0, replied: 0, results: [] };
+  const pending = await client.query(
+    `SELECT t.id
+     FROM public.support_tickets t
+     JOIN LATERAL (
+       SELECT sender_role FROM public.ticket_messages
+       WHERE ticket_id=t.id ORDER BY created_at DESC,id DESC LIMIT 1
+     ) latest ON TRUE
+     WHERE t.status<>'fechado' AND t.ai_paused=FALSE
+       AND latest.sender_role='client'
+       AND t.ai_auto_reply_count < (SELECT max_auto_replies FROM public.support_ai_settings WHERE singleton=TRUE)
+       AND (t.ai_last_decision IS NULL OR t.ai_last_decision='outside_business_hours' OR t.ai_last_decision LIKE 'error:%')
+     ORDER BY t.ai_last_decision_at NULLS FIRST,t.created_at
+     LIMIT $1`,
+    [Math.max(1, Math.min(25, Number(limit) || 10))],
+  );
+  const results = [];
+  for (const ticket of pending.rows) {
+    results.push({ ticketId: ticket.id, ...(await tryAutomaticSupportReply(client, ticket.id)) });
+  }
+  return { processed: results.length, replied: results.filter((item) => item.status === 'replied').length, results };
 }
 
 async function calculateCommercialSelection(client, { serviceSlug, planId, templateId, addonCodes = [], domain }) {
@@ -1256,15 +1281,16 @@ async function handleCatalogApi(req, res, url) {
              JOIN public.acquisition_campaigns c ON c.id=s.campaign_id
              JOIN public.acquisition_preview_projects p ON p.session_id=s.id
              WHERE ${ownedDemoCheckout
-               ? "p.share_key=$1 AND p.owner_user_id=$2 AND p.demo_status='active' AND p.expires_at>NOW()"
-               : 's.public_key=$1 AND s.expires_at>NOW()'}`,
+               ? 'p.share_key=$1 AND p.owner_user_id=$2'
+               : 's.public_key=$1'}`,
             ownedDemoCheckout ? [lookupKey, sessionProfile.id] : [lookupKey],
           );
           const funnel = funnelResult.rows[0];
           const presentedHash = body.funnelAccessToken ? createHash('sha256').update(String(body.funnelAccessToken)).digest('hex') : '';
           const ownsDemo = Boolean(funnel && sessionProfile?.id
             && (funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id));
-          const tokenMatches = Boolean(funnel && presentedHash && secureTextEqual(funnel.access_token_hash, presentedHash));
+          const funnelActive = Boolean(funnel && new Date(funnel.expires_at).getTime() > Date.now());
+          const tokenMatches = Boolean(funnelActive && presentedHash && secureTextEqual(funnel.access_token_hash, presentedHash));
           if (!funnel || (ownedDemoCheckout ? !ownsDemo : (!ownsDemo && !tokenMatches))) {
             throw httpError(401, 'Sessão de campanha inválida ou expirada.', 'INVALID_FUNNEL_SESSION');
           }
@@ -2932,7 +2958,8 @@ async function handleSupportApi(req, res, url) {
          VALUES($1,'support.ai_settings.updated','support_ai_settings','singleton',$2)`,
         [sessionProfile.id, JSON.stringify({ mode, confidence, maxReplies, businessHoursOnly: body.businessHoursOnly === true, start, end })],
       );
-      return json(res, 200, { settings: result.rows[0] });
+      const pending = mode === 'auto' ? await processPendingSupportAutoReplies(client, 1) : null;
+      return json(res, 200, { settings: result.rows[0], pending });
     }
 
     if (url.pathname === '/api/admin/support-ticket/ai-pause') {
@@ -2952,7 +2979,8 @@ async function handleSupportApi(req, res, url) {
          VALUES($1,'support.ai_ticket_pause.changed','support_ticket',$2,$3)`,
         [sessionProfile.id, ticketId, JSON.stringify({ paused: body.paused === true })],
       );
-      return json(res, 200, { ticket: result.rows[0] });
+      const autoReply = body.paused === true ? null : await tryAutomaticSupportReply(client, ticketId);
+      return json(res, 200, { ticket: result.rows[0], autoReplyStatus: autoReply?.status || null });
     }
 
     if (url.pathname === '/api/admin/list-support-tickets') {
@@ -5448,8 +5476,13 @@ createServer(async (req, res) => {
         await ensureCustomerSuccessSchema(client);
         await ensureContentSchema(client);
         await ensureAcquisitionSchema(client);
+        const supportAutoReplySweep = await processPendingSupportAutoReplies(client, 10);
         await client.end();
         console.log('[Startup Schema] Auto-migração e verificação de tabelas canônicas concluídas.');
+        if (supportAutoReplySweep.processed > 0) console.log('[Support AI] Chamados pendentes processados.', {
+          processed: supportAutoReplySweep.processed,
+          replied: supportAutoReplySweep.replied,
+        });
       } catch (err) {
         console.error('[Startup Schema Warning]', err.message || err);
       }

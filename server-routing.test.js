@@ -50,8 +50,21 @@ describe('server CRM dependency wiring', () => {
     expect(source).toContain('funnel.user_id === sessionProfile.id || funnel.owner_user_id === sessionProfile.id');
     expect(source).toContain("UPDATE public.acquisition_funnel_sessions SET user_id=$2,updated_at=NOW() WHERE id=$1");
     expect(source).toContain('body.demoProjectKey || body.funnelSessionKey || body.funnelAccessToken');
-    expect(source).toContain("p.share_key=$1 AND p.owner_user_id=$2 AND p.demo_status='active' AND p.expires_at>NOW()");
+    expect(source).toContain('p.share_key=$1 AND p.owner_user_id=$2');
+    expect(source).toContain('const tokenMatches = Boolean(funnelActive && presentedHash');
     expect(acquisition).toContain('&demo=${demo.share_key}');
     expect(checkout).toContain('demoProjectKey: demoProjectKey || undefined');
+  });
+
+  it('reprocesses safe pending support replies when automatic mode becomes available', () => {
+    const source = readFileSync('server.js', 'utf8');
+    const migration = readFileSync('database/migrations/0024_support_ai_auto_reply_reliability.sql', 'utf8');
+
+    expect(source).toContain('async function processPendingSupportAutoReplies(client, limit = 10)');
+    expect(source).toContain("latest.sender_role='client'");
+    expect(source).toContain("t.ai_last_decision LIKE 'error:%'");
+    expect(source).toContain('await processPendingSupportAutoReplies(client, 10)');
+    expect(migration).toContain("'support_reply_draft',\n  2,");
+    expect(migration).toContain('"requires_human","confidence"');
   });
 });

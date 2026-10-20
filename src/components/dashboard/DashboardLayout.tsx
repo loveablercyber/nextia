@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderOpen, MessageSquare, CreditCard,
@@ -41,6 +41,12 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  useEffect(() => {
+    if (mobileOpen) document.documentElement.dataset.dashboardMobileMenu = 'open';
+    else delete document.documentElement.dataset.dashboardMobileMenu;
+    return () => { delete document.documentElement.dataset.dashboardMobileMenu; };
+  }, [mobileOpen]);
   const serviceBase = selectedEngagement ? `/painel/servicos/${selectedEngagement.id}` : null;
   const capabilities = new Set(selectedEngagement?.capabilities || []);
   const briefingLabel = selectedEngagement?.workflow_key?.includes('automation')

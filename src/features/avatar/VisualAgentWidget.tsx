@@ -113,7 +113,7 @@ export default function VisualAgentWidget() {
   if (!settings) return null;
   const avatarHeight = viewport === 'desktop' ? settings.config.desktopSize : viewport === 'tablet' ? settings.config.tabletSize : settings.config.mobileSize;
 
-  return <aside aria-label={`Assistente ${settings.config.agentName}`} style={{ transform: viewport === 'desktop' ? `translate(${offset.x}px, ${offset.y}px)` : undefined }} className={`fixed bottom-[max(12px,env(safe-area-inset-bottom))] z-[80] ${alignment} ${deviceClass}`}>
+  return <aside data-visual-agent-widget aria-label={`Assistente ${settings.config.agentName}`} style={{ transform: viewport === 'desktop' ? `translate(${offset.x}px, ${offset.y}px)` : undefined }} className={`fixed bottom-[max(12px,env(safe-area-inset-bottom))] z-[80] ${alignment} ${deviceClass}`}>
     <div className={`flex max-w-[calc(100vw-24px)] flex-col items-end gap-2 lg:items-end lg:gap-3 ${settings.config.position === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
       {open && <section className="mb-2 flex h-[min(520px,70vh)] w-[min(360px,calc(100vw-24px))] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl lg:mb-14" role="dialog" aria-label="Conversa com o assistente">
         <header className="flex items-center gap-3 bg-[#11132B] px-4 py-3 text-white"><Bot className="h-5 w-5"/><strong className="flex-1">{settings.config.agentName}</strong><button type="button" onClick={() => setOpen(false)} aria-label="Fechar conversa"><X className="h-5 w-5"/></button></header>
