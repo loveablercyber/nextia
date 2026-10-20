@@ -54,6 +54,24 @@ export default function CheckoutPage() {
   const [loadingDraft, setLoadingDraft] = useState<boolean>(Boolean(draftId || (linkedQuoteId && user)));
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<CommercePreview | null>(null);
+  const [domainRegistrationPriceCents, setDomainRegistrationPriceCents] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/catalog/addons', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('Catálogo indisponível.'))))
+      .then((data) => {
+        if (!active) return;
+        const domainAddon = Array.isArray(data.addons)
+          ? data.addons.find((addon: { code?: string }) => addon.code === 'domain-registration')
+          : null;
+        if (domainAddon && Number.isInteger(Number(domainAddon.amount_cents))) {
+          setDomainRegistrationPriceCents(Number(domainAddon.amount_cents));
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!draftId) return;
@@ -175,7 +193,7 @@ export default function CheckoutPage() {
   }, [selection]);
 
   const [domain, setDomain] = useState(() => params.get('domain') || '');
-  const [domainMode, setDomainMode] = useState<'register' | 'connect'>(() => params.get('domainMode') === 'connect' ? 'connect' : 'register');
+  const [domainMode, setDomainMode] = useState<'register' | 'connect'>(() => ['connect', 'transfer'].includes(params.get('domainMode') || '') ? 'connect' : 'register');
   const [notes, setNotes] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -334,9 +352,11 @@ export default function CheckoutPage() {
 
   const currentFullUrl = `${location.pathname}${location.search}`;
   const domainRegistrationItem = preview?.oneTimeItems.find((item) => item.code === 'domain-registration');
-  const domainRegistrationPrice = domainRegistrationItem
-    ? money.format(domainRegistrationItem.amountCents / 100)
+  const effectiveDomainRegistrationPriceCents = domainRegistrationItem?.amountCents ?? domainRegistrationPriceCents;
+  const domainRegistrationPrice = effectiveDomainRegistrationPriceCents !== null
+    ? money.format(effectiveDomainRegistrationPriceCents / 100)
     : 'valor vigente no catálogo';
+  const nonDomainOneTimeItems = preview?.oneTimeItems.filter((item) => !['domain-registration', 'domain-connect'].includes(item.code));
 
   return (
     <main className="min-h-screen bg-[#F4F8FC] px-5 pb-20 pt-28 sm:px-8">
@@ -475,7 +495,17 @@ export default function CheckoutPage() {
 
             <div className="mt-6 border-y border-white/15 py-5 space-y-4">
               {previewLoading && <p className="flex items-center gap-2 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Calculando valores...</p>}
-              {preview?.oneTimeItems.map((item) => (
+              {isDigital && domain.trim() && (
+                <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 p-3">
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="text-cyan-100">{domainMode === 'register' ? 'Registro de domínio' : 'Conectar domínio existente'}</span>
+                    <strong>{domainMode === 'register' ? `${domainRegistrationPrice}/ano` : money.format(0)}</strong>
+                  </div>
+                  <p className="mt-1 break-all text-xs font-semibold text-white">{domain.trim().toLowerCase()}</p>
+                  <p className="mt-1 text-xs text-cyan-100/80">{domainMode === 'register' ? 'Registro válido por 1 ano.' : 'Sem cobrança de registro para um domínio que já pertence a você.'}</p>
+                </div>
+              )}
+              {nonDomainOneTimeItems?.map((item) => (
                 <div key={`once-${item.code}`} className="flex justify-between gap-3 text-sm">
                   <span className="text-slate-300">{item.name}</span><strong>{money.format(item.amountCents / 100)}</strong>
                 </div>
