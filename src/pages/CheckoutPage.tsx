@@ -189,8 +189,12 @@ export default function CheckoutPage() {
     if (!selection) return false;
     if (selection.kind === 'proposal') return false;
     if (selection.kind === 'draft') return true;
+    if (selection.kind === 'plan') {
+      const serviceSlug = params.get('service') || (params.get('template') ? 'sites-prontos' : '');
+      return DIGITAL_SLUGS.includes(serviceSlug);
+    }
     return DIGITAL_SLUGS.includes(selection.slug);
-  }, [selection]);
+  }, [params, selection]);
 
   const [domain, setDomain] = useState(() => params.get('domain') || '');
   const [domainMode, setDomainMode] = useState<'register' | 'connect'>(() => ['connect', 'transfer'].includes(params.get('domainMode') || '') ? 'connect' : 'register');
