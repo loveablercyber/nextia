@@ -5365,7 +5365,7 @@ createServer(async (req, res) => {
       return await handleAuth(req, res, url.pathname);
     }
     if (isAppApiPath(url.pathname)) {
-      return await handleAppApi(req, res, url, { dbClient, ensurePartnerSchema, getSessionProfile, json, readJson });
+      return await handleAppApi(req, res, url, { dbClient, ensurePartnerSchema, ensureSupportSchema, getSessionProfile, json, readJson, appBaseUrl, sendSupportTicketEmail, tryAutomaticSupportReply });
     }
     if (isCrmApiPath(url.pathname)) {
       return await handleCrmApi(req, res, url, { dbClient, getSessionProfile, json, readJson, calculateCommercialSelection });

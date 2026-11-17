@@ -514,12 +514,44 @@ async function insertPublicCrmLead(client, data) {
   }
 }
 
+// O chamador controla a transacao: no /api/quotes o chamado precisa ser atomico com o orcamento.
+async function insertPublicFormTicket(client, { name, email, phone, company, subject, message, userId }) {
+  const ticketId = randomUUID();
+  const guestToken = randomBytes(32).toString('hex');
+  await client.query(
+    `INSERT INTO public.support_tickets
+       (id, name, email, phone, company, subject, message, guest_token, user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [ticketId, name, email, phone || null, company || null, subject, message, guestToken, userId || null],
+  );
+  await client.query(
+    `INSERT INTO public.ticket_messages
+       (id, ticket_id, sender_role, message, sender_name)
+     VALUES ($1,$2,'client',$3,$4)`,
+    [randomUUID(), ticketId, message, name],
+  );
+  return { ticketId, guestToken };
+}
+
+async function notifyPublicFormTicket(req, client, dependencies, ticket) {
+  const { appBaseUrl, sendSupportTicketEmail, tryAutomaticSupportReply } = dependencies;
+  const trackingLink = `${appBaseUrl(req)}/suporte/ticket/${ticket.ticketId}?token=${ticket.guestToken}`;
+  try {
+    await sendSupportTicketEmail({ email: ticket.email, message: ticket.message, name: ticket.name, subject: ticket.subject, trackingLink, ticketId: ticket.ticketId });
+  } catch (emailError) {
+    console.error('[SUPPORT] Falha ao enviar e-mail do chamado:', emailError.message);
+  }
+  const autoReply = await tryAutomaticSupportReply(client, ticket.ticketId);
+  return { trackingLink, autoReplyStatus: autoReply.status };
+}
+
 export async function handleAppApi(req, res, url, dependencies) {
-  const { dbClient, ensurePartnerSchema, getSessionProfile, json, readJson } = dependencies;
+  const { dbClient, ensurePartnerSchema, ensureSupportSchema, getSessionProfile, json, readJson } = dependencies;
   const client = dbClient();
   await client.connect();
   try {
     await ensureAppSchema(client);
+    if ((url.pathname === '/api/quotes' || url.pathname === '/api/leads') && req.method === 'POST' && ensureSupportSchema) await ensureSupportSchema(client);
 
     // ===== LEAD PUBLICO (CRM) - nao autenticado =====
     if (url.pathname === '/api/leads' && req.method === 'POST') {
@@ -546,7 +578,39 @@ export async function handleAppApi(req, res, url, dependencies) {
           attribution: body,
           metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
         });
-        return json(res, 201, { ok: true, lead_public_code: lead?.public_code || null });
+        let ticket = null;
+        let ticketNotice = {};
+        // Leads sem e-mail nao tem como abrir chamado (support_tickets.email e NOT NULL); ficam apenas no CRM.
+        if (email) {
+          try {
+            const ticketSubject = `Solicitação comercial: ${String(body.service_slug || body.segment_slug || body.segment || 'Novo atendimento').trim()}`.slice(0, 300);
+            const ticketMessage = [
+              body.service_slug ? `Serviço: ${body.service_slug}` : '',
+              (body.segment_slug || body.segment) ? `Segmento: ${body.segment_slug || body.segment}` : '',
+              body.city_slug ? `Cidade: ${body.city_slug}` : '',
+              body.source ? `Origem: ${body.source}` : '',
+              String(body.notes || '').trim(),
+              body.landing_page ? `Página: ${body.landing_page}` : '',
+            ].filter(Boolean).join('\n').slice(0, 10000) || 'Solicitação enviada pelo formulário público.';
+            const sessionProfile = await getSessionProfile(req, client);
+            await client.query('BEGIN');
+            try {
+              ticket = await insertPublicFormTicket(client, {
+                name, email, phone,
+                company: String(body.company || body.company_name || '').trim() || null,
+                subject: ticketSubject, message: ticketMessage, userId: sessionProfile?.id || null,
+              });
+              await client.query('COMMIT');
+            } catch (error) {
+              await client.query('ROLLBACK');
+              throw error;
+            }
+            ticketNotice = await notifyPublicFormTicket(req, client, dependencies, { ...ticket, name, email, subject: ticketSubject, message: ticketMessage });
+          } catch (err) {
+            console.error('[LEADS] Abertura de chamado de suporte falhou:', err.message);
+          }
+        }
+        return json(res, 201, { ok: true, lead_public_code: lead?.public_code || null, ticketId: ticket?.ticketId || null, ...ticketNotice });
       } catch (err) {
         console.error('[LEADS] Captura de lead publico falhou:', err.message);
         return json(res, 500, { error: 'Nao foi possível registrar o lead.' });
@@ -560,7 +624,22 @@ export async function handleAppApi(req, res, url, dependencies) {
       const email = String(body.contact_email || '').trim().toLowerCase();
       const phone = String(body.contact_phone || '').trim();
       if (!name || !email || !phone) return json(res, 400, { error: 'Nome, e-mail e WhatsApp são obrigatórios.' });
-      const result = await client.query(
+      const sessionProfile = await getSessionProfile(req, client);
+      let result;
+      let ticket;
+      const ticketSubject = `Solicitação comercial: ${String(body.project_type || body.segment || 'Novo atendimento').trim()}`.slice(0, 300);
+      const ticketMessage = [
+        body.project_type ? `Serviço: ${body.project_type}` : '',
+        body.segment ? `Segmento: ${body.segment}` : '',
+        body.city ? `Cidade: ${body.city}` : '',
+        body.source ? `Origem: ${body.source}` : '',
+        '',
+        String(body.notes || '').trim(),
+        body.landing_page ? `Página: ${body.landing_page}` : '',
+      ].filter(Boolean).join('\n').slice(0, 10000) || 'Solicitação enviada pelo formulário público.';
+      await client.query('BEGIN');
+      try {
+      result = await client.query(
         `INSERT INTO public.quotes
            (project_type, segment, pages, features, has_identity, urgency, budget_range,
             contact_name, contact_email, contact_phone, contact_company, city, notes,
@@ -569,16 +648,32 @@ export async function handleAppApi(req, res, url, dependencies) {
          RETURNING *`,
         [body.project_type || null, body.segment || null, Number(body.pages || 0), JSON.stringify(body.features || []),
           body.has_identity ?? null, body.urgency || null, body.budget_range || null, name, email, phone,
-          body.contact_company || '', body.city || '', body.notes || '', Number(body.estimated_min || 0),
+          body.contact_company || body.company || '', body.city || '', body.notes || '', Number(body.estimated_min || 0),
           Number(body.estimated_max || 0), body.recommended_plan || null],
       );
+
+      // Todo formulário público de solicitação também abre um chamado no painel de suporte.
+      // O orçamento continua sendo mantido para o fluxo comercial, enquanto o chamado
+      // garante que a equipe de suporte consiga acompanhar a solicitação.
+      ticket = await insertPublicFormTicket(client, {
+        name, email, phone,
+        company: body.contact_company || body.company || null,
+        subject: ticketSubject, message: ticketMessage, userId: sessionProfile?.id || null,
+      });
+
+      await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      }
+
       // Sincroniza o orcamento com o CRM como lead (best-effort, nunca bloqueia o envio)
       try {
         await insertPublicCrmLead(client, {
           name,
           email,
           phone,
-          company: body.contact_company || null,
+          company: body.contact_company || body.company || null,
           segmentSlug: body.segment || null,
           serviceSlug: body.project_type || null,
           source: 'quote_form',
@@ -598,7 +693,8 @@ export async function handleAppApi(req, res, url, dependencies) {
       } catch (err) {
         console.error('[LEADS] Sincronizacao quote -> CRM falhou:', err.message);
       }
-      return json(res, 201, { quote: result.rows[0] });
+      const ticketNotice = await notifyPublicFormTicket(req, client, dependencies, { ...ticket, name, email, subject: ticketSubject, message: ticketMessage });
+      return json(res, 201, { quote: result.rows[0], ticketId: ticket.ticketId, guestToken: ticket.guestToken, ...ticketNotice });
     }
 
     if (url.pathname === '/api/payments/webhook' && req.method === 'POST') {
