@@ -342,14 +342,16 @@ export default function BioPhoneMockup({
                 <p className={`${s.tiny} text-slate-500`}>Escaneie o QR Code</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              className={`inline-flex items-center gap-1 rounded-xl bg-[#1677FF] px-2.5 py-2 ${s.btn} font-bold text-white shadow-sm hover:bg-[#0F5FD6]`}
-            >
-              <Bot className="h-3.5 w-3.5" />
-              Chatbot
-            </button>
+            {!fullPage && (
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                className={`inline-flex items-center gap-1 rounded-xl bg-[#1677FF] px-2.5 py-2 ${s.btn} font-bold text-white shadow-sm hover:bg-[#0F5FD6]`}
+              >
+                <Bot className="h-3.5 w-3.5" />
+                Chatbot
+              </button>
+            )}
           </div>
         </div>
 
@@ -461,8 +463,8 @@ export default function BioPhoneMockup({
         )}
 
         {/* Pop-up / Modal Flutuante do Chatbot */}
-        {chatOpen && (
-          <div className={`${fullPage ? 'fixed' : 'absolute'} inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]`}>
+        {!fullPage && chatOpen && (
+          <div className="absolute inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]">
             <div className="flex max-h-[82%] flex-col rounded-t-2xl bg-white p-3.5 text-xs shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-2">

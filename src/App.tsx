@@ -721,7 +721,7 @@ function AppRoutes() {
 
 function VisualAgentMount() {
   const { pathname } = useLocation();
-  if (/^\/admin(?:\/|$)/.test(pathname) || pathname === '/crie-seu-site') return null;
+  if (/^\/(admin|painel|bio)(?:\/|$)/.test(pathname) || pathname === '/crie-seu-site') return null;
   return <Suspense fallback={null}><VisualAgentWidget /></Suspense>;
 }
 
