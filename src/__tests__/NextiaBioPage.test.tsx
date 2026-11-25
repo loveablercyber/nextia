@@ -48,6 +48,10 @@ describe('NextiaBioPage', () => {
   it('navigates to /checkout with plan, optionals, and domain when contracting', () => {
     renderPage();
 
+    expect(screen.getByText(/Subdomínio grátis da Nextia selecionado por padrão/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Registrar domínio próprio/i }));
+
     const domainInput = screen.getByLabelText('Pesquisar domínio');
     fireEvent.change(domainInput, { target: { value: 'minhaempresa' } });
     fireEvent.click(screen.getByRole('button', { name: /Consultar/i }));

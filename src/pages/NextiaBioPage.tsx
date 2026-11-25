@@ -60,7 +60,7 @@ export default function NextiaBioPage() {
   const [selectedOptionals, setSelectedOptionals] = useState<string[]>([]);
   const [domainQuery, setDomainQuery] = useState('');
   const [domainExtension, setDomainExtension] = useState<(typeof DOMAIN_EXTENSIONS)[number]>('.com.br');
-  const [domainMode, setDomainMode] = useState<'register' | 'connect'>('register');
+  const [domainMode, setDomainMode] = useState<'subdomain' | 'register' | 'connect'>('subdomain');
   const [domainStatus, setDomainStatus] = useState<'idle' | 'available' | 'invalid'>('idle');
   const [checkedDomain, setCheckedDomain] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -131,7 +131,7 @@ export default function NextiaBioPage() {
     if (compatibleCodes.length > 0) {
       query.set('options', compatibleCodes.join(','));
     }
-    if (checkedDomain && targetPlan.limits.customDomain) {
+    if (checkedDomain && targetPlan.limits.customDomain && domainMode !== 'subdomain') {
       query.set('domain', checkedDomain);
       query.set('domainMode', domainMode);
     }
@@ -342,6 +342,125 @@ export default function NextiaBioPage() {
         </div>
       </section>
 
+      {/* SEÇÃO 3.5 — MODELOS DE DEMONSTRAÇÃO POR SEGMENTO */}
+      <section className="border-t border-slate-100 bg-white py-16 lg:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="text-sm font-bold uppercase tracking-wider text-[#1677FF]">
+              Exemplos reais por segmento
+            </span>
+            <h2 className="mt-2 text-3xl font-black text-slate-900 sm:text-4xl">
+              Veja o Nextia Bio funcionando no celular
+            </h2>
+            <p className="mt-3 text-base text-slate-600">
+              Três modelos de demonstração para segmentos importantes, prontos para apresentar seu negócio e converter visitantes.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-8 lg:grid-cols-3">
+            {[
+              {
+                segment: 'Estética & Beleza',
+                initials: 'SB',
+                brand: 'Studio Bella Forma',
+                subtitle: 'Estética & Bem-estar · Atendimento com hora marcada',
+                gradient: 'from-[#0F2A56] to-[#1677FF]',
+                cta: 'Agendar pelo WhatsApp',
+                items: [
+                  { title: 'Limpeza de Pele', price: 'R$ 140,00' },
+                  { title: 'Combo Spa', price: 'R$ 220,00' },
+                ],
+                links: ['Agendar horário online', 'Ver localização no mapa'],
+                hours: 'Seg–Sáb · 09h às 19h',
+              },
+              {
+                segment: 'Gastronomia & Delivery',
+                initials: 'BR',
+                brand: 'Bistrô da Praça',
+                subtitle: 'Cardápio artesanal · Delivery e reservas',
+                gradient: 'from-slate-900 to-amber-600',
+                cta: 'Pedir no WhatsApp',
+                items: [
+                  { title: 'Prato Executivo', price: 'R$ 38,90' },
+                  { title: 'Combo Família', price: 'R$ 89,00' },
+                ],
+                links: ['Ver cardápio completo', 'Reservar mesa'],
+                hours: 'Ter–Dom · 11h às 23h',
+              },
+              {
+                segment: 'Saúde & Serviços',
+                initials: 'CV',
+                brand: 'Clínica Vida Plena',
+                subtitle: 'Fisioterapia & Pilates · Avaliação personalizada',
+                gradient: 'from-emerald-900 to-teal-600',
+                cta: 'Falar com a recepção',
+                items: [
+                  { title: 'Avaliação Postural', price: 'R$ 120,00' },
+                  { title: 'Plano Mensal Pilates', price: 'R$ 290,00' },
+                ],
+                links: ['Conhecer especialidades', 'Como chegar na clínica'],
+                hours: 'Seg–Sex · 07h às 20h',
+              },
+            ].map((demo) => (
+              <div key={demo.segment} className="flex flex-col items-center">
+                <span className="mb-4 inline-flex items-center rounded-full bg-[#EAF3FF] px-3.5 py-1 text-xs font-bold text-[#1677FF]">
+                  {demo.segment}
+                </span>
+                <div className="w-full max-w-[320px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 p-2 shadow-xl">
+                  <div className="overflow-hidden rounded-[2rem] bg-white">
+                    <div className={`bg-gradient-to-br ${demo.gradient} px-5 pt-7 pb-6 text-center text-white`}>
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-lg font-black ring-2 ring-white/30 backdrop-blur">
+                        {demo.initials}
+                      </div>
+                      <h3 className="mt-3 text-base font-extrabold">{demo.brand}</h3>
+                      <p className="mt-1 text-[11px] text-white/85">{demo.subtitle}</p>
+                      <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md">
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {demo.cta}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 p-4">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#1677FF]">
+                          Destaques
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {demo.items.map((item) => (
+                            <div key={item.title} className="rounded-lg bg-white p-2 shadow-xs">
+                              <p className="text-xs font-bold text-slate-800">{item.title}</p>
+                              <p className="text-[11px] font-semibold text-[#1677FF]">{item.price}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {demo.links.map((linkLabel) => (
+                        <div
+                          key={linkLabel}
+                          className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700"
+                        >
+                          <span>{linkLabel}</span>
+                          <ArrowRight className="h-3.5 w-3.5 text-[#1677FF]" />
+                        </div>
+                      ))}
+
+                      <div className="flex items-center justify-between rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-600">
+                        <span>{demo.hours}</span>
+                        <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
+                          <QrCode className="h-3.5 w-3.5 text-[#1677FF]" />
+                          QR Code
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* SEÇÃO 4 — PLANOS DE ASSINATURA */}
       <section id="planos" className="border-t border-slate-100 bg-slate-50 py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -537,94 +656,117 @@ export default function NextiaBioPage() {
                       </span>
                     </div>
                     <p className="mt-1.5 text-sm text-slate-600">
-                      Tenha seu próprio endereço na internet (ex: www.suaempresa.com.br) usando o sistema oficial de domínios da Nextia.
+                      Você pode usar gratuitamente o subdomínio da Nextia (ex: suaempresa.nextia.dev.br) ou contratar/apontar um domínio próprio (ex: www.suaempresa.com.br) usando o sistema oficial da Nextia.
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-black text-slate-900">
-                      {money.format(NEXTIA_BIO_OPTIONALS[0].price)}
+                      {domainMode === 'subdomain' ? 'Grátis' : money.format(NEXTIA_BIO_OPTIONALS[0].price)}
                     </p>
-                    <p className="text-xs text-slate-500">pagamento anual</p>
+                    <p className="text-xs text-slate-500">
+                      {domainMode === 'subdomain' ? 'subdomínio Nextia' : 'pagamento anual'}
+                    </p>
                   </div>
                 </div>
 
-                {!selectedPlan.limits.customDomain ? (
-                  <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">
-                    Disponível a partir do Plano Pro. Selecione o Plano Pro ou Premium para utilizar domínio próprio.
-                  </p>
-                ) : (
-                  <div className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4">
-                    <div className="flex flex-wrap gap-3 text-xs font-bold">
-                      <button
-                        type="button"
-                        onClick={() => setDomainMode('register')}
-                        className={`rounded-lg px-3 py-1.5 ${
-                          domainMode === 'register'
-                            ? 'bg-[#1677FF] text-white'
-                            : 'bg-white text-slate-700 border border-slate-200'
-                        }`}
-                      >
-                        Registrar novo domínio
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDomainMode('connect')}
-                        className={`rounded-lg px-3 py-1.5 ${
-                          domainMode === 'connect'
-                            ? 'bg-[#1677FF] text-white'
-                            : 'bg-white text-slate-700 border border-slate-200'
-                        }`}
-                      >
-                        Já tenho domínio (apontar)
-                      </button>
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        type="text"
-                        value={domainQuery}
-                        onChange={(e) => setDomainQuery(e.target.value)}
-                        placeholder="Digite o nome da sua empresa"
-                        aria-label="Pesquisar domínio"
-                        className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-[#1677FF] focus:outline-none"
-                      />
-                      <select
-                        value={domainExtension}
-                        onChange={(e) =>
-                          setDomainExtension(e.target.value as (typeof DOMAIN_EXTENSIONS)[number])
-                        }
-                        aria-label="Extensão do domínio"
-                        className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold"
-                      >
-                        {DOMAIN_EXTENSIONS.map((ext) => (
-                          <option key={ext} value={ext}>
-                            {ext}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleCheckDomain}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-                      >
-                        <Search className="h-4 w-4" />
-                        Consultar
-                      </button>
-                    </div>
-
-                    {domainStatus === 'available' && checkedDomain && (
-                      <p className="text-xs font-semibold text-emerald-700">
-                        Domínio <strong>{checkedDomain}</strong> selecionado para{' '}
-                        {domainMode === 'register' ? 'registro' : 'apontamento'} no checkout.
-                      </p>
-                    )}
-                    {domainStatus === 'invalid' && (
-                      <p className="text-xs font-semibold text-rose-600">
-                        Informe um nome de domínio válido (mínimo 2 caracteres).
-                      </p>
-                    )}
+                <div className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4">
+                  <div className="flex flex-wrap gap-2 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDomainMode('subdomain');
+                        setSelectedOptionals((prev) => prev.filter((item) => item !== 'domain-registration'));
+                      }}
+                      className={`rounded-lg px-3 py-1.5 ${
+                        domainMode === 'subdomain'
+                          ? 'bg-[#1677FF] text-white'
+                          : 'bg-white text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      Subdomínio Nextia (Grátis)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDomainMode('register')}
+                      disabled={!selectedPlan.limits.customDomain}
+                      className={`rounded-lg px-3 py-1.5 ${
+                        domainMode === 'register'
+                          ? 'bg-[#1677FF] text-white'
+                          : 'bg-white text-slate-700 border border-slate-200'
+                      } ${!selectedPlan.limits.customDomain ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      Registrar domínio próprio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDomainMode('connect');
+                        setSelectedOptionals((prev) => prev.filter((item) => item !== 'domain-registration'));
+                      }}
+                      disabled={!selectedPlan.limits.customDomain}
+                      className={`rounded-lg px-3 py-1.5 ${
+                        domainMode === 'connect'
+                          ? 'bg-[#1677FF] text-white'
+                          : 'bg-white text-slate-700 border border-slate-200'
+                      } ${!selectedPlan.limits.customDomain ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      Já tenho domínio (apontar)
+                    </button>
                   </div>
-                )}
+
+                  {domainMode === 'subdomain' ? (
+                    <p className="text-xs font-medium text-emerald-700">
+                      Subdomínio grátis da Nextia selecionado por padrão (sem custo adicional). {!selectedPlan.limits.customDomain && 'Para usar domínio próprio, selecione o Plano Pro ou Premium.'}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="text"
+                          value={domainQuery}
+                          onChange={(e) => setDomainQuery(e.target.value)}
+                          placeholder="Digite o nome da sua empresa"
+                          aria-label="Pesquisar domínio"
+                          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm focus:border-[#1677FF] focus:outline-none"
+                        />
+                        <select
+                          value={domainExtension}
+                          onChange={(e) =>
+                            setDomainExtension(e.target.value as (typeof DOMAIN_EXTENSIONS)[number])
+                          }
+                          aria-label="Extensão do domínio"
+                          className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold"
+                        >
+                          {DOMAIN_EXTENSIONS.map((ext) => (
+                            <option key={ext} value={ext}>
+                              {ext}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleCheckDomain}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+                        >
+                          <Search className="h-4 w-4" />
+                          Consultar
+                        </button>
+                      </div>
+
+                      {domainStatus === 'available' && checkedDomain && (
+                        <p className="text-xs font-semibold text-emerald-700">
+                          Domínio <strong>{checkedDomain}</strong> selecionado para{' '}
+                          {domainMode === 'register' ? 'registro' : 'apontamento'} no checkout.
+                        </p>
+                      )}
+                      {domainStatus === 'invalid' && (
+                        <p className="text-xs font-semibold text-rose-600">
+                          Informe um nome de domínio válido (mínimo 2 caracteres).
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Demais opcionais */}
@@ -703,7 +845,7 @@ export default function NextiaBioPage() {
                       <strong>{money.format(opt.price)}</strong>
                     </div>
                   ))}
-                  {checkedDomain && selectedPlan.limits.customDomain && (
+                  {checkedDomain && selectedPlan.limits.customDomain && domainMode !== 'subdomain' && (
                     <div className="flex justify-between text-xs text-emerald-300">
                       <span>Domínio: {checkedDomain}</span>
                       <span>{domainMode === 'register' ? 'Registro' : 'Apontamento'}</span>
