@@ -37,6 +37,7 @@ const AcquisitionFunnelPage = lazy(() => import('./features/acquisition/Acquisit
 const PublicDemoPage = lazy(() => import('./features/acquisition/PublicDemoPage'));
 const LojaVirtualPage = lazy(() => import('./pages/LojaVirtualPage'));
 const NextiaBioPage = lazy(() => import('./pages/NextiaBioPage'));
+const NextiaBioPublicPage = lazy(() => import('./pages/NextiaBioPublicPage'));
 const AutomacaoIAPage = lazy(() => import('./pages/AutomacaoIAPage'));
 const TechCarePage = lazy(() => import('./pages/TechCarePage'));
 const RedesWifiPage = lazy(() => import('./pages/RedesWifiPage'));
@@ -257,6 +258,9 @@ function AppRoutes() {
       <Route path="/landing-pages" element={<ServicePage />} />
       <Route path="/lojas-virtuais" element={<LojaVirtualPage />} />
       <Route path="/nextia-bio" element={<NextiaBioPage />} />
+      <Route path="/bio/:slug" element={<NextiaBioPublicPage />} />
+      <Route path="/bio/:slug/galeria" element={<NextiaBioPublicPage />} />
+      <Route path="/bio" element={<Navigate to="/bio/nextia" replace />} />
       <Route path="/sistemas" element={<ServicePage />} />
       <Route path="/automacao-ia" element={<AutomacaoIAPage />} />
       <Route path="/chatbot" element={<ServicePage />} />

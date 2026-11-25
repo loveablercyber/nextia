@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Seo from '../components/seo/Seo';
-import BioPhoneMockup, { type BioDemoProfile } from '../components/bio/BioPhoneMockup';
+import BioPhoneMockup from '../components/bio/BioPhoneMockup';
+import { HERO_NEXTIA_DEMO, SEGMENT_DEMOS } from '../data/nextiaBioDemos';
 import {
   NEXTIA_BIO_FAQ,
   NEXTIA_BIO_FEATURES,
@@ -45,96 +46,6 @@ const FEATURE_ICONS = {
 
 const DOMAIN_EXTENSIONS = ['.com.br', '.com', '.net.br', '.online', '.store'] as const;
 
-const HERO_NEXTIA_DEMO: BioDemoProfile = {
-  initials: 'NX',
-  brand: 'Nextia Tecnologia',
-  subtitle: 'Sites, Lojas Virtuais, Nextia Bio & Automação com IA',
-  bioUrl: 'https://bio.nextia.dev.br',
-  gradient: 'from-[#0F2A56] to-[#1677FF]',
-  whatsappHref: 'https://wa.me/5511999999999',
-  ctaLabel: 'Falar com a Nextia no WhatsApp',
-  phone: '(11) 99999-9999',
-  email: 'contato@nextia.dev.br',
-  address: 'Atendimento em todo o Brasil · 100% online',
-  hours: 'Seg–Sex · 08h às 18h',
-  socials: ['@nextia.dev.br', 'LinkedIn', 'YouTube'],
-  galleryColors: ['bg-[#1677FF]', 'bg-[#0F2A56]', 'bg-cyan-600'],
-  items: [
-    { id: 'bio-start', title: 'Nextia Bio Start', price: 59 },
-    { id: 'bio-pro', title: 'Nextia Bio Pro', price: 99 },
-  ],
-  links: ['Conhecer Nextia Bio', 'Ver modelos de sites', 'Solicitar orçamento'],
-  chatbotGreeting: 'Olá! Sou o assistente da Nextia. Posso ajudar você a escolher seu plano ideal?',
-};
-
-const SEGMENT_DEMOS: BioDemoProfile[] = [
-  {
-    segment: 'Estética & Beleza',
-    initials: 'SB',
-    brand: 'Studio Bella Forma',
-    subtitle: 'Estética & Bem-estar · Atendimento com hora marcada',
-    bioUrl: 'https://bio.nextia.dev.br/studiobellaforma',
-    gradient: 'from-[#0F2A56] to-[#1677FF]',
-    whatsappHref: 'https://wa.me/5511999999999',
-    ctaLabel: 'Agendar pelo WhatsApp',
-    phone: '(11) 98888-1122',
-    email: 'contato@studiobellaforma.com.br',
-    address: 'Av. Paulista, 1200 · São Paulo/SP',
-    hours: 'Seg–Sáb · 09h às 19h',
-    socials: ['@studiobellaforma', 'Facebook', 'TikTok'],
-    galleryColors: ['bg-rose-500', 'bg-pink-600', 'bg-fuchsia-600'],
-    items: [
-      { id: 'limpeza', title: 'Limpeza de Pele', price: 140 },
-      { id: 'spa', title: 'Combo Spa', price: 220 },
-    ],
-    links: ['Agendar horário online', 'Ver localização no mapa'],
-    chatbotGreeting: 'Olá! Quer verificar os horários disponíveis para hoje no Studio?',
-  },
-  {
-    segment: 'Gastronomia & Delivery',
-    initials: 'BR',
-    brand: 'Bistrô da Praça',
-    subtitle: 'Cardápio artesanal · Delivery e reservas',
-    bioUrl: 'https://bio.nextia.dev.br/bistrodapraca',
-    gradient: 'from-slate-900 to-amber-600',
-    whatsappHref: 'https://wa.me/5511999999999',
-    ctaLabel: 'Pedir no WhatsApp',
-    phone: '(11) 97777-3344',
-    email: 'pedidos@bistrodapraca.com.br',
-    address: 'Rua das Flores, 450 · Centro',
-    hours: 'Ter–Dom · 11h às 23h',
-    socials: ['@bistrodapraca', 'iFood', 'Instagram'],
-    galleryColors: ['bg-amber-600', 'bg-orange-600', 'bg-red-600'],
-    items: [
-      { id: 'executivo', title: 'Prato Executivo', price: 38.9 },
-      { id: 'familia', title: 'Combo Família', price: 89 },
-    ],
-    links: ['Ver cardápio completo', 'Reservar mesa'],
-    chatbotGreeting: 'Bem-vindo ao Bistrô! Deseja fazer um pedido para entrega ou reservar mesa?',
-  },
-  {
-    segment: 'Saúde & Serviços',
-    initials: 'CV',
-    brand: 'Clínica Vida Plena',
-    subtitle: 'Fisioterapia & Pilates · Avaliação personalizada',
-    bioUrl: 'https://bio.nextia.dev.br/clinicavidaplena',
-    gradient: 'from-emerald-900 to-teal-600',
-    whatsappHref: 'https://wa.me/5511999999999',
-    ctaLabel: 'Falar com a recepção',
-    phone: '(11) 96666-5566',
-    email: 'recepcao@clinicavidaplena.com.br',
-    address: 'Rua da Saúde, 88 · Sala 302',
-    hours: 'Seg–Sex · 07h às 20h',
-    socials: ['@clinicavidaplena', 'LinkedIn'],
-    galleryColors: ['bg-emerald-600', 'bg-teal-600', 'bg-cyan-700'],
-    items: [
-      { id: 'avaliacao', title: 'Avaliação Postural', price: 120 },
-      { id: 'pilates', title: 'Plano Mensal Pilates', price: 290 },
-    ],
-    links: ['Conhecer especialidades', 'Como chegar na clínica'],
-    chatbotGreeting: 'Olá! Posso ajudar a agendar sua avaliação ou tirar dúvidas sobre convênios?',
-  },
-];
 
 function normalizeDomainInput(raw: string): string {
   return raw
