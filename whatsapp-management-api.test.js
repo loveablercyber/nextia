@@ -44,3 +44,54 @@ describe('Evolution webhook serialization',()=>{
     expect(JSON.stringify(provider)).not.toContain('secret-value');
   });
 });
+
+
+describe('forwardSupportTicketToWhatsApp', () => {
+  it('forwards support ticket to connected admin WhatsApp instance', async () => {
+    const { forwardSupportTicketToWhatsApp } = await import('./whatsapp-management-api.js');
+    const sentCalls = [];
+    const client = {
+      async query() {
+        return {
+          rows: [{
+            id: 'inst-1',
+            instance_name: 'nextia',
+            enabled: true,
+            connection_status: 'connected',
+            phone_number_masked: '+55 (11) 99999-8888',
+            configuration: {},
+          }],
+        };
+      },
+    };
+    const result = await forwardSupportTicketToWhatsApp(
+      client,
+      {
+        ticketId: 't-123',
+        name: 'Maria',
+        email: 'maria@exemplo.com',
+        phone: '11988887777',
+        subject: 'Dúvida no painel',
+        message: 'Preciso de ajuda com acesso.',
+        trackingLink: 'https://nextia.app/suporte/ticket/t-123?token=abc',
+      },
+      async (instance, payload) => {
+        sentCalls.push({ instanceId: instance.id, ...payload });
+        return { data: { ok: true } };
+      },
+    );
+    expect(result).toEqual({ sent: true, instanceId: 'inst-1', phone: '5511999998888' });
+    expect(sentCalls).toHaveLength(1);
+    expect(sentCalls[0].number).toBe('5511999998888');
+    expect(sentCalls[0].text).toContain('*Novo chamado de suporte*');
+    expect(sentCalls[0].text).toContain('Maria');
+    expect(sentCalls[0].text).toContain('Dúvida no painel');
+  });
+
+  it('returns not sent when no connected WhatsApp instance exists', async () => {
+    const { forwardSupportTicketToWhatsApp } = await import('./whatsapp-management-api.js');
+    const client = { async query() { return { rows: [] }; } };
+    const result = await forwardSupportTicketToWhatsApp(client, { name: 'João', email: 'j@e.com', subject: 'Teste', message: 'Oi' });
+    expect(result).toEqual({ sent: false, reason: 'no_connected_instance' });
+  });
+});

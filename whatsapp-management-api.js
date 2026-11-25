@@ -333,3 +333,36 @@ async function route(req,url,client,session,readJson){
 
   return{status:404,body:{error:'Rota do módulo de WhatsApp não encontrada.'}};
 }
+
+/**
+ * Encaminha um novo chamado de suporte para o WhatsApp conectado no bot do painel admin.
+ */
+export async function forwardSupportTicketToWhatsApp(client, ticket, sendText = sendEvolutionText) {
+  const result = await client.query(
+    `SELECT * FROM public.whatsapp_instances
+     WHERE enabled = TRUE AND connection_status = 'connected'
+     ORDER BY last_connected_at DESC NULLS LAST, created_at ASC
+     LIMIT 1`,
+  );
+  const instance = result.rows[0];
+  if (!instance) return { sent: false, reason: 'no_connected_instance' };
+
+  const rawPhone = instance.configuration?.support_forward_phone || instance.phone_number_masked || '';
+  const destinationPhone = normalizeWhatsAppNumber(rawPhone);
+  if (!destinationPhone) return { sent: false, reason: 'no_destination_phone', instanceId: instance.id };
+
+  const lines = [
+    '*Novo chamado de suporte*',
+    ticket.ticketId ? `Ticket: #${ticket.ticketId}` : null,
+    `Nome: ${clean(ticket.name, 120) || '-'}`,
+    `E-mail: ${clean(ticket.email, 160) || '-'}`,
+    ticket.phone ? `Telefone: ${clean(ticket.phone, 40)}` : null,
+    `Assunto: ${clean(ticket.subject, 200) || '-'}`,
+    '',
+    clean(ticket.message, 2500) || '-',
+    ticket.trackingLink ? `\nAcompanhar: ${ticket.trackingLink}` : null,
+  ].filter((line) => line !== null);
+
+  await sendText(instance, { number: destinationPhone, text: lines.join('\n') });
+  return { sent: true, instanceId: instance.id, phone: destinationPhone };
+}

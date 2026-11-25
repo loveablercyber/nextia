@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { createSlidingWindowLimiter, fetchWithTimeout, requestIp } from './operational-guards.js';
 import { ensureCrmSchema } from './crm-api.js';
 import { hasPermission } from './permissions.js';
+import { forwardSupportTicketToWhatsApp } from './whatsapp-management-api.js';
 import {
   ensureProjectOperationsSchema,
   fileChecksum,
@@ -540,6 +541,11 @@ async function notifyPublicFormTicket(req, client, dependencies, ticket) {
     await sendSupportTicketEmail({ email: ticket.email, message: ticket.message, name: ticket.name, subject: ticket.subject, trackingLink, ticketId: ticket.ticketId });
   } catch (emailError) {
     console.error('[SUPPORT] Falha ao enviar e-mail do chamado:', emailError.message);
+  }
+  try {
+    await forwardSupportTicketToWhatsApp(client, { ...ticket, trackingLink });
+  } catch (whatsappError) {
+    console.error('[SUPPORT] Falha ao encaminhar chamado para o WhatsApp:', whatsappError.message);
   }
   const autoReply = await tryAutomaticSupportReply(client, ticket.ticketId);
   return { trackingLink, autoReplyStatus: autoReply.status };

@@ -16,7 +16,7 @@ import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from
 import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
 import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } from './acquisition-api.js';
 import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-api.js';
-import { handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
+import { forwardSupportTicketToWhatsApp, handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { AIService } from './ai-service.js';
 import { AutomationError } from './automation-core.js';
@@ -2893,6 +2893,11 @@ async function handleSupportApi(req, res, url) {
         await sendSupportTicketEmail({ email, message, name, subject, trackingLink, ticketId });
       } catch (emailError) {
         console.error('Failed to send support ticket email:', emailError);
+      }
+      try {
+        await forwardSupportTicketToWhatsApp(client, { ticketId, name, email, phone, subject, message, trackingLink });
+      } catch (whatsappError) {
+        console.error('Failed to forward support ticket to WhatsApp:', whatsappError);
       }
 
       const autoReply = await tryAutomaticSupportReply(client, ticketId);
