@@ -247,7 +247,7 @@ function PartnerContainer() {
 function AppRoutes() {
   const { pathname } = useLocation();
   const isPrivate = ['/admin', '/painel', '/parceiro', '/tecnico', '/checkout', '/perfil', '/login', '/cadastro', '/recuperar-senha', '/redefinir-senha', '/suporte/ticket'].some((prefix) => pathname.startsWith(prefix));
-  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/demonstracao') && !pathname.startsWith('/parceiro') && !pathname.startsWith('/tecnico');
+  const hasLayout = !noLayoutPages.includes(pathname) && !pathname.startsWith('/painel') && !pathname.startsWith('/admin') && !pathname.startsWith('/demo') && !pathname.startsWith('/demonstracao') && !pathname.startsWith('/parceiro') && !pathname.startsWith('/tecnico') && !pathname.startsWith('/bio');
 
   const content = (
     <Routes>

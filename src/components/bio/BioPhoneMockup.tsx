@@ -31,9 +31,11 @@ interface ChatMessage {
 export default function BioPhoneMockup({
   profile,
   standalone = false,
+  fullPage = false,
 }: {
   profile: BioDemoProfile;
   standalone?: boolean;
+  fullPage?: boolean;
 }) {
   const navigate = useNavigate();
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -108,15 +110,35 @@ export default function BioPhoneMockup({
     if (!textToSend) setChatInput('');
   };
 
-  const frameClass = standalone
-    ? 'mx-auto w-full max-w-[420px] rounded-[2rem] border border-slate-200 bg-white shadow-xl'
-    : 'mx-auto w-full max-w-[340px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 p-2 shadow-2xl';
+  const s = {
+    headerPad: fullPage ? 'px-6 pt-10 pb-8' : 'px-5 pt-6 pb-5',
+    logo: fullPage ? 'h-20 w-20' : 'h-14 w-14',
+    brand: fullPage ? 'text-2xl' : 'text-base',
+    subtitle: fullPage ? 'text-sm' : 'text-[11px]',
+    cta: fullPage ? 'text-sm' : 'text-xs',
+    content: fullPage ? 'space-y-4 p-5 text-sm' : 'space-y-3 p-3.5 text-xs',
+    label: fullPage ? 'text-xs' : 'text-[11px]',
+    tiny: fullPage ? 'text-xs' : 'text-[10px]',
+    item: fullPage ? 'text-sm' : 'text-[11px]',
+    btn: fullPage ? 'text-xs' : 'text-[10px]',
+    link: fullPage ? 'text-sm' : 'text-[11px]',
+    contact: fullPage ? 'text-xs' : 'text-[10px]',
+  };
+
+  const frameClass = fullPage
+    ? 'mx-auto w-full max-w-md'
+    : standalone
+      ? 'mx-auto w-full max-w-[420px] rounded-[2rem] border border-slate-200 bg-white shadow-xl'
+      : 'mx-auto w-full max-w-[340px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 p-2 shadow-2xl';
 
   return (
     <div className={frameClass}>
-      <div className="relative rounded-[2rem] bg-white text-slate-900" style={{ overflow: cartOpen || chatOpen ? 'hidden' : 'auto' }}>
+      <div
+        className={`relative bg-white text-slate-900 ${fullPage ? '' : 'rounded-[2rem]'}`}
+        style={fullPage ? undefined : { overflow: cartOpen || chatOpen ? 'hidden' : 'auto' }}
+      >
         {/* Cabeçalho com Logomarca real e URL funcional */}
-        <div className={`bg-gradient-to-br ${profile.gradient} px-5 pt-6 pb-5 text-center text-white`}>
+        <div className={`bg-gradient-to-br ${profile.gradient} ${s.headerPad} text-center text-white`}>
           <div className="mb-3 flex items-center justify-center">
             <Link
               to={profile.bioPath}
@@ -130,27 +152,27 @@ export default function BioPhoneMockup({
           <img
             src={profile.logoUrl}
             alt={`Logomarca ${profile.brand}`}
-            className="mx-auto h-14 w-14 rounded-2xl bg-white object-contain p-1.5 shadow-md ring-2 ring-white/40"
+            className={`mx-auto ${s.logo} rounded-2xl bg-white object-contain p-1.5 shadow-md ring-2 ring-white/40`}
           />
-          <h3 className="mt-2.5 text-base font-extrabold">{profile.brand}</h3>
-          <p className="mt-0.5 text-[11px] text-white/90">{profile.subtitle}</p>
+          <h3 className={`mt-2.5 ${s.brand} font-extrabold`}>{profile.brand}</h3>
+          <p className={`mt-0.5 ${s.subtitle} text-white/90`}>{profile.subtitle}</p>
 
           <a
             href={profile.whatsappHref}
             target="_blank"
             rel="noreferrer"
-            className="mt-3.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-emerald-600"
+            className={`mt-3.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 ${s.cta} font-bold text-white shadow-md transition hover:bg-emerald-600`}
           >
             <MessageCircle className="h-3.5 w-3.5" />
             {profile.ctaLabel}
           </a>
         </div>
 
-        <div className="space-y-3 p-3.5 text-xs">
+        <div className={s.content}>
           {/* Catálogo com Carrinho e Checkout */}
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[#1677FF]">
+              <span className={`inline-flex items-center gap-1 ${s.label} font-bold uppercase tracking-wider text-[#1677FF]`}>
                 <ShoppingBag className="h-3.5 w-3.5" />
                 Catálogo &amp; Carrinho
               </span>
@@ -158,7 +180,7 @@ export default function BioPhoneMockup({
                 <button
                   type="button"
                   onClick={() => setCartOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-full bg-[#1677FF] px-2.5 py-0.5 text-[10px] font-bold text-white hover:bg-[#0F5FD6]"
+                  className={`inline-flex items-center gap-1 rounded-full bg-[#1677FF] px-2.5 py-0.5 ${s.btn} font-bold text-white hover:bg-[#0F5FD6]`}
                 >
                   <ShoppingCart className="h-3 w-3" />
                   Ver carrinho ({totalItems})
@@ -173,15 +195,15 @@ export default function BioPhoneMockup({
                   className="flex flex-col justify-between rounded-lg bg-white p-2 shadow-xs"
                 >
                   <div>
-                    <p className="text-[11px] font-bold leading-tight text-slate-800">{item.title}</p>
-                    <p className="mt-0.5 text-[11px] font-extrabold text-[#1677FF]">
+                    <p className={`${s.item} font-bold leading-tight text-slate-800`}>{item.title}</p>
+                    <p className={`mt-0.5 ${s.item} font-extrabold text-[#1677FF]`}>
                       {money.format(item.price)}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => addToCart(item.id)}
-                    className="mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md bg-slate-900 px-2 py-1 text-[10px] font-bold text-white hover:bg-[#1677FF]"
+                    className={`mt-1.5 inline-flex w-full items-center justify-center gap-1 rounded-md bg-slate-900 px-2 py-1 ${s.btn} font-bold text-white hover:bg-[#1677FF]`}
                   >
                     <Plus className="h-3 w-3" />
                     Adicionar
@@ -194,7 +216,7 @@ export default function BioPhoneMockup({
               <button
                 type="button"
                 onClick={() => setCartOpen(true)}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-700"
+                className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 ${s.label} font-bold text-white hover:bg-emerald-700`}
               >
                 <ShoppingCart className="h-3.5 w-3.5" />
                 Abrir carrinho · {money.format(totalPrice)}
@@ -205,13 +227,13 @@ export default function BioPhoneMockup({
           {/* Galeria de Fotos real + Link para página dedicada */}
           <div className="rounded-xl border border-slate-200 p-2.5">
             <div className="flex items-center justify-between">
-              <p className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <p className={`inline-flex items-center gap-1 ${s.tiny} font-bold uppercase tracking-wider text-slate-500`}>
                 <Images className="h-3.5 w-3.5 text-[#1677FF]" />
                 Galeria de fotos
               </p>
               <Link
                 to={`${profile.bioPath}/galeria`}
-                className="text-[10px] font-bold text-[#1677FF] hover:underline"
+                className={`${s.tiny} font-bold text-[#1677FF] hover:underline`}
               >
                 Ver galeria completa →
               </Link>
@@ -243,7 +265,7 @@ export default function BioPhoneMockup({
                   href={item.to}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:border-[#1677FF] hover:text-[#1677FF]"
+                  className={`flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 ${s.link} font-bold text-slate-700 transition hover:border-[#1677FF] hover:text-[#1677FF]`}
                 >
                   <span>{item.label}</span>
                   <span className="text-[#1677FF]">→</span>
@@ -252,7 +274,7 @@ export default function BioPhoneMockup({
                 <Link
                   key={item.label}
                   to={item.to}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-700 transition hover:border-[#1677FF] hover:text-[#1677FF]"
+                  className={`flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 ${s.link} font-bold text-slate-700 transition hover:border-[#1677FF] hover:text-[#1677FF]`}
                 >
                   <span>{item.label}</span>
                   <span className="text-[#1677FF]">→</span>
@@ -262,7 +284,7 @@ export default function BioPhoneMockup({
           </div>
 
           {/* Contatos e Redes Sociais reais */}
-          <div className="space-y-1 rounded-xl bg-slate-50 p-2.5 text-[10px] text-slate-600">
+          <div className={`space-y-1 rounded-xl bg-slate-50 p-2.5 ${s.contact} text-slate-600`}>
             <a href={profile.phoneHref} className="flex items-center gap-1.5 hover:text-[#1677FF]">
               <Phone className="h-3 w-3 text-[#1677FF]" />
               <span>{profile.phone}</span>
@@ -316,14 +338,14 @@ export default function BioPhoneMockup({
                 loading="lazy"
               />
               <div>
-                <p className="text-[11px] font-extrabold text-slate-900">Acesse no celular</p>
-                <p className="text-[10px] text-slate-500">Escaneie o QR Code</p>
+                <p className={`${s.item} font-extrabold text-slate-900`}>Acesse no celular</p>
+                <p className={`${s.tiny} text-slate-500`}>Escaneie o QR Code</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setChatOpen(true)}
-              className="inline-flex items-center gap-1 rounded-xl bg-[#1677FF] px-2.5 py-2 text-[10px] font-bold text-white shadow-sm hover:bg-[#0F5FD6]"
+              className={`inline-flex items-center gap-1 rounded-xl bg-[#1677FF] px-2.5 py-2 ${s.btn} font-bold text-white shadow-sm hover:bg-[#0F5FD6]`}
             >
               <Bot className="h-3.5 w-3.5" />
               Chatbot
@@ -333,7 +355,7 @@ export default function BioPhoneMockup({
 
         {/* Modal Interno do Carrinho e Checkout */}
         {cartOpen && (
-          <div className="absolute inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]">
+          <div className={`${fullPage ? 'fixed' : 'absolute'} inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]`}>
             <div className="max-h-[85%] overflow-y-auto rounded-t-2xl bg-white p-4 text-xs shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <h4 className="flex items-center gap-1.5 font-extrabold text-slate-900">
@@ -440,7 +462,7 @@ export default function BioPhoneMockup({
 
         {/* Pop-up / Modal Flutuante do Chatbot */}
         {chatOpen && (
-          <div className="absolute inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]">
+          <div className={`${fullPage ? 'fixed' : 'absolute'} inset-0 z-20 flex flex-col justify-end bg-slate-900/60 backdrop-blur-[1px]`}>
             <div className="flex max-h-[82%] flex-col rounded-t-2xl bg-white p-3.5 text-xs shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div className="flex items-center gap-2">
