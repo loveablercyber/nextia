@@ -114,7 +114,7 @@ export default function BioPhoneMockup({
 
   return (
     <div className={frameClass}>
-      <div className="relative overflow-hidden rounded-[2rem] bg-white text-slate-900">
+      <div className="relative rounded-[2rem] bg-white text-slate-900" style={{ overflow: cartOpen || chatOpen ? 'hidden' : 'auto' }}>
         {/* Cabeçalho com Logomarca real e URL funcional */}
         <div className={`bg-gradient-to-br ${profile.gradient} px-5 pt-6 pb-5 text-center text-white`}>
           <div className="mb-3 flex items-center justify-center">

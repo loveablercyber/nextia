@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useMatch } from 'react-router-dom';
 import Seo from '../components/seo/Seo';
 import BioPhoneMockup from '../components/bio/BioPhoneMockup';
 import { findBioDemoBySlug } from '../data/nextiaBioDemos';
@@ -8,8 +8,7 @@ export default function NextiaBioPublicPage() {
   const { slug } = useParams<{ slug: string }>();
   const profile = findBioDemoBySlug(slug);
 
-  const isGallery =
-    typeof window !== 'undefined' && window.location.pathname.includes('/galeria');
+  const isGallery = !!useMatch('/bio/:slug/galeria');
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#EAF3FF] via-white to-white">
