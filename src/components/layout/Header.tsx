@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getWhatsAppLink } from '../../utils/whatsapp';
 
 const groups = [
-  { label: 'Digital', links: [['Sites profissionais', '/sites'], ['Sites prontos', '/sites-prontos'], ['Landing pages', '/landing-pages'], ['Lojas virtuais', '/lojas-virtuais'], ['Sistemas sob medida', '/sistemas']] },
+  { label: 'Digital', links: [['Nextia Bio', '/nextia-bio'], ['Sites profissionais', '/sites'], ['Sites prontos', '/sites-prontos'], ['Landing pages', '/landing-pages'], ['Lojas virtuais', '/lojas-virtuais'], ['Sistemas sob medida', '/sistemas']] },
   { label: 'Automação & IA', links: [['Automação e IA', '/automacao-ia'], ['Chatbots', '/chatbot'], ['Automação WhatsApp', '/automacao-whatsapp']] },
   { label: 'TechCare', links: [['Visão geral', '/techcare'], ['Suporte de TI', '/suporte-ti'], ['Suporte remoto', '/suporte-remoto'], ['Computadores', '/manutencao-computadores'], ['Notebooks', '/manutencao-notebooks']] },
   { label: 'Infraestrutura', links: [['Redes e Wi-Fi', '/redes-wifi'], ['Cabeamento', '/cabeamento'], ['Câmeras', '/cameras-seguranca'], ['Backup empresarial', '/backup']] },

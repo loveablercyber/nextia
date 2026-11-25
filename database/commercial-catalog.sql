@@ -34,6 +34,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.commercial_services (slug, name, category, price_cents, price_label, recurring, sort_order)
 VALUES
   ('sites', 'Sites profissionais', 'digital', 19700, 'ativação a partir de', FALSE, 10),
+  ('nextia-bio', 'Nextia Bio', 'digital', 5900, 'planos a partir de', TRUE, 12),
   ('sites-prontos', 'Sites prontos', 'digital', 19700, 'ativação a partir de', TRUE, 15),
   ('landing-pages', 'Landing pages', 'digital', 49700, 'projeto a partir de', FALSE, 20),
   ('lojas-virtuais', 'Lojas virtuais', 'digital', 149000, 'projeto a partir de', TRUE, 30),

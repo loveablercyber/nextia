@@ -25,6 +25,14 @@ const commonFaq = (name: string): ServiceOffer['faq'] => [
 
 export const serviceCatalog: ServiceOffer[] = [
   {
+    slug: 'nextia-bio', name: 'Nextia Bio', eyebrow: 'Presença digital', category: 'digital',
+    summary: 'Mini página profissional para divulgar seu negócio, produtos, serviços e contatos.',
+    description: 'Seu negócio merece mais do que um link. Apresente sua marca, conecte redes sociais e receba clientes pelo WhatsApp.',
+    price: 59, priceLabel: 'planos a partir de', recurring: true, accent: '#1677FF', soft: '#EAF3FF',
+    benefits: ['Página profissional', 'Botão de WhatsApp', 'Catálogo de produtos e serviços', 'Domínio próprio opcional'],
+    deliverables: ['Configuração do perfil', 'Links e redes sociais', 'QR Code de compartilhamento', 'Publicação assistida'], faq: commonFaq('o Nextia Bio'),
+  },
+  {
     slug: 'sites', name: 'Sites profissionais', eyebrow: 'Presença digital', category: 'digital',
     summary: 'Sites rápidos, responsivos e preparados para transformar visitas em contatos.',
     description: 'Estratégia, design, desenvolvimento e publicação em um fluxo acompanhado do início ao fim.',

@@ -33,7 +33,7 @@ interface CommercePreview {
   proposalId?: string | null;
 }
 
-const DIGITAL_SLUGS = ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas'];
+const DIGITAL_SLUGS = ['sites', 'sites-prontos', 'landing-pages', 'lojas-virtuais', 'sistemas', 'nextia-bio'];
 
 export default function CheckoutPage() {
   const [params] = useSearchParams();
