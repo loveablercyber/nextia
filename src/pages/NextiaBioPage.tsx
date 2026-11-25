@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Seo from '../components/seo/Seo';
+import BioPhoneMockup, { type BioDemoProfile } from '../components/bio/BioPhoneMockup';
 import {
   NEXTIA_BIO_FAQ,
   NEXTIA_BIO_FEATURES,
@@ -44,6 +45,97 @@ const FEATURE_ICONS = {
 
 const DOMAIN_EXTENSIONS = ['.com.br', '.com', '.net.br', '.online', '.store'] as const;
 
+const HERO_NEXTIA_DEMO: BioDemoProfile = {
+  initials: 'NX',
+  brand: 'Nextia Tecnologia',
+  subtitle: 'Sites, Lojas Virtuais, Nextia Bio & Automação com IA',
+  bioUrl: 'https://bio.nextia.dev.br',
+  gradient: 'from-[#0F2A56] to-[#1677FF]',
+  whatsappHref: 'https://wa.me/5511999999999',
+  ctaLabel: 'Falar com a Nextia no WhatsApp',
+  phone: '(11) 99999-9999',
+  email: 'contato@nextia.dev.br',
+  address: 'Atendimento em todo o Brasil · 100% online',
+  hours: 'Seg–Sex · 08h às 18h',
+  socials: ['@nextia.dev.br', 'LinkedIn', 'YouTube'],
+  galleryColors: ['bg-[#1677FF]', 'bg-[#0F2A56]', 'bg-cyan-600'],
+  items: [
+    { id: 'bio-start', title: 'Nextia Bio Start', price: 59 },
+    { id: 'bio-pro', title: 'Nextia Bio Pro', price: 99 },
+  ],
+  links: ['Conhecer Nextia Bio', 'Ver modelos de sites', 'Solicitar orçamento'],
+  chatbotGreeting: 'Olá! Sou o assistente da Nextia. Posso ajudar você a escolher seu plano ideal?',
+};
+
+const SEGMENT_DEMOS: BioDemoProfile[] = [
+  {
+    segment: 'Estética & Beleza',
+    initials: 'SB',
+    brand: 'Studio Bella Forma',
+    subtitle: 'Estética & Bem-estar · Atendimento com hora marcada',
+    bioUrl: 'https://bio.nextia.dev.br/studiobellaforma',
+    gradient: 'from-[#0F2A56] to-[#1677FF]',
+    whatsappHref: 'https://wa.me/5511999999999',
+    ctaLabel: 'Agendar pelo WhatsApp',
+    phone: '(11) 98888-1122',
+    email: 'contato@studiobellaforma.com.br',
+    address: 'Av. Paulista, 1200 · São Paulo/SP',
+    hours: 'Seg–Sáb · 09h às 19h',
+    socials: ['@studiobellaforma', 'Facebook', 'TikTok'],
+    galleryColors: ['bg-rose-500', 'bg-pink-600', 'bg-fuchsia-600'],
+    items: [
+      { id: 'limpeza', title: 'Limpeza de Pele', price: 140 },
+      { id: 'spa', title: 'Combo Spa', price: 220 },
+    ],
+    links: ['Agendar horário online', 'Ver localização no mapa'],
+    chatbotGreeting: 'Olá! Quer verificar os horários disponíveis para hoje no Studio?',
+  },
+  {
+    segment: 'Gastronomia & Delivery',
+    initials: 'BR',
+    brand: 'Bistrô da Praça',
+    subtitle: 'Cardápio artesanal · Delivery e reservas',
+    bioUrl: 'https://bio.nextia.dev.br/bistrodapraca',
+    gradient: 'from-slate-900 to-amber-600',
+    whatsappHref: 'https://wa.me/5511999999999',
+    ctaLabel: 'Pedir no WhatsApp',
+    phone: '(11) 97777-3344',
+    email: 'pedidos@bistrodapraca.com.br',
+    address: 'Rua das Flores, 450 · Centro',
+    hours: 'Ter–Dom · 11h às 23h',
+    socials: ['@bistrodapraca', 'iFood', 'Instagram'],
+    galleryColors: ['bg-amber-600', 'bg-orange-600', 'bg-red-600'],
+    items: [
+      { id: 'executivo', title: 'Prato Executivo', price: 38.9 },
+      { id: 'familia', title: 'Combo Família', price: 89 },
+    ],
+    links: ['Ver cardápio completo', 'Reservar mesa'],
+    chatbotGreeting: 'Bem-vindo ao Bistrô! Deseja fazer um pedido para entrega ou reservar mesa?',
+  },
+  {
+    segment: 'Saúde & Serviços',
+    initials: 'CV',
+    brand: 'Clínica Vida Plena',
+    subtitle: 'Fisioterapia & Pilates · Avaliação personalizada',
+    bioUrl: 'https://bio.nextia.dev.br/clinicavidaplena',
+    gradient: 'from-emerald-900 to-teal-600',
+    whatsappHref: 'https://wa.me/5511999999999',
+    ctaLabel: 'Falar com a recepção',
+    phone: '(11) 96666-5566',
+    email: 'recepcao@clinicavidaplena.com.br',
+    address: 'Rua da Saúde, 88 · Sala 302',
+    hours: 'Seg–Sex · 07h às 20h',
+    socials: ['@clinicavidaplena', 'LinkedIn'],
+    galleryColors: ['bg-emerald-600', 'bg-teal-600', 'bg-cyan-700'],
+    items: [
+      { id: 'avaliacao', title: 'Avaliação Postural', price: 120 },
+      { id: 'pilates', title: 'Plano Mensal Pilates', price: 290 },
+    ],
+    links: ['Conhecer especialidades', 'Como chegar na clínica'],
+    chatbotGreeting: 'Olá! Posso ajudar a agendar sua avaliação ou tirar dúvidas sobre convênios?',
+  },
+];
+
 function normalizeDomainInput(raw: string): string {
   return raw
     .toLowerCase()
@@ -59,6 +151,7 @@ export default function NextiaBioPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<NextiaBioPlan['id']>('pro');
   const [selectedOptionals, setSelectedOptionals] = useState<string[]>([]);
   const [domainQuery, setDomainQuery] = useState('');
+  const [subdomainSlug, setSubdomainSlug] = useState('');
   const [domainExtension, setDomainExtension] = useState<(typeof DOMAIN_EXTENSIONS)[number]>('.com.br');
   const [domainMode, setDomainMode] = useState<'subdomain' | 'register' | 'connect'>('subdomain');
   const [domainStatus, setDomainStatus] = useState<'idle' | 'available' | 'invalid'>('idle');
@@ -196,65 +289,9 @@ export default function NextiaBioPage() {
             </div>
           </div>
 
-          {/* Mockup realista de smartphone */}
+          {/* Mockup realista de smartphone - Nextia em produção */}
           <div className="lg:col-span-5">
-            <div className="mx-auto max-w-[340px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 p-2 shadow-2xl">
-              <div className="overflow-hidden rounded-[2rem] bg-white">
-                <div className="bg-gradient-to-br from-[#0F2A56] to-[#1677FF] px-5 pt-7 pb-6 text-center text-white">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-xl font-black ring-2 ring-white/30 backdrop-blur">
-                    NB
-                  </div>
-                  <h2 className="mt-3 text-lg font-extrabold">Studio Bella Forma</h2>
-                  <p className="mt-1 text-xs text-blue-100">
-                    Estética &amp; Bem-estar · Atendimento com hora marcada
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md">
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    Falar no WhatsApp
-                  </div>
-                </div>
-
-                <div className="space-y-3 p-4">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#1677FF]">
-                      Catálogo em destaque
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div className="rounded-lg bg-white p-2 shadow-xs">
-                        <p className="text-xs font-bold text-slate-800">Limpeza de Pele</p>
-                        <p className="text-[11px] font-semibold text-[#1677FF]">R$ 140,00</p>
-                      </div>
-                      <div className="rounded-lg bg-white p-2 shadow-xs">
-                        <p className="text-xs font-bold text-slate-800">Combo Spa</p>
-                        <p className="text-[11px] font-semibold text-[#1677FF]">R$ 220,00</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {[
-                    'Agendar horário online',
-                    'Ver localização no mapa',
-                    'Seguir no Instagram',
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700"
-                    >
-                      <span>{item}</span>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#1677FF]" />
-                    </div>
-                  ))}
-
-                  <div className="flex items-center justify-between rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-600">
-                    <span>Seg–Sáb · 09h às 19h</span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-                      <QrCode className="h-3.5 w-3.5 text-[#1677FF]" />
-                      QR Code
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BioPhoneMockup profile={HERO_NEXTIA_DEMO} />
           </div>
         </div>
       </section>
@@ -358,103 +395,12 @@ export default function NextiaBioPage() {
           </div>
 
           <div className="mt-12 grid gap-8 lg:grid-cols-3">
-            {[
-              {
-                segment: 'Estética & Beleza',
-                initials: 'SB',
-                brand: 'Studio Bella Forma',
-                subtitle: 'Estética & Bem-estar · Atendimento com hora marcada',
-                gradient: 'from-[#0F2A56] to-[#1677FF]',
-                cta: 'Agendar pelo WhatsApp',
-                items: [
-                  { title: 'Limpeza de Pele', price: 'R$ 140,00' },
-                  { title: 'Combo Spa', price: 'R$ 220,00' },
-                ],
-                links: ['Agendar horário online', 'Ver localização no mapa'],
-                hours: 'Seg–Sáb · 09h às 19h',
-              },
-              {
-                segment: 'Gastronomia & Delivery',
-                initials: 'BR',
-                brand: 'Bistrô da Praça',
-                subtitle: 'Cardápio artesanal · Delivery e reservas',
-                gradient: 'from-slate-900 to-amber-600',
-                cta: 'Pedir no WhatsApp',
-                items: [
-                  { title: 'Prato Executivo', price: 'R$ 38,90' },
-                  { title: 'Combo Família', price: 'R$ 89,00' },
-                ],
-                links: ['Ver cardápio completo', 'Reservar mesa'],
-                hours: 'Ter–Dom · 11h às 23h',
-              },
-              {
-                segment: 'Saúde & Serviços',
-                initials: 'CV',
-                brand: 'Clínica Vida Plena',
-                subtitle: 'Fisioterapia & Pilates · Avaliação personalizada',
-                gradient: 'from-emerald-900 to-teal-600',
-                cta: 'Falar com a recepção',
-                items: [
-                  { title: 'Avaliação Postural', price: 'R$ 120,00' },
-                  { title: 'Plano Mensal Pilates', price: 'R$ 290,00' },
-                ],
-                links: ['Conhecer especialidades', 'Como chegar na clínica'],
-                hours: 'Seg–Sex · 07h às 20h',
-              },
-            ].map((demo) => (
+            {SEGMENT_DEMOS.map((demo) => (
               <div key={demo.segment} className="flex flex-col items-center">
                 <span className="mb-4 inline-flex items-center rounded-full bg-[#EAF3FF] px-3.5 py-1 text-xs font-bold text-[#1677FF]">
                   {demo.segment}
                 </span>
-                <div className="w-full max-w-[320px] rounded-[2.5rem] border-[10px] border-slate-900 bg-slate-900 p-2 shadow-xl">
-                  <div className="overflow-hidden rounded-[2rem] bg-white">
-                    <div className={`bg-gradient-to-br ${demo.gradient} px-5 pt-7 pb-6 text-center text-white`}>
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-lg font-black ring-2 ring-white/30 backdrop-blur">
-                        {demo.initials}
-                      </div>
-                      <h3 className="mt-3 text-base font-extrabold">{demo.brand}</h3>
-                      <p className="mt-1 text-[11px] text-white/85">{demo.subtitle}</p>
-                      <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md">
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        {demo.cta}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 p-4">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-[#1677FF]">
-                          Destaques
-                        </p>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          {demo.items.map((item) => (
-                            <div key={item.title} className="rounded-lg bg-white p-2 shadow-xs">
-                              <p className="text-xs font-bold text-slate-800">{item.title}</p>
-                              <p className="text-[11px] font-semibold text-[#1677FF]">{item.price}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {demo.links.map((linkLabel) => (
-                        <div
-                          key={linkLabel}
-                          className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-bold text-slate-700"
-                        >
-                          <span>{linkLabel}</span>
-                          <ArrowRight className="h-3.5 w-3.5 text-[#1677FF]" />
-                        </div>
-                      ))}
-
-                      <div className="flex items-center justify-between rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-600">
-                        <span>{demo.hours}</span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-                          <QrCode className="h-3.5 w-3.5 text-[#1677FF]" />
-                          QR Code
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <BioPhoneMockup profile={demo} />
               </div>
             ))}
           </div>
@@ -715,9 +661,26 @@ export default function NextiaBioPage() {
                   </div>
 
                   {domainMode === 'subdomain' ? (
-                    <p className="text-xs font-medium text-emerald-700">
-                      Subdomínio grátis da Nextia selecionado por padrão (sem custo adicional). {!selectedPlan.limits.customDomain && 'Para usar domínio próprio, selecione o Plano Pro ou Premium.'}
-                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:border-[#1677FF]">
+                        <input
+                          type="text"
+                          value={subdomainSlug}
+                          onChange={(e) => setSubdomainSlug(normalizeDomainInput(e.target.value).replace(/\./g, ''))}
+                          placeholder="nomedasuaempresa"
+                          aria-label="Nome da empresa no subdomínio Nextia"
+                          className="flex-1 px-4 py-2.5 text-sm focus:outline-none"
+                        />
+                        <span className="border-l border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-bold text-slate-700">
+                          .nextia.dev.br
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-emerald-700">
+                        Subdomínio grátis da Nextia selecionado por padrão (sem custo adicional):{' '}
+                        <strong>https://{subdomainSlug || 'suaempresa'}.nextia.dev.br</strong>.{' '}
+                        {!selectedPlan.limits.customDomain && 'Para usar domínio próprio, selecione o Plano Pro ou Premium.'}
+                      </p>
+                    </div>
                   ) : (
                     <>
                       <div className="flex flex-col gap-2 sm:flex-row">
