@@ -350,7 +350,7 @@ async function route(req,url,client,session,readJson){
   }
   if(popupMatch&&req.method==='PATCH'){
     await ensureMarketingPopupsSchema(client);
-    const b=await readJson(req);const result=await updateMarketingPopup(client,popupMatch[1],b,session.id);
+    const b=await readJson(req);const result=await updateMarketingPopup(client,popupMatch[1],b);
     if(!result.rows[0])fail('Pop-up não encontrado.',404,'MARKETING_POPUP_NOT_FOUND');
     await audit(client,session.id,'marketing.popup.updated','marketing_popup',popupMatch[1],{type:result.rows[0].type,targetPage:result.rows[0].target_page});return{body:{popup:result.rows[0]}};
   }
@@ -553,22 +553,22 @@ async function insertMarketingPopup(client, b, actorId) {
   if (p.type === 'text' && p.title.length < 2) fail('Informe um título para o pop-up de texto.');
   if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
   const result = await client.query(
-    `INSERT INTO public.marketing_popups(title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,active,delay_seconds,dismiss_hours,starts_at,ends_at,created_by,updated_by)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15) RETURNING *`,
+    `INSERT INTO public.marketing_popups(title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,active,delay_seconds,dismiss_hours,starts_at,ends_at,created_by)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
     [p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
   );
   return result.rows[0];
 }
 
-async function updateMarketingPopup(client, id, b, actorId) {
+async function updateMarketingPopup(client, id, b) {
   const p = popupPayload(b);
   if (p.type === 'text' && p.title.length < 2) fail('Informe um título para o pop-up de texto.');
   if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
   return client.query(
     `UPDATE public.marketing_popups SET
        title=$2,type=$3,target_page=$4,image_url=$5,image_link=$6,image_alt=$7,description=$8,button_text=$9,button_link=$10,
-       active=$11,delay_seconds=$12,dismiss_hours=$13,starts_at=$14,ends_at=$15,updated_by=$16,updated_at=NOW()
+       active=$11,delay_seconds=$12,dismiss_hours=$13,starts_at=$14,ends_at=$15,updated_at=NOW()
      WHERE id=$1 RETURNING *`,
-    [id, p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
+    [id, p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt],
   );
 }
