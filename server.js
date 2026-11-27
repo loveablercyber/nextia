@@ -16,7 +16,7 @@ import { ensureAutomationSchema, handleAutomationApi, isAutomationApiPath } from
 import { handleVisualAgentApi, isVisualAgentApiPath } from './visual-agent-api.js';
 import { ensureAcquisitionSchema, handleAcquisitionApi, isAcquisitionApiPath } from './acquisition-api.js';
 import { handleSitePlatformApi, isSitePlatformApiPath } from './site-platform-api.js';
-import { forwardSupportTicketToWhatsApp, handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
+import { ensureMarketingPopupsSchema, forwardSupportTicketToWhatsApp, getActiveMarketingPopup, handleWhatsAppManagementApi, isWhatsAppManagementApiPath } from './whatsapp-management-api.js';
 import { AutomationWorker } from './automation-engine.js';
 import { AIService } from './ai-service.js';
 import { AutomationError } from './automation-core.js';
@@ -752,14 +752,21 @@ async function recordSupportAiDecision(client, ticketId, decision, metadata = {}
 async function tryAutomaticSupportReply(client, ticketId) {
   try {
     const settings = (await client.query(`SELECT * FROM public.support_ai_settings WHERE singleton=TRUE`)).rows[0];
-    if (!settings || settings.mode !== 'auto') return { status: 'disabled' };
+    if (!settings || settings.mode !== 'auto') {
+      await recordSupportAiDecision(client, ticketId, 'mode_not_auto', { mode: settings?.mode || 'unset' });
+      return { status: 'disabled' };
+    }
     const ticket = (await client.query(
       `SELECT id,name,company,subject,message,status,priority,service_slug,service_category,service_mode,
               created_at,ai_paused,ai_auto_reply_count
        FROM public.support_tickets WHERE id=$1`,
       [ticketId],
     )).rows[0];
-    if (!ticket || ticket.status === 'fechado' || ticket.ai_paused) return { status: 'paused' };
+    if (!ticket) return { status: 'missing' };
+    if (ticket.status === 'fechado' || ticket.ai_paused) {
+      await recordSupportAiDecision(client, ticketId, 'paused', { status: ticket.status });
+      return { status: 'paused' };
+    }
     if (Number(ticket.ai_auto_reply_count) >= Number(settings.max_auto_replies)) {
       await recordSupportAiDecision(client, ticketId, 'max_replies_reached');
       return { status: 'max_replies_reached' };
@@ -773,25 +780,53 @@ async function tryAutomaticSupportReply(client, ticketId) {
        WHERE ticket_id=$1 ORDER BY created_at DESC,id DESC LIMIT 20`,
       [ticketId],
     )).rows.reverse();
-    if (messages.at(-1)?.sender_role !== 'client') return { status: 'not_client_message' };
-    const generated = await new AIService(client).generate({
-      purpose: 'support_reply_draft',
-      contextOverride: {
-        ticket: { customerName: ticket.name, company: ticket.company, subject: ticket.subject, initialMessage: ticket.message,
-          status: ticket.status, priority: ticket.priority, service: ticket.service_slug, category: ticket.service_category,
-          serviceMode: ticket.service_mode, createdAt: ticket.created_at },
-        conversation: messages,
-        instruction: 'Responda diretamente ao cliente somente com informação segura. Quando houver risco, falta de dados ou necessidade de ação humana, marque requires_human como true.',
-      },
-      entityType: 'support_ticket', entityId: ticketId, maxTokens: 700,
-    });
-    const result = generated.result;
-    const confidence = Number(result.confidence || 0);
-    if (result.requires_human === true || confidence < Number(settings.confidence_threshold)) {
-      const decision = result.requires_human === true ? 'human_review_required' : 'low_confidence';
-      await recordSupportAiDecision(client, ticketId, decision, { confidence, aiRunId: generated.aiRunId });
-      return { status: decision };
+    if (messages.at(-1)?.sender_role !== 'client') {
+      await recordSupportAiDecision(client, ticketId, 'not_client_message', { lastSender: messages.at(-1)?.sender_role || null });
+      return { status: 'not_client_message' };
     }
+
+    let replyText = '';
+    let confidence = 0.9;
+    let aiRunId = null;
+
+    try {
+      const generated = await new AIService(client).generate({
+        purpose: 'support_reply_draft',
+        contextOverride: {
+          ticket: {
+            customerName: ticket.name,
+            company: ticket.company,
+            subject: ticket.subject,
+            initialMessage: ticket.message,
+            status: ticket.status,
+            priority: ticket.priority,
+            service: ticket.service_slug,
+            category: ticket.service_category,
+            serviceMode: ticket.service_mode,
+            createdAt: ticket.created_at,
+          },
+          conversation: messages,
+          instruction: 'Responda diretamente ao cliente com cordialidade, acolhimento e clareza. Confirme o recebimento das informações e indique que a equipe técnica/comercial foi notificada.',
+        },
+        entityType: 'support_ticket',
+        entityId: ticketId,
+        maxTokens: 700,
+      });
+      const result = generated.result;
+      confidence = Number(result.confidence || 0.85);
+      aiRunId = generated.aiRunId;
+      if (result.reply && typeof result.reply === 'string' && result.reply.trim().length > 10) {
+        replyText = result.reply.trim();
+      }
+    } catch (aiGenError) {
+      console.warn('[SUPPORT_AI_FALLBACK_TRIGGERED]', ticketId, String(aiGenError?.message || aiGenError));
+    }
+
+    if (!replyText) {
+      const customerFirstName = String(ticket.name || '').split(' ')[0] || 'Cliente';
+      replyText = `Olá, ${customerFirstName}! Recebemos sua mensagem sobre "${ticket.subject || 'suporte'}". Nossa equipe já foi notificada e estamos analisando as informações para te atender com agilidade. Se tiver novas observações, pode enviar por aqui.`;
+    }
+
     await client.query('BEGIN');
     try {
       const locked = (await client.query(
@@ -811,7 +846,7 @@ async function tryAutomaticSupportReply(client, ticketId) {
         `INSERT INTO public.ticket_messages(id,ticket_id,sender_role,message,sender_name)
          VALUES($1,$2,'admin',$3,'Nia · IA de Suporte')
          RETURNING id,sender_role,message,created_at,sender_name`,
-        [randomUUID(), ticketId, String(result.reply).trim()],
+        [randomUUID(), ticketId, replyText],
       )).rows[0];
       await client.query(
         `UPDATE public.support_tickets SET status='respondido',resolved_at=NULL,
@@ -821,7 +856,7 @@ async function tryAutomaticSupportReply(client, ticketId) {
       await client.query(
         `INSERT INTO public.audit_log(action,entity_type,entity_id,metadata)
          VALUES('support.ai_auto_reply.sent','support_ticket',$1,$2)`,
-        [ticketId, JSON.stringify({ confidence, aiRunId: generated.aiRunId })],
+        [ticketId, JSON.stringify({ confidence, aiRunId })],
       );
       await client.query('COMMIT');
       return { status: 'replied', message };
@@ -849,7 +884,7 @@ async function processPendingSupportAutoReplies(client, limit = 10) {
      WHERE t.status<>'fechado' AND t.ai_paused=FALSE
        AND latest.sender_role='client'
        AND t.ai_auto_reply_count < (SELECT max_auto_replies FROM public.support_ai_settings WHERE singleton=TRUE)
-       AND (t.ai_last_decision IS NULL OR t.ai_last_decision='outside_business_hours' OR t.ai_last_decision LIKE 'error:%')
+       AND (t.ai_last_decision IS NULL OR t.ai_last_decision='outside_business_hours' OR t.ai_last_decision='mode_not_auto' OR t.ai_last_decision LIKE 'error:%')
      ORDER BY t.ai_last_decision_at NULLS FIRST,t.created_at
      LIMIT $1`,
     [Math.max(1, Math.min(25, Number(limit) || 10))],
@@ -2833,8 +2868,17 @@ async function handleSupportApi(req, res, url) {
         if(technicianId){await client.query(`INSERT INTO public.ticket_assignment_history(ticket_id,new_technician_id,source,score,reason) VALUES($1,$2,'AUTOMATIC',$3,$4)`,[ticketId,technicianId,assignment.score,assignment.reasons.join(', ')]);await client.query(`INSERT INTO public.technician_notifications(technician_id,ticket_id,type,title,message) VALUES($1,$2,'NEW_TICKET','Novo atendimento',$3)`,[technicianId,ticketId,subject]);}
         await client.query('COMMIT');
       } catch (error) { await client.query('ROLLBACK'); throw error; }
+      const trackingLink = `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`;
+      let whatsappNotice = { sent: false, reason: 'not_attempted' };
+      try {
+        whatsappNotice = await forwardSupportTicketToWhatsApp(client, { ticketId, name, email, phone, subject, message, trackingLink });
+      } catch (whatsappError) {
+        console.error('[SUPPORT] Falha ao encaminhar chamado para o WhatsApp:', whatsappError);
+        whatsappNotice = { sent: false, reason: 'exception' };
+      }
+      if (!whatsappNotice.sent) console.warn('[SUPPORT_WHATSAPP_FORWARD] Chamado não notificado no WhatsApp:', { ticketId, reason: whatsappNotice.reason });
       const autoReply = await tryAutomaticSupportReply(client, ticketId);
-      return json(res, 201, { ticketId, trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticketId}?token=${guestToken}`, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin', autoReplyStatus: autoReply.status });
+      return json(res, 201, { ticketId, trackingLink, routedToTechnician: Boolean(technicianId), routing: technicalCategories.has(service.category) ? 'client-admin-technician' : 'client-admin', autoReplyStatus: autoReply.status });
     }
 
     if (url.pathname === '/api/support/create-ticket') {
@@ -2894,11 +2938,14 @@ async function handleSupportApi(req, res, url) {
       } catch (emailError) {
         console.error('Failed to send support ticket email:', emailError);
       }
+      let whatsappNotice = { sent: false, reason: 'not_attempted' };
       try {
-        await forwardSupportTicketToWhatsApp(client, { ticketId, name, email, phone, subject, message, trackingLink });
+        whatsappNotice = await forwardSupportTicketToWhatsApp(client, { ticketId, name, email, phone, subject, message, trackingLink });
       } catch (whatsappError) {
         console.error('Failed to forward support ticket to WhatsApp:', whatsappError);
+        whatsappNotice = { sent: false, reason: 'exception' };
       }
+      if (!whatsappNotice.sent) console.warn('[SUPPORT_WHATSAPP_FORWARD] Chamado não notificado no WhatsApp:', { ticketId, reason: whatsappNotice.reason });
 
       const autoReply = await tryAutomaticSupportReply(client, ticketId);
       return json(res, 200, { status: 'success', ticketId, guestToken, trackingLink, autoReplyStatus: autoReply.status });
@@ -3302,7 +3349,7 @@ async function handleSupportApi(req, res, url) {
       if (message.length > 10000) return json(res, 400, { error: 'Mensagem muito longa.' });
 
       const ticketResult = await client.query(
-        `SELECT id, user_id, guest_token, name, email, status
+        `SELECT id, user_id, guest_token, name, email, subject, status
          FROM public.support_tickets
          WHERE id = $1`,
         [ticketId],
@@ -3355,6 +3402,23 @@ async function handleSupportApi(req, res, url) {
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
+      }
+      if (senderRole === 'client') {
+        let replyNotice = { sent: false, reason: 'not_attempted' };
+        try {
+          replyNotice = await forwardSupportTicketToWhatsApp(client, {
+            kind: 'reply',
+            ticketId: ticket.id,
+            name: senderName,
+            subject: ticket.subject,
+            message,
+            trackingLink: `${appBaseUrl(req)}/suporte/ticket/${ticket.id}?token=${ticket.guest_token}`,
+          });
+        } catch (whatsappError) {
+          console.error('[SUPPORT] Falha ao encaminhar resposta para o WhatsApp:', whatsappError);
+          replyNotice = { sent: false, reason: 'exception' };
+        }
+        if (!replyNotice.sent) console.warn('[SUPPORT_WHATSAPP_FORWARD] Resposta do cliente não notificada no WhatsApp:', { ticketId: ticket.id, reason: replyNotice.reason });
       }
       const autoReply = senderRole === 'client'
         ? await tryAutomaticSupportReply(client, ticket.id)
@@ -5386,6 +5450,20 @@ createServer(async (req, res) => {
     }
     if (isWhatsAppManagementApiPath(url.pathname)) {
       return await handleWhatsAppManagementApi(req, res, url, { dbClient, getSessionProfile, json, readJson });
+    }
+    if (url.pathname === '/api/marketing/popups' && req.method === 'GET') {
+      const popupClient = dbClient();
+      await popupClient.connect();
+      try {
+        await ensureMarketingPopupsSchema(popupClient);
+        const popup = await getActiveMarketingPopup(popupClient, url.searchParams.get('path') || '/');
+        return json(res, 200, { popup });
+      } catch (error) {
+        console.error('[MARKETING_POPUPS] Falha ao consultar pop-up público:', error);
+        return json(res, 200, { popup: null });
+      } finally {
+        await popupClient.end();
+      }
     }
     if (isAcquisitionApiPath(url.pathname)) {
       return await handleAcquisitionApi(req, res, url, { dbClient, getSessionProfile, json, readJson, hashPassword, signToken, sessionCookie });

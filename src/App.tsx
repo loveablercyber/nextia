@@ -116,6 +116,7 @@ const AdminAiPage = lazy(() => import('./pages/automation/AdminAiPage'));
 const AdminVisualAgentPage = lazy(() => import('./pages/automation/AdminVisualAgentPage'));
 const AdminWhatsAppPage = lazy(() => import('./pages/automation/AdminWhatsAppPage'));
 const VisualAgentWidget = lazy(() => import('./features/avatar/VisualAgentWidget'));
+const MarketingPopupWidget = lazy(() => import('./components/marketing/MarketingPopup'));
 
 // Support & Tickets Pages
 const TicketDetailPage = lazy(() => import('./pages/TicketDetailPage'));
@@ -737,6 +738,7 @@ export default function App() {
                 <AppRoutes />
               </Suspense>
               <VisualAgentMount />
+              <Suspense fallback={null}><MarketingPopupWidget /></Suspense>
             </ServiceEngagementProvider>
           </BrowserRouter>
         </NotificationProvider>

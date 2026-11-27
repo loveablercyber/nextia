@@ -331,38 +331,244 @@ async function route(req,url,client,session,readJson){
     else fail('Ação de campanha inválida.');if(!result.rows[0])fail('Campanha não encontrada ou transição inválida.',409);await audit(client,session.id,`whatsapp.campaign.${action}`,'whatsapp_campaign',campaignAction[1],{});return{body:{campaign:result.rows[0]}};
   }
 
+  if(path==='/api/admin/whatsapp/popups'&&req.method==='GET'){
+    await ensureMarketingPopupsSchema(client);
+    const result=await client.query(`SELECT * FROM public.marketing_popups ORDER BY created_at DESC`);return{body:{popups:result.rows}};
+  }
+  if(path==='/api/admin/whatsapp/popups'&&req.method==='POST'){
+    await ensureMarketingPopupsSchema(client);
+    const b=await readJson(req);const row=await insertMarketingPopup(client,b,session.id);
+    await audit(client,session.id,'marketing.popup.created','marketing_popup',row.id,{type:row.type,targetPage:row.target_page});return{status:201,body:{popup:row}};
+  }
+  const popupMatch=path.match(/^\/api\/admin\/whatsapp\/popups\/([0-9a-f-]{36})(?:\/(toggle))?$/i);
+  if(popupMatch&&popupMatch[2]==='toggle'&&req.method==='PATCH'){
+    await ensureMarketingPopupsSchema(client);
+    const b=await readJson(req);const active=b.active===true;
+    const result=await client.query(`UPDATE public.marketing_popups SET active=$2,updated_at=NOW() WHERE id=$1 RETURNING *`,[popupMatch[1],active]);
+    if(!result.rows[0])fail('Pop-up não encontrado.',404,'MARKETING_POPUP_NOT_FOUND');
+    await audit(client,session.id,'marketing.popup.toggled','marketing_popup',popupMatch[1],{active});return{body:{popup:result.rows[0]}};
+  }
+  if(popupMatch&&req.method==='PATCH'){
+    await ensureMarketingPopupsSchema(client);
+    const b=await readJson(req);const result=await updateMarketingPopup(client,popupMatch[1],b,session.id);
+    if(!result.rows[0])fail('Pop-up não encontrado.',404,'MARKETING_POPUP_NOT_FOUND');
+    await audit(client,session.id,'marketing.popup.updated','marketing_popup',popupMatch[1],{type:result.rows[0].type,targetPage:result.rows[0].target_page});return{body:{popup:result.rows[0]}};
+  }
+  if(popupMatch&&req.method==='DELETE'){
+    await ensureMarketingPopupsSchema(client);
+    const result=await client.query(`DELETE FROM public.marketing_popups WHERE id=$1 RETURNING id`,[popupMatch[1]]);
+    if(!result.rows[0])fail('Pop-up não encontrado.',404,'MARKETING_POPUP_NOT_FOUND');
+    await audit(client,session.id,'marketing.popup.deleted','marketing_popup',popupMatch[1],{});return{body:{deleted:true}};
+  }
+
   return{status:404,body:{error:'Rota do módulo de WhatsApp não encontrada.'}};
 }
 
 /**
- * Encaminha um novo chamado de suporte para o WhatsApp conectado no bot do painel admin.
+ * Encaminha abertura ou nova resposta em chamado de suporte para o WhatsApp conectado no bot do painel admin.
  */
 export async function forwardSupportTicketToWhatsApp(client, ticket, sendText = sendEvolutionText) {
+  try {
+    const instances = await client.query(
+      `SELECT * FROM public.whatsapp_instances
+       ORDER BY last_connected_at DESC NULLS LAST, created_at ASC`,
+    );
+    const all = instances.rows;
+    const connected = all.filter((item) => item.enabled === true && item.connection_status === 'connected');
+    if (!connected.length) {
+      console.warn('[WHATSAPP_FORWARD_SUPPORT] Nenhuma instância de WhatsApp habilitada e conectada para notificar o suporte.', {
+        totalInstances: all.length,
+        enabled: all.filter((item) => item.enabled).length,
+        statuses: all.map((item) => `${item.label || item.instance_name}:${item.connection_status}${item.enabled ? '' : ' (desabilitada)'}`),
+      });
+      return { sent: false, reason: 'no_connected_instance' };
+    }
+    const instance = connected[0];
+
+    let targetPhone = instance.configuration?.support_forward_phone;
+    let phoneSource = targetPhone ? 'instance.configuration.support_forward_phone' : '';
+    if (!targetPhone) {
+      const setting = await client.query(
+        `SELECT value #>> '{}' AS phone FROM public.automation_settings WHERE key='support.whatsapp_forward_phone'`,
+      ).catch(() => ({ rows: [] }));
+      targetPhone = setting.rows[0]?.phone;
+      if (targetPhone) phoneSource = 'automation_settings.support.whatsapp_forward_phone';
+    }
+    if (!targetPhone) {
+      const adminProfile = await client.query(
+        `SELECT phone FROM public.profiles WHERE role='admin' AND phone IS NOT NULL AND phone <> '' ORDER BY created_at ASC LIMIT 1`,
+      ).catch(() => ({ rows: [] }));
+      targetPhone = adminProfile.rows[0]?.phone;
+      if (targetPhone) phoneSource = 'admin_profile.phone';
+    }
+    if (!targetPhone) {
+      targetPhone = process.env.ADMIN_WHATSAPP_PHONE || process.env.VITE_WHATSAPP_NUMBER;
+      if (targetPhone) phoneSource = 'environment';
+    }
+
+    let destinationPhone = '';
+    try {
+      destinationPhone = normalizeWhatsAppNumber(targetPhone || instance.phone_number_masked || '');
+    } catch {
+      destinationPhone = '';
+    }
+
+    if (!destinationPhone) {
+      console.warn('[WHATSAPP_FORWARD_SUPPORT] Número de destino inválido ou não configurado.', { targetPhone, source: phoneSource, instance: instance.label });
+      return { sent: false, reason: 'no_destination_phone', instanceId: instance.id };
+    }
+
+    let ownNumber = '';
+    try {
+      ownNumber = normalizeWhatsAppNumber(instance.phone_number_masked || '');
+    } catch {
+      ownNumber = '';
+    }
+    if (ownNumber && destinationPhone === ownNumber) {
+      console.warn('[WHATSAPP_FORWARD_SUPPORT] O número de destino é o próprio número da instância (bot). Configure support_forward_phone com o WhatsApp de um atendente.', { destinationPhone, instance: instance.label });
+    }
+
+    const isReply = ticket.kind === 'reply';
+    const lines = isReply
+      ? [
+          '🔔 *Nova resposta no suporte*',
+          ticket.ticketId ? `Chamado: #${ticket.ticketId}` : null,
+          `Cliente: ${clean(ticket.name, 120) || '-'}`,
+          ticket.subject ? `Assunto: ${clean(ticket.subject, 200)}` : null,
+          '',
+          `*Mensagem:*`,
+          clean(ticket.message, 2500) || '-',
+          ticket.trackingLink ? `\nAcessar chamado: ${ticket.trackingLink}` : null,
+        ].filter((line) => line !== null)
+      : [
+          '🛎️ *Novo chamado de suporte*',
+          ticket.ticketId ? `Chamado: #${ticket.ticketId}` : null,
+          `Nome: ${clean(ticket.name, 120) || '-'}`,
+          `E-mail: ${clean(ticket.email, 160) || '-'}`,
+          ticket.phone ? `Telefone: ${clean(ticket.phone, 40)}` : null,
+          `Assunto: ${clean(ticket.subject, 200) || '-'}`,
+          '',
+          `*Mensagem:*`,
+          clean(ticket.message, 2500) || '-',
+          ticket.trackingLink ? `\nAcessar chamado: ${ticket.trackingLink}` : null,
+        ].filter((line) => line !== null);
+
+    await sendText(instance, { number: destinationPhone, text: lines.join('\n') });
+    console.log('[WHATSAPP_FORWARD_SUPPORT] Notificação de suporte enviada com sucesso.', { destinationPhone, source: phoneSource, isReply, ticketId: ticket.ticketId, instance: instance.label });
+    return { sent: true, instanceId: instance.id, phone: destinationPhone };
+  } catch (error) {
+    console.error('[WHATSAPP_FORWARD_SUPPORT_ERROR] Falha ao enviar notificação de suporte para o WhatsApp.', { message: String(error?.message || error), code: error?.code, ticketId: ticket?.ticketId });
+    return { sent: false, error: String(error.message || error) };
+  }
+}
+
+export async function ensureMarketingPopupsSchema(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.marketing_popups (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('image','text')),
+      target_page TEXT NOT NULL DEFAULT '/',
+      image_url TEXT,
+      image_link TEXT,
+      image_alt TEXT,
+      headline TEXT,
+      description TEXT,
+      badge_text TEXT,
+      button_text TEXT,
+      button_link TEXT,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      delay_seconds INTEGER NOT NULL DEFAULT 2,
+      dismiss_hours INTEGER NOT NULL DEFAULT 24,
+      created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;
+    ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
+    CREATE INDEX IF NOT EXISTS idx_marketing_popups_target_active ON public.marketing_popups (target_page, active);
+  `);
+}
+
+export async function getActiveMarketingPopup(client, pathname) {
+  await ensureMarketingPopupsSchema(client);
+  const path = String(pathname || '/').trim() || '/';
   const result = await client.query(
-    `SELECT * FROM public.whatsapp_instances
-     WHERE enabled = TRUE AND connection_status = 'connected'
-     ORDER BY last_connected_at DESC NULLS LAST, created_at ASC
+    `SELECT id,title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,delay_seconds,dismiss_hours
+     FROM public.marketing_popups
+     WHERE active=TRUE
+       AND (target_page='*' OR target_page=$1)
+       AND (starts_at IS NULL OR starts_at<=NOW())
+       AND (ends_at IS NULL OR ends_at>=NOW())
+     ORDER BY created_at DESC
      LIMIT 1`,
+    [path],
   );
-  const instance = result.rows[0];
-  if (!instance) return { sent: false, reason: 'no_connected_instance' };
+  return result.rows[0] || null;
+}
 
-  const rawPhone = instance.configuration?.support_forward_phone || instance.phone_number_masked || '';
-  const destinationPhone = normalizeWhatsAppNumber(rawPhone);
-  if (!destinationPhone) return { sent: false, reason: 'no_destination_phone', instanceId: instance.id };
+function safeLink(value) {
+  const v = String(value || '').trim();
+  if (!v) return null;
+  if (/^(https?:\/\/|\/|#|mailto:)/i.test(v)) return v.slice(0, 2000);
+  return null;
+}
 
-  const lines = [
-    '*Novo chamado de suporte*',
-    ticket.ticketId ? `Ticket: #${ticket.ticketId}` : null,
-    `Nome: ${clean(ticket.name, 120) || '-'}`,
-    `E-mail: ${clean(ticket.email, 160) || '-'}`,
-    ticket.phone ? `Telefone: ${clean(ticket.phone, 40)}` : null,
-    `Assunto: ${clean(ticket.subject, 200) || '-'}`,
-    '',
-    clean(ticket.message, 2500) || '-',
-    ticket.trackingLink ? `\nAcompanhar: ${ticket.trackingLink}` : null,
-  ].filter((line) => line !== null);
+function safeImageUrl(value) {
+  const v = String(value || '').trim();
+  if (!v) return null;
+  if (/^(https?:\/\/|\/|data:image\/)/i.test(v)) return v.slice(0, 2000);
+  return null;
+}
 
-  await sendText(instance, { number: destinationPhone, text: lines.join('\n') });
-  return { sent: true, instanceId: instance.id, phone: destinationPhone };
+function popupPayload(b) {
+  const type = b.type === 'image' ? 'image' : 'text';
+  const targetPage = String(b.targetPage || '/').trim();
+  return {
+    type,
+    title: clean(b.title, 200),
+    targetPage: targetPage === '*' ? '*' : (targetPage.startsWith('/') ? targetPage : `/${targetPage}`).slice(0, 200),
+    imageUrl: type === 'image' ? safeImageUrl(b.imageUrl) : null,
+    imageLink: type === 'image' ? safeLink(b.imageLink) : null,
+    imageAlt: type === 'image' ? clean(b.imageAlt, 200) || null : null,
+    description: type === 'text' ? String(b.description || '').trim().slice(0, 2000) || null : null,
+    buttonText: type === 'text' ? clean(b.buttonText, 80) || null : null,
+    buttonLink: type === 'text' ? safeLink(b.buttonLink) : null,
+    active: b.active !== false,
+    delaySeconds: Math.min(60, Math.max(0, Number(b.delaySeconds) || 0)),
+    dismissHours: Math.min(720, Math.max(1, Number(b.dismissHours) || 24)),
+    startsAt: validDate(b.startsAt),
+    endsAt: validDate(b.endsAt),
+  };
+}
+
+function validDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+async function insertMarketingPopup(client, b, actorId) {
+  const p = popupPayload(b);
+  if (p.type === 'text' && p.title.length < 2) fail('Informe um título para o pop-up de texto.');
+  if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
+  const result = await client.query(
+    `INSERT INTO public.marketing_popups(title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,active,delay_seconds,dismiss_hours,starts_at,ends_at,created_by,updated_by)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15) RETURNING *`,
+    [p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
+  );
+  return result.rows[0];
+}
+
+async function updateMarketingPopup(client, id, b, actorId) {
+  const p = popupPayload(b);
+  if (p.type === 'text' && p.title.length < 2) fail('Informe um título para o pop-up de texto.');
+  if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
+  return client.query(
+    `UPDATE public.marketing_popups SET
+       title=$2,type=$3,target_page=$4,image_url=$5,image_link=$6,image_alt=$7,description=$8,button_text=$9,button_link=$10,
+       active=$11,delay_seconds=$12,dismiss_hours=$13,starts_at=$14,ends_at=$15,updated_by=$16,updated_at=NOW()
+     WHERE id=$1 RETURNING *`,
+    [id, p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
+  );
 }
