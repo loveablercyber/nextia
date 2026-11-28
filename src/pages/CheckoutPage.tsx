@@ -197,7 +197,28 @@ export default function CheckoutPage() {
   }, [params, selection]);
 
   const [domain, setDomain] = useState(() => params.get('domain') || '');
-  const [domainMode, setDomainMode] = useState<'register' | 'connect'>(() => ['connect', 'transfer'].includes(params.get('domainMode') || '') ? 'connect' : 'register');
+  const [domainMode, setDomainMode] = useState<'subdomain' | 'register' | 'connect'>(() => {
+    const modeParam = params.get('domainMode') || '';
+    if ((params.get('service') || '') === 'nextia-bio') {
+      if (modeParam === 'register') return 'register';
+      if (modeParam === 'transfer') return 'connect';
+      if (modeParam === 'connect' && (params.get('domain') || '').toLowerCase().endsWith('.nextia.dev.br')) return 'subdomain';
+      if (!modeParam) return 'subdomain';
+      return 'connect';
+    }
+    return ['connect', 'transfer'].includes(modeParam) ? 'connect' : 'register';
+  });
+  const [subdomainSlug, setSubdomainSlug] = useState<string>(() => {
+    const raw = (params.get('domain') || '').toLowerCase();
+    return raw.endsWith('.nextia.dev.br') ? raw.slice(0, -'.nextia.dev.br'.length).replace(/[^a-z0-9-]/g, '') : '';
+  });
+  const isNextiaBio = isDigital && selection?.slug === 'nextia-bio';
+  const effectiveDomain = isNextiaBio && domainMode === 'subdomain'
+    ? `${subdomainSlug.trim()}.nextia.dev.br`
+    : domain.trim();
+  const domainReady = isNextiaBio && domainMode === 'subdomain'
+    ? subdomainSlug.trim().length >= 2
+    : domain.trim().length >= 4;
   const [notes, setNotes] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -223,7 +244,7 @@ export default function CheckoutPage() {
         templateId: selection.kind === 'draft' ? draft?.model_id : params.get('template'),
         draftId: selection.kind === 'draft' ? selection.id : undefined,
         addonCodes: selection.kind === 'draft' ? undefined : (params.get('options') || '').split(',').map((code) => code.trim()).filter(Boolean),
-        domain: isDigital && domain.trim() ? { name: domain.trim(), mode: domainMode } : undefined,
+        domain: isDigital && domainReady ? { name: effectiveDomain, mode: domainMode === 'subdomain' ? 'connect' : domainMode } : undefined,
         demoProjectKey: demoProjectKey || undefined,
         funnelSessionKey: funnelSessionKey || undefined,
         funnelAccessToken: funnelAccessToken || undefined,
@@ -243,7 +264,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let active = true;
-    if (linkedQuoteId || !selection || (isDigital && domain.trim().length < 4)) {
+    if (linkedQuoteId || !selection || (isDigital && !domainReady)) {
       const resetTimer = window.setTimeout(() => {
         if (active) setPreview(null);
       }, 0);
@@ -274,7 +295,7 @@ export default function CheckoutPage() {
     };
     // createPreview is intentionally driven by primitive commercial selections.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoProjectKey, domain, domainMode, draft?.id, funnelAccessToken, funnelSessionKey, isDigital, linkedQuoteId, selection?.id, selection?.kind]);
+  }, [demoProjectKey, domain, domainMode, draft?.id, funnelAccessToken, funnelSessionKey, isDigital, linkedQuoteId, selection?.id, selection?.kind, subdomainSlug]);
 
   if (loadingDraft) {
     return (
@@ -315,8 +336,10 @@ export default function CheckoutPage() {
   }
 
   const submit = async () => {
-    if (isDigital && !domain.trim()) {
-      setError('Por favor, informe o domínio desejado para a configuração do seu projeto digital.');
+    if (isDigital && !domainReady) {
+      setError(isNextiaBio && domainMode === 'subdomain'
+        ? 'Por favor, informe o nome do subdomínio Nextia desejado (ex: suaempresa).'
+        : 'Por favor, informe o domínio desejado para a configuração do seu projeto digital.');
       return;
     }
     if (!accepted) {
@@ -433,24 +456,79 @@ export default function CheckoutPage() {
                   Domínio para configuração <span className="text-xs text-red-500 font-normal">(obrigatório)</span>
                 </label>
                 <p className="mt-1 text-sm text-slate-600">
-                  Informe o domínio onde seu site ou sistema será hospedado (ex: <code>meusite.com.br</code> ou <code>loja.com.br</code>).
+                  {isNextiaBio
+                    ? 'Escolha entre o subdomínio grátis da Nextia ou um domínio próprio para a sua página.'
+                    : 'Informe o domínio onde seu site ou sistema será hospedado (ex: <code>meusite.com.br</code> ou <code>loja.com.br</code>).'}
                 </p>
-                <input
-                  id="checkout-domain"
-                  type="text"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="ex: meusite.com.br"
-                  className="mt-3 w-full rounded border border-slate-300 bg-white p-3 text-base font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-[#1677FF] focus:outline-none"
-                />
+                {isNextiaBio && domainMode === 'subdomain' ? (
+                  <div className="mt-3 flex items-center overflow-hidden rounded border border-slate-300 bg-white focus-within:border-[#1677FF]">
+                    <input
+                      id="checkout-domain"
+                      type="text"
+                      value={subdomainSlug}
+                      onChange={(e) => setSubdomainSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="nomedasuaempresa"
+                      aria-label="Nome do subdomínio Nextia"
+                      className="flex-1 p-3 text-base font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <span className="border-l border-slate-200 bg-slate-100 px-4 py-3 text-base font-bold text-slate-700">
+                      .nextia.dev.br
+                    </span>
+                  </div>
+                ) : (
+                  <input
+                    id="checkout-domain"
+                    type="text"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    placeholder="ex: meusite.com.br"
+                    className="mt-3 w-full rounded border border-slate-300 bg-white p-3 text-base font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-[#1677FF] focus:outline-none"
+                  />
+                )}
                 <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
                   <legend className="sr-only">Forma de uso do domínio</legend>
+                  {isNextiaBio && (
+                    <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'subdomain' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+                      <input
+                        className="mr-2 accent-[#1677FF]"
+                        type="radio"
+                        name="domain-mode"
+                        checked={domainMode === 'subdomain'}
+                        onChange={() => {
+                          setDomainMode('subdomain');
+                          const lower = domain.trim().toLowerCase();
+                          if (lower.endsWith('.nextia.dev.br') && !subdomainSlug) {
+                            setSubdomainSlug(lower.slice(0, -'.nextia.dev.br'.length).replace(/[^a-z0-9-]/g, ''));
+                          }
+                        }}
+                      />
+                      Subdomínio Nextia (grátis)
+                    </label>
+                  )}
                   <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'register' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
-                    <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'register'} onChange={() => setDomainMode('register')} />
+                    <input
+                      className="mr-2 accent-[#1677FF]"
+                      type="radio"
+                      name="domain-mode"
+                      checked={domainMode === 'register'}
+                      onChange={() => {
+                        setDomainMode('register');
+                        if (domain.trim().toLowerCase().endsWith('.nextia.dev.br')) setDomain('');
+                      }}
+                    />
                     Registrar domínio (+ {domainRegistrationPrice})
                   </label>
                   <label className={`cursor-pointer rounded border p-3 text-sm ${domainMode === 'connect' ? 'border-[#1677FF] bg-blue-50 text-blue-900' : 'border-slate-200 bg-white text-slate-700'}`}>
-                    <input className="mr-2 accent-[#1677FF]" type="radio" name="domain-mode" checked={domainMode === 'connect'} onChange={() => setDomainMode('connect')} />
+                    <input
+                      className="mr-2 accent-[#1677FF]"
+                      type="radio"
+                      name="domain-mode"
+                      checked={domainMode === 'connect'}
+                      onChange={() => {
+                        setDomainMode('connect');
+                        if (domain.trim().toLowerCase().endsWith('.nextia.dev.br')) setDomain('');
+                      }}
+                    />
                     Conectar domínio existente
                   </label>
                 </fieldset>
@@ -499,14 +577,14 @@ export default function CheckoutPage() {
 
             <div className="mt-6 border-y border-white/15 py-5 space-y-4">
               {previewLoading && <p className="flex items-center gap-2 text-sm text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Calculando valores...</p>}
-              {isDigital && domain.trim() && (
+              {isDigital && effectiveDomain && (
                 <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 p-3">
                   <div className="flex justify-between gap-3 text-sm">
-                    <span className="text-cyan-100">{domainMode === 'register' ? 'Registro de domínio' : 'Conectar domínio existente'}</span>
+                    <span className="text-cyan-100">{isNextiaBio && domainMode === 'subdomain' ? 'Subdomínio Nextia' : domainMode === 'register' ? 'Registro de domínio' : 'Conectar domínio existente'}</span>
                     <strong>{domainMode === 'register' ? `${domainRegistrationPrice}/ano` : money.format(0)}</strong>
                   </div>
-                  <p className="mt-1 break-all text-xs font-semibold text-white">{domain.trim().toLowerCase()}</p>
-                  <p className="mt-1 text-xs text-cyan-100/80">{domainMode === 'register' ? 'Registro válido por 1 ano.' : 'Sem cobrança de registro para um domínio que já pertence a você.'}</p>
+                  <p className="mt-1 break-all text-xs font-semibold text-white">{effectiveDomain.toLowerCase()}</p>
+                  <p className="mt-1 text-xs text-cyan-100/80">{isNextiaBio && domainMode === 'subdomain' ? 'Subdomínio gratuito da Nextia, sem custo adicional.' : domainMode === 'register' ? 'Registro válido por 1 ano.' : 'Sem cobrança de registro para um domínio que já pertence a você.'}</p>
                 </div>
               )}
               {nonDomainOneTimeItems?.map((item) => (
