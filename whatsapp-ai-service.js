@@ -27,11 +27,14 @@ async function contextForMessage(client,messageId){
 }
 
 async function buildContext(client,row){
-  const [history,knowledge,services,siteContent,lead,support]=await Promise.all([
+  const [history,knowledge,services,plans,addons,templates,siteContent,lead,support]=await Promise.all([
     client.query(`SELECT direction,sender_type,body,created_at FROM public.whatsapp_messages WHERE conversation_id=$1 AND body IS NOT NULL ORDER BY created_at DESC LIMIT $2`,[row.conversation_id,Math.max(1,Number(row.context_limit)||12)]),
     client.query(`SELECT title,category,question_variations,short_answer,full_answer,recommended_followups,related_service_slugs,requires_human_handoff
       FROM public.whatsapp_knowledge_articles WHERE status='active' AND (instance_id=$1 OR (instance_id IS NULL AND organization_id IS NOT DISTINCT FROM $2)) ORDER BY priority,title LIMIT 100`,[row.instance_id,row.organization_id]),
     client.query(`SELECT slug,name,category,price_cents,price_label,recurring FROM public.commercial_services WHERE active=TRUE ORDER BY sort_order,name LIMIT 100`),
+    client.query(`SELECT id,name,monthly_amount_cents,activation_amount_cents FROM public.commercial_plans WHERE active=TRUE ORDER BY sort_order,id`),
+    client.query(`SELECT code,name,description,amount_cents,billing_cycle,service_slug FROM public.commercial_addons WHERE active=TRUE ORDER BY service_slug,code`),
+    client.query(`SELECT id,slug,service_slug,name,category,description,price_cents AS monthly_price_cents,activation_fee_cents FROM public.commercial_store_templates WHERE active=TRUE ORDER BY sort_order,name LIMIT 100`),
     row.site_content_enabled!==false?client.query(`SELECT title,slug,excerpt,LEFT(content_markdown,6000) content_markdown,related_service_slug,cta_label,cta_path
       FROM public.content_entries WHERE status='published' ORDER BY published_at DESC LIMIT 30`):Promise.resolve({rows:[]}),
     row.crm_lead_id&&row.crm_context_enabled!==false?client.query(`SELECT public_code,name,company_name,segment_slug,service_slug,product_slug,plan_slug,status,score,notes FROM public.crm_leads WHERE id=$1`,[row.crm_lead_id]):Promise.resolve({rows:[]}),
@@ -40,7 +43,8 @@ async function buildContext(client,row){
   return sanitizeForLog({
     channel:'whatsapp',assistant:{name:row.assistant_name,business:row.business_name,personality:row.personality_mode,instructions:row.system_prompt},
     contact:{name:row.contact_name,company:row.company_name,segment:row.segment_slug},currentMessage:row.body,
-    recentHistory:history.rows.reverse(),knowledge:knowledge.rows,serviceCatalog:services.rows,siteContent:siteContent.rows,crm:lead.rows[0]||null,supportTickets:support,
+    recentHistory:history.rows.reverse(),knowledge:knowledge.rows,serviceCatalog:services.rows,planCatalog:plans.rows,serviceAddons:addons.rows,storeTemplates:templates.rows,siteContent:siteContent.rows,crm:lead.rows[0]||null,supportTickets:support,
+    pricingNote:'Todos os valores monetários estão em centavos (ex.: 5900 = R$ 59,00). Apresente os preços em reais usando vírgula decimal.',
     rules:{doNotInvent:true,oneQuestionAtATime:true,handoffAvailable:row.human_transfer_enabled!==false},
   });
 }
