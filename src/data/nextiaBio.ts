@@ -124,7 +124,7 @@ export const NEXTIA_BIO_OPTIONALS: NextiaBioOptional[] = [
     code: 'domain-registration',
     name: 'Domínio personalizado',
     description: 'Substitua o endereço padrão por um domínio exclusivo para sua marca (ex: www.suaempresa.com.br), transmitindo mais profissionalismo e credibilidade.',
-    price: 79,
+    price: 50,
     billingType: 'annual',
     billingLabel: 'pagamento anual',
     compatiblePlans: ['pro', 'business'],

@@ -57,6 +57,20 @@ UPDATE public.commercial_services
 SET recurring = TRUE, updated_at = NOW()
 WHERE slug IN ('sites-prontos', 'lojas-virtuais') AND recurring = FALSE;
 
+INSERT INTO public.commercial_addons (code, name, description, amount_cents, billing_cycle, service_slug, active)
+VALUES
+  ('bio-advanced-customization', 'Personalização avançada', 'Ajustes visuais e apresentação profissional para o Nextia Bio.', 14900, 'one_time', 'nextia-bio', TRUE),
+  ('bio-expanded-catalog', 'Catálogo expandido', 'Maior capacidade de itens e organização comercial no Nextia Bio.', 3900, 'monthly', 'nextia-bio', TRUE),
+  ('bio-assisted-setup', 'Configuração assistida', 'Auxílio da equipe Nextia na configuração inicial do Nextia Bio.', 12900, 'one_time', 'nextia-bio', TRUE),
+  ('bio-ai-whatsapp', 'Automação de atendimento com IA', 'Automação complementar de atendimento no WhatsApp com IA.', 19900, 'monthly', 'nextia-bio', TRUE)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  amount_cents = EXCLUDED.amount_cents,
+  billing_cycle = EXCLUDED.billing_cycle,
+  service_slug = EXCLUDED.service_slug,
+  active = TRUE;
+
 CREATE TABLE IF NOT EXISTS public.commercial_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,

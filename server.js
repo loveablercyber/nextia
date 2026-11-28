@@ -717,6 +717,10 @@ const OPTIONAL_PRICES = {
   'opt-alertas-imoveis': { monthly: 2900, activation: 0 },
   'opt-rd-meta-google': { monthly: 7900, activation: 0 },
   'opt-chatbot-imobiliario': { monthly: 4900, activation: 0 },
+  'bio-advanced-customization': { monthly: 0, activation: 14900 },
+  'bio-expanded-catalog': { monthly: 3900, activation: 0 },
+  'bio-assisted-setup': { monthly: 0, activation: 12900 },
+  'bio-ai-whatsapp': { monthly: 19900, activation: 0 },
 };
 
 function addonDisplayName(code) {

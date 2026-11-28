@@ -138,6 +138,10 @@ export default function NextiaBioPage() {
     if (checkedDomain && targetPlan.limits.customDomain && domainMode !== 'subdomain') {
       query.set('domain', checkedDomain);
       query.set('domainMode', domainMode);
+    } else {
+      const sub = subdomainSlug || 'suaempresa';
+      query.set('domain', `${sub}.nextia.dev.br`);
+      query.set('domainMode', 'connect');
     }
     navigate(`/checkout?${query.toString()}`);
   };

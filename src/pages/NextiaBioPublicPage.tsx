@@ -15,7 +15,7 @@ export default function NextiaBioPublicPage() {
       <Seo
         title={`${profile.brand} — Nextia Bio`}
         description={profile.subtitle}
-        path={profile.bioPath}
+        path={isGallery ? `${profile.bioPath}/galeria` : profile.bioPath}
       />
 
       {isGallery ? (

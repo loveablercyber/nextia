@@ -30,6 +30,8 @@ const staticEntries = [
   ['/sites', 'Criação de Sites Profissionais | Nextia', 'Sites profissionais, responsivos e preparados para apresentar sua empresa e captar oportunidades.', 'monthly', '0.9'],
   ['/landing-pages', 'Landing Pages Profissionais | Nextia', 'Landing pages responsivas e orientadas a conversão para campanhas e serviços reais.', 'monthly', '0.8'],
   ['/lojas-virtuais', 'Lojas Virtuais | Nextia', 'Lojas virtuais profissionais com catálogo, checkout e integrações adequadas ao seu negócio.', 'monthly', '0.8'],
+  ['/nextia-bio', 'Nextia Bio — Sua página profissional de presença digital | Nextia', 'Crie sua página profissional com o Nextia Bio, divulgue produtos e serviços e receba clientes pelo WhatsApp.', 'monthly', '0.9'],
+  ['/bio/nextia', 'Nextia Tecnologia — Nextia Bio | Nextia', 'Página oficial de apresentação da Nextia Tecnologia no Nextia Bio.', 'monthly', '0.7'],
   ['/sistemas', 'Sistemas Sob Medida | Nextia', 'Sistemas sob medida para organizar processos e integrar a operação da sua empresa.', 'monthly', '0.8'],
   ['/automacao-ia', 'Automação e Inteligência Artificial | Nextia', 'Automação responsável de processos e atendimento com inteligência artificial.', 'monthly', '0.9'],
   ['/chatbot', 'Chatbots para Empresas | Nextia', 'Chatbots para triagem e atendimento integrados aos processos da empresa.', 'monthly', '0.8'],

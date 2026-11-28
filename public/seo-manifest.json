@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-07T18:38:19.690Z",
+  "generatedAt": "2026-11-27T19:09:02.125Z",
   "entries": [
     {
       "path": "/",
@@ -35,6 +35,24 @@
       "description": "Lojas virtuais profissionais com catálogo, checkout e integrações adequadas ao seu negócio.",
       "changefreq": "monthly",
       "priority": "0.8",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/nextia-bio",
+      "title": "Nextia Bio — Sua página profissional de presença digital | Nextia",
+      "description": "Crie sua página profissional com o Nextia Bio, divulgue produtos e serviços e receba clientes pelo WhatsApp.",
+      "changefreq": "monthly",
+      "priority": "0.9",
+      "indexable": true,
+      "type": "website"
+    },
+    {
+      "path": "/bio/nextia",
+      "title": "Nextia Tecnologia — Nextia Bio | Nextia",
+      "description": "Página oficial de apresentação da Nextia Tecnologia no Nextia Bio.",
+      "changefreq": "monthly",
+      "priority": "0.7",
       "indexable": true,
       "type": "website"
     },
