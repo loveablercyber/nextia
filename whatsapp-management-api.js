@@ -472,6 +472,8 @@ export async function ensureMarketingPopupsSchema(client) {
       image_url TEXT,
       image_link TEXT,
       image_alt TEXT,
+      image_width INTEGER,
+      image_height INTEGER,
       headline TEXT,
       description TEXT,
       badge_text TEXT,
@@ -486,6 +488,8 @@ export async function ensureMarketingPopupsSchema(client) {
     );
     ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;
     ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS ends_at TIMESTAMPTZ;
+    ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS image_width INTEGER;
+    ALTER TABLE public.marketing_popups ADD COLUMN IF NOT EXISTS image_height INTEGER;
     CREATE INDEX IF NOT EXISTS idx_marketing_popups_target_active ON public.marketing_popups (target_page, active);
   `);
 }
@@ -494,7 +498,7 @@ export async function getActiveMarketingPopup(client, pathname) {
   await ensureMarketingPopupsSchema(client);
   const path = String(pathname || '/').trim() || '/';
   const result = await client.query(
-    `SELECT id,title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,delay_seconds,dismiss_hours
+    `SELECT id,title,type,target_page,image_url,image_link,image_alt,image_width,image_height,description,button_text,button_link,delay_seconds,dismiss_hours
      FROM public.marketing_popups
      WHERE active=TRUE
        AND (target_page='*' OR target_page=$1)
@@ -531,6 +535,8 @@ function popupPayload(b) {
     imageUrl: type === 'image' ? safeImageUrl(b.imageUrl) : null,
     imageLink: type === 'image' ? safeLink(b.imageLink) : null,
     imageAlt: type === 'image' ? clean(b.imageAlt, 200) || null : null,
+    imageWidth: type === 'image' ? pxSize(b.imageWidth) : null,
+    imageHeight: type === 'image' ? pxSize(b.imageHeight) : null,
     description: type === 'text' ? String(b.description || '').trim().slice(0, 2000) || null : null,
     buttonText: type === 'text' ? clean(b.buttonText, 80) || null : null,
     buttonLink: type === 'text' ? safeLink(b.buttonLink) : null,
@@ -548,14 +554,20 @@ function validDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function pxSize(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(1600, Math.max(60, Math.round(n)));
+}
+
 async function insertMarketingPopup(client, b, actorId) {
   const p = popupPayload(b);
   if (p.type === 'text' && p.title.length < 2) fail('Informe um título para o pop-up de texto.');
   if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
   const result = await client.query(
-    `INSERT INTO public.marketing_popups(title,type,target_page,image_url,image_link,image_alt,description,button_text,button_link,active,delay_seconds,dismiss_hours,starts_at,ends_at,created_by)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
-    [p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
+    `INSERT INTO public.marketing_popups(title,type,target_page,image_url,image_link,image_alt,image_width,image_height,description,button_text,button_link,active,delay_seconds,dismiss_hours,starts_at,ends_at,created_by)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+    [p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.imageWidth, p.imageHeight, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt, actorId],
   );
   return result.rows[0];
 }
@@ -566,9 +578,9 @@ async function updateMarketingPopup(client, id, b) {
   if (p.type === 'image' && !p.imageUrl) fail('Informe a URL da imagem para o pop-up de imagem.');
   return client.query(
     `UPDATE public.marketing_popups SET
-       title=$2,type=$3,target_page=$4,image_url=$5,image_link=$6,image_alt=$7,description=$8,button_text=$9,button_link=$10,
-       active=$11,delay_seconds=$12,dismiss_hours=$13,starts_at=$14,ends_at=$15,updated_at=NOW()
+       title=$2,type=$3,target_page=$4,image_url=$5,image_link=$6,image_alt=$7,image_width=$8,image_height=$9,description=$10,button_text=$11,button_link=$12,
+       active=$13,delay_seconds=$14,dismiss_hours=$15,starts_at=$16,ends_at=$17,updated_at=NOW()
      WHERE id=$1 RETURNING *`,
-    [id, p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt],
+    [id, p.title, p.type, p.targetPage, p.imageUrl, p.imageLink, p.imageAlt, p.imageWidth, p.imageHeight, p.description, p.buttonText, p.buttonLink, p.active, p.delaySeconds, p.dismissHours, p.startsAt, p.endsAt],
   );
 }

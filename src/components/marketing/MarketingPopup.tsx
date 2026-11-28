@@ -8,6 +8,8 @@ type Popup = {
   image_url?: string | null;
   image_link?: string | null;
   image_alt?: string | null;
+  image_width?: number | null;
+  image_height?: number | null;
   description?: string | null;
   button_text?: string | null;
   button_link?: string | null;
@@ -104,7 +106,15 @@ export default function MarketingPopup() {
         {popup.type === 'image' ? (
           <a {...linkProps(popup.image_link)} className="block" onClick={popup.image_link ? undefined : close}>
             {popup.image_url ? (
-              <img src={popup.image_url} alt={popup.image_alt || popup.title || 'Promoção'} className="h-56 w-full object-cover" />
+              <img
+                src={popup.image_url}
+                alt={popup.image_alt || popup.title || 'Promoção'}
+                className="mx-auto block w-auto max-w-full object-contain"
+                style={{
+                  width: popup.image_width ? `${popup.image_width}px` : undefined,
+                  maxHeight: popup.image_height ? `${popup.image_height}px` : '75vh',
+                }}
+              />
             ) : null}
           </a>
         ) : (
